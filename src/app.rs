@@ -1,51 +1,78 @@
 use std::error;
-
+use tui::widgets::{ListItem, ListState};
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
 /// Application.
 #[derive(Debug)]
-pub struct App {
+pub struct App<'a> {
     /// Is the application running?
     pub running: bool,
     pub cursor: usize,
-    pub selected: Option<Item>,
-    pub items: Vec<Item>,
+    pub current_screen: Screen,
+    pub selected: Option<ListItem<'a>>,
+    pub items: Vec<ListItem<'a>>,
+    pub state: Option<ListState>,
 }
 
-#[derive(Debug, Clone)]
-pub struct Item {
-    pub value: &'static str,      // Name of selection
-    pub index: usize,             // Index of selection on the screen
-    pub screen: usize,            // Which screen our selection will bring us to
-    pub children: Vec<Box<Item>>, // Children of the selection
+#[derive(Debug, PartialEq)]
+pub enum Screen {
+    Home,
+    Command(Command),
+    Keys,
+    Saved,
 }
-impl Item {
-    pub fn new(value: &'static str, index: usize, screen: usize) -> Self {
-        Self {
-            value,
-            index,
-            screen,
-            children: Vec::new(),
+
+impl Screen {
+    pub fn default() -> Self {
+        Screen::Home
+    }
+    pub fn to_string(&self) -> String {
+        match self {
+            Screen::Home => "Home",
+            Screen::Command(_) => "Command",
+            Screen::Keys => "Keys",
+            Screen::Saved => "Saved",
         }
-    }
-    pub fn add_child(&mut self, child: Item) {
-        self.children.push(Box::new(child));
+        .to_string()
     }
 }
 
-impl Default for App {
+#[derive(Debug, PartialEq)]
+pub enum Command {
+    Curl,
+    Wget,
+    Custom,
+}
+
+impl Command {
+    pub fn default() -> Self {
+        Command::Curl
+    }
+    pub fn to_string(&self) -> String {
+        match self {
+            Command::Curl => "Curl",
+            Command::Wget => "Wget",
+            Command::Custom => "Custom",
+        }
+        .to_string()
+    }
+}
+
+impl<'a> Default for App<'a> {
     fn default() -> Self {
         Self {
+            current_screen: Screen::Home,
             running: true,
             cursor: 0,
             selected: None,
-            items: Vec::new(),
+            items: vec![],
+            state: None,
         }
     }
 }
 
-impl App {
+impl<'a> App<'a> {
     /// Constructs a new instance of [`App`].
     pub fn new() -> Self {
         Self::default()
@@ -58,24 +85,28 @@ impl App {
     }
 
     pub fn move_cursor_down(&mut self) {
+        if self.items.len() == 0 || self.cursor >= self.items.len() {
+            return;
+        }
         if let Some(res) = self.cursor.checked_add(1) {
             self.cursor = res;
         }
     }
 
     pub fn move_cursor_up(&mut self) {
+        if self.items.len() == 0 {
+            return;
+        }
         if let Some(res) = self.cursor.checked_sub(1) {
             self.cursor = res;
         }
     }
 
-    pub fn remove_selection(&mut self) {
-        if let Some(selection) = &self.selected {
-            self.items.remove(selection.index);
-        }
-    }
-
     pub fn select_item(&mut self) {
-        self.selected = Some(self.items[self.cursor].clone());
+        if let Some(item) = self.items.get_mut(self.cursor).cloned() {
+            self.selected = Some(item)
+        } else {
+            self.selected = None
+        }
     }
 }

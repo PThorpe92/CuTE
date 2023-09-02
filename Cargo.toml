@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 crossterm = "0.26.1"
 tui = { package = "ratatui", version = "0.21.0" }
+tui-widget-list = "0.2.2"

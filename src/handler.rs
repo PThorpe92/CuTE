@@ -21,6 +21,15 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
         KeyCode::Down => {
             app.move_cursor_down();
         }
+        KeyCode::Enter => {
+            app.select_item();
+        }
+        KeyCode::Char('j') => {
+            app.move_cursor_down();
+        }
+        KeyCode::Char('k') => {
+            app.move_cursor_up();
+        }
 
         _ => {}
     }

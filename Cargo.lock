@@ -19,7 +19,8 @@ name = "cURLtui-rs"
 version = "0.1.0"
 dependencies = [
  "crossterm",
- "ratatui",
+ "ratatui 0.21.0",
+ "tui-widget-list",
 ]
 
 [[package]]
@@ -121,6 +122,19 @@ dependencies = [
 
 [[package]]
 name = "ratatui"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcc0d032bccba900ee32151ec0265667535c230169f5a011154cdcd984e16829"
+dependencies = [
+ "bitflags",
+ "cassowary",
+ "crossterm",
+ "unicode-segmentation",
+ "unicode-width",
+]
+
+[[package]]
+name = "ratatui"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce841e0486e7c2412c3740168ede33adeba8e154a15107b879d8162d77c7174e"
@@ -182,6 +196,16 @@ name = "smallvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
+
+[[package]]
+name = "tui-widget-list"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e06dbcd876f84929a9d00589c71d43e097ecdd5f775bdb5c843ce71cfc441a7"
+dependencies = [
+ "crossterm",
+ "ratatui 0.20.1",
+]
 
 [[package]]
 name = "unicode-segmentation"
