@@ -1,6 +1,7 @@
 use crate::Request;
 use reqwest::Response;
-use std::process::Command;
+use std::io::Read;
+use std::process::{Command, Stdio};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Curl {
@@ -113,7 +114,7 @@ impl Curl {
             }),
             CurlFlag::ProxyTunnel(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::ProxyTunnel),
-                value: None,
+                value: Some(String::from(value.expect("Proxy tunnel info not provided"))),
             }),
             CurlFlag::PreventDefaultConfig(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::PreventDefaultConfig),
@@ -134,32 +135,48 @@ impl Curl {
         }
         self.opts.push(Flag { flag, value });
     }
-    pub fn execute_command(&mut self) {
+
+    pub fn execute_command(&self) -> Result<&str, std::io::Error> {
         let mut output = Command::new("curl");
-        // Add our flags to the command
-        self.opts.into_iter().map(|f| {
-            // if our flag has an argument, add it to the command
-            output.arg(f.flag.get_value().as_str());
-            if let Some(argument) = f.value {
+
+        // Add the curl flags to the command
+        for flag in &self.opts {
+            output.arg(flag.flag.get_value());
+            if let Some(argument) = &flag.value {
                 output.arg(argument);
             }
-        });
-        output.arg(self.req.url.as_str());
+        }
 
-        // As long as the choices were presented to the user in the proper order,
-        // adding each command line flag with it's value/arg at a time should
-        // result in a valid command
+        output.arg(&self.req.url).stdout(Stdio::piped());
 
-        // Check if the command was successful
-        if output.status().unwrap().success() {
-            // Convert the stdout bytes to a string
-            let response = String::from_utf8_lossy(&output.stdout);
+        // Spawn the command and capture its output
+        let child = output.spawn()?;
+
+        // Wait for the command to complete
+        let status = child.wait()?;
+
+        if status.success() {
+            // If the command was successful, read and return the output
+            let mut output_str = String::new();
+            if let Some(mut stdout) = child.stdout {
+                stdout.read_to_string(&mut output_str)?;
+            }
+            Ok(output_str.as_str())
+        } else {
+            // Handle the case when the command fails
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Command failed with {:?}", status),
+            ))
         }
     }
 }
 
-// So Curl.opts can each have the string value of the flag stored with it's enum,
-// and have the value passed to the command line stored in this struct field
+// curl.opts  =  Vec<Flag>  =  vec!["--cert-type", "PEM"] so flag / argument
+// but we dont want to have to provide/remember the "-X"(flag) so we store it in the enum
+// We may have "--verbose" which is a flag with no value
+// But each enum variant has the default flag stored as a static string, so we can use that
+// to build the command incrementally by just providing the argument value when we create the flag.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Flag {
     pub flag: CurlFlag,
