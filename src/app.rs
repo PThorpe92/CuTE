@@ -44,7 +44,6 @@ pub enum Command {
     Wget,
     Custom,
 }
-
 impl Command {
     pub fn default() -> Self {
         Command::Curl
