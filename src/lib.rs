@@ -1,4 +1,5 @@
 use reqwest::{Client, Method};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -22,6 +23,9 @@ pub mod curl;
 
 // Wget command builder
 pub mod wget;
+
+// Response parser
+pub mod response;
 
 pub static GET: &str = "GET";
 pub static POST: &str = "POST";
@@ -172,17 +176,7 @@ pub enum Auth {
     AnyAuth,
     Basic(String),
     Bearer(String),
-    Digest {
-        username: String,
-        password: String,
-        realm: String,
-        nonce: String,
-        qop: String,
-        nc: String,
-        cnonce: String,
-        uri: String,
-        method: String,
-    },
+    Digest(DigestAuth),
     Custom(String),
     Ntlm(String),
     Spnego(String),
@@ -226,15 +220,15 @@ impl DigestAuth {
     // so it seems an auth.rs file is in order... or a response.rs file and we can handle all the
     // response parsing there.
 
-    pub fn from_headers(headers: Vec<(&str, &str)>) -> Self {
+    pub fn from_headers(headers: HashMap<String, String>) -> Self {
         let mut realm = String::new();
         let mut nonce = String::new();
         let mut qop = String::new();
         let mut nc = String::new();
         let mut cnonce = String::new();
         let mut uri = String::new();
-        for (key, value) in headers {
-            match key {
+        for (key, value) in headers.iter() {
+            match key.as_str() {
                 "realm" => realm = value.to_string(),
                 "nonce" => nonce = value.to_string(),
                 "qop" => qop = value.to_string(),
@@ -269,7 +263,7 @@ impl Auth {
             "basic" => Ok(Auth::Basic(info.to_string())),
             "bearer" => Ok(Auth::Bearer(info.to_string())),
             "digest" => match digest {
-                Some(digest) => Ok(Auth::Digest {
+                Some(digest) => Ok(Auth::Digest(DigestAuth {
                     username: digest.username,
                     password: digest.password,
                     realm: digest.realm,
@@ -279,7 +273,7 @@ impl Auth {
                     cnonce: digest.cnonce,
                     uri: digest.uri,
                     method: digest.method,
-                }),
+                })),
                 None => Err("Digest authentication requires a username and password".to_string()),
             },
             "custom" => Ok(Auth::Custom(info.to_string())),
