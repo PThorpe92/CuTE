@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct Response {
     pub status: u16,
     pub headers: HashMap<String, String>,

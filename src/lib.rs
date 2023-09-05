@@ -1,4 +1,5 @@
 use reqwest::{Client, Method};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -37,14 +38,14 @@ pub static OPTIONS: &str = "OPTIONS";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
-    pub cmd: CmdType,                                       // curl, wget, custom
-    pub req_type: &'static str,                             // get, post, put, delete
-    pub url: &'static str,                                  // the url to send the request to
-    pub headers: Option<Vec<(&'static str, &'static str)>>, // header collection in (key, value) pairs
-    pub body: Option<&'static str>,                         // the body to send
-    pub timeout: u32,                                       // how long to wait for a response
-    pub auth: Auth,                                         // basic, bearer, digest, custom
-    pub output: Option<&'static str>,                       // where to write the output
+    pub cmd: CmdType,                           // curl, wget, custom
+    pub req_type: &'static str,                 // get, post, put, delete
+    pub url: &'static str,                      // the url to send the request to
+    pub headers: Option<Vec<(String, String)>>, // header collection in (key, value) pairs
+    pub body: Option<&'static str>,             // the body to send
+    pub timeout: u32,                           // how long to wait for a response
+    pub auth: Auth,                             // basic, bearer, digest, custom
+    pub output: Option<&'static str>,           // where to write the output
 }
 
 impl Request {
@@ -53,10 +54,13 @@ impl Request {
         Request {
             cmd: CmdType::Curl,
             req_type: GET,
-            url,
+            url: Box::leak(String::from(url).into_boxed_str()),
             headers: Some(vec![
-                ("User-Agent", "Curl"),
-                ("Content-Type", "application/json"),
+                (String::from("User-Agent"), String::from("Curl")),
+                (
+                    String::from("Content-Type"),
+                    String::from("application/json"),
+                ),
             ]),
             body: None,
             timeout: 30,
@@ -68,7 +72,7 @@ impl Request {
         cmd: CmdType,
         req_type: &'static str,
         url: &'static str,
-        headers: Option<Vec<(&'static str, &'static str)>>,
+        headers: Option<Vec<(String, String)>>,
         body: Option<&'static str>,
         timeout: u32,
         auth: Auth,
@@ -88,26 +92,10 @@ impl Request {
     pub fn add_url(&mut self, url: &'static str) {
         self.url = url;
     }
-    pub fn add_headers(&mut self, headers: Vec<(&'static str, &'static str)>) {
+    pub fn add_headers(&mut self, headers: Vec<(String, String)>) {
         self.headers = Some(headers);
     }
-    pub fn add_auth(&mut self, auth: Auth) {
-        match auth {
-            AnyAuth => self.auth = Auth::AnyAuth,
-            // val in this case should be "username:password" string
-            Auth::Basic(username_pwd) => {
-                self.auth = Auth::Basic(username_pwd);
-                self.add_headers(vec![("Authorization", "Basic")]);
-                self.add_headers(vec![(username_pwd.as_str(), "")]);
-            }
-            Auth::Bearer(token) => {
-                self.auth = Auth::Bearer(token);
-                self.add_headers(vec![("Bearer: token", token.as_str())])
-            }
-            Auth::Digest(val) => {} // skip this for now...
-            Auth::Custom(val) => self.auth = Auth::Custom(val),
-        }
-    }
+
     pub async fn send_request(&self) -> Result<(), reqwest::Error> {
         // Create a reqwest Client
         let client = Client::new();
@@ -127,23 +115,15 @@ impl Request {
         // Set headers
         if let Some(headers) = &self.headers {
             for (key, value) in headers {
-                request = request.header(*key, *value);
+                request = request.header(key, value);
             }
         }
 
         // Set authentication
-        match self.auth {
+        match &self.auth {
             Auth::Basic(val) => {
                 // Implement basic authentication
-            }
-            "bearer" => {
-                // Implement bearer authentication
-            }
-            "digest" => {
-                // Implement digest authentication
-            }
-            "custom" => {
-                // Implement custom authentication
+                request = request.basic_auth(val, Some(""));
             }
             _ => {}
         }
@@ -256,7 +236,7 @@ impl Auth {
     pub fn new(
         auth: &str,
         info: &str,
-        pos: Option<&str>,
+        //pos: Option<&str>,
         digest: Option<DigestAuth>,
     ) -> Result<Auth, String> {
         match auth {

@@ -38,7 +38,7 @@ impl Screen {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     Curl,
     Wget,

@@ -1,4 +1,6 @@
+use crate::curl::Flag;
+
 pub struct Wget {
     pub cmd: &'static str,
-    pub opts: Vec<WgetFlags>,
+    pub opts: Vec<Flag>,
 }

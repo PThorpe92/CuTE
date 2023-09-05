@@ -1,5 +1,4 @@
 use crate::Request;
-use reqwest::Response;
 use std::io::Read;
 use std::process::{Command, Stdio};
 
@@ -23,7 +22,7 @@ impl Curl {
     pub fn add_flag(&mut self, flag: CurlFlag, value: Option<String>) {
         match flag {
             CurlFlag::Verbose(_) => self.opts.push(Flag {
-                flag: CurlFlag::Verbose(String::from("-v")),
+                flag: CurlFlag::new(None, CurlFlagType::Verbose),
                 value: None,
             }),
             CurlFlag::AnyAuth(_) => self.opts.push(Flag {
@@ -35,30 +34,34 @@ impl Curl {
                 value: None,
             }),
             CurlFlag::Output(_) => self.opts.push(Flag {
-                flag: CurlFlag::Output(String::from("-o")),
-                value: Some(String::from(value.expect("Output file not provided"))),
+                flag: CurlFlag::new(None, CurlFlagType::Output),
+                value: Some(String::from(
+                    value.clone().expect("Output file not provided"),
+                )),
             }),
             CurlFlag::Trace(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Trace),
                 value: Some(String::from(
-                    value.expect("File to write trace info to not provided"),
+                    value
+                        .clone()
+                        .expect("File to write trace info to not provided"),
                 )),
             }),
             CurlFlag::DataUrlEncode(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::DataUrlEncode),
                 value: Some(String::from(
-                    value.expect("Data to url encode not provided"),
+                    value.clone().expect("Data to url encode not provided"),
                 )),
             }),
             CurlFlag::DumpHeaders(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::DumpHeaders),
                 value: Some(String::from(
-                    value.expect("File to dump headers to not provided"),
+                    value.clone().expect("File to dump headers to not provided"),
                 )),
             }),
             CurlFlag::Referrer(_) => self.opts.push(Flag {
-                flag: CurlFlag::Referrer(String::from("-e")),
-                value: Some(String::from(value.expect("Referrer not provided"))),
+                flag: CurlFlag::new(None, CurlFlagType::Referrer),
+                value: Some(String::from(value.clone().expect("Referrer not provided"))),
             }),
             CurlFlag::Insecure(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Insecure),
@@ -66,29 +69,41 @@ impl Curl {
             }),
             CurlFlag::User(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::User),
-                value: Some(String::from(value.expect("username:password not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("username:password not provided"),
+                )),
             }),
             CurlFlag::Bearer(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Bearer),
-                value: Some(String::from(value.expect("Bearer token not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("Bearer token not provided"),
+                )),
             }),
             CurlFlag::Digest(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Digest),
                 value: Some(String::from(
-                    value.expect("Initial digest request header not provided"),
+                    value
+                        .clone()
+                        .expect("Initial digest request header not provided"),
                 )),
             }),
             CurlFlag::Basic(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Basic),
-                value: Some(String::from(value.expect("username:password not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("username:password not provided"),
+                )),
             }),
             CurlFlag::Socks5(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Socks5),
-                value: Some(String::from(value.expect("Socks5 info not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("Socks5 info not provided"),
+                )),
             }),
             CurlFlag::CaCert(_) => self.opts.push(Flag {
-                flag: CurlFlag::CaCert(String::from("--cacert")),
-                value: Some(String::from(value.expect("Certificate not provided"))),
+                flag: CurlFlag::new(None, CurlFlagType::CaCert),
+                value: Some(String::from(
+                    value.clone().expect("Certificate not provided"),
+                )),
             }),
             CurlFlag::CaNative(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::CaNative),
@@ -96,11 +111,13 @@ impl Curl {
             }),
             CurlFlag::File(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::File),
-                value: Some(String::from(value.expect("File not provided"))),
+                value: Some(String::from(value.clone().expect("File not provided"))),
             }),
             CurlFlag::FtpAccount(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::FtpAccount),
-                value: Some(String::from(value.expect("FTP account not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("FTP account not provided"),
+                )),
             }),
             CurlFlag::FtpSsl(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::FtpSsl),
@@ -109,12 +126,14 @@ impl Curl {
             CurlFlag::CaPath(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::CaPath),
                 value: Some(String::from(
-                    value.expect("Directory for CaPath not provided"),
+                    value.clone().expect("Directory for CaPath not provided"),
                 )),
             }),
             CurlFlag::ProxyTunnel(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::ProxyTunnel),
-                value: Some(String::from(value.expect("Proxy tunnel info not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("Proxy tunnel info not provided"),
+                )),
             }),
             CurlFlag::PreventDefaultConfig(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::PreventDefaultConfig),
@@ -122,21 +141,27 @@ impl Curl {
             }),
             CurlFlag::UnixSocket(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::UnixSocket),
-                value: Some(String::from(value.expect("Socket info not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("Socket info not provided"),
+                )),
             }),
             CurlFlag::UploadFile(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::UploadFile),
-                value: Some(String::from(value.expect("Upload file value not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("Upload file value not provided"),
+                )),
             }),
             CurlFlag::Proxy(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Proxy),
-                value: Some(String::from(value.expect("Proxy value not provided"))),
+                value: Some(String::from(
+                    value.clone().expect("Proxy value not provided"),
+                )),
             }),
         }
         self.opts.push(Flag { flag, value });
     }
 
-    pub fn execute_command(&self) -> Result<&str, std::io::Error> {
+    pub fn execute_command(&self) -> Result<String, std::io::Error> {
         let mut output = Command::new("curl");
 
         // Add the curl flags to the command
@@ -150,7 +175,7 @@ impl Curl {
         output.arg(&self.req.url).stdout(Stdio::piped());
 
         // Spawn the command and capture its output
-        let child = output.spawn()?;
+        let mut child = output.spawn()?;
 
         // Wait for the command to complete
         let status = child.wait()?;
@@ -160,8 +185,13 @@ impl Curl {
             let mut output_str = String::new();
             if let Some(mut stdout) = child.stdout {
                 stdout.read_to_string(&mut output_str)?;
+                Ok(output_str)
+            } else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Failed to capture standard output",
+                ));
             }
-            Ok(output_str.as_str())
         } else {
             // Handle the case when the command fails
             Err(std::io::Error::new(
@@ -202,39 +232,39 @@ macro_rules! define_curl_flags {
         }
 
         #[derive(Debug, Clone, PartialEq)]
-        enum CurlFlagType {
+        pub enum CurlFlagType {
             $( $variant, )*
         }
     };
 }
 impl CurlFlag {
     pub fn get_value(&self) -> String {
-        match *self {
-            CurlFlag::Verbose(val) => val,
-            CurlFlag::Output(val) => val,
-            CurlFlag::User(val) => val,
-            CurlFlag::Bearer(val) => val,
-            CurlFlag::Digest(val) => val,
-            CurlFlag::Basic(val) => val,
-            CurlFlag::AnyAuth(val) => val,
-            CurlFlag::UnixSocket(val) => val,
-            CurlFlag::UploadFile(val) => val,
-            CurlFlag::Ntlm(val) => val,
-            CurlFlag::Proxy(val) => val,
-            CurlFlag::ProxyTunnel(val) => val,
-            CurlFlag::Socks5(val) => val,
-            CurlFlag::File(val) => val,
-            CurlFlag::FtpAccount(val) => val,
-            CurlFlag::FtpSsl(val) => val,
-            CurlFlag::Trace(val) => val,
-            CurlFlag::DataUrlEncode(val) => val,
-            CurlFlag::DumpHeaders(val) => val,
-            CurlFlag::Referrer(val) => val,
-            CurlFlag::Insecure(val) => val,
-            CurlFlag::PreventDefaultConfig(val) => val,
-            CurlFlag::CaCert(val) => val,
-            CurlFlag::CaNative(val) => val,
-            CurlFlag::CaPath(val) => val,
+        match self {
+            CurlFlag::Verbose(val) => val.clone(),
+            CurlFlag::Output(val) => val.clone(),
+            CurlFlag::User(val) => val.clone(),
+            CurlFlag::Bearer(val) => val.clone(),
+            CurlFlag::Digest(val) => val.clone(),
+            CurlFlag::Basic(val) => val.clone(),
+            CurlFlag::AnyAuth(val) => val.clone(),
+            CurlFlag::UnixSocket(val) => val.clone(),
+            CurlFlag::UploadFile(val) => val.clone(),
+            CurlFlag::Ntlm(val) => val.clone(),
+            CurlFlag::Proxy(val) => val.clone(),
+            CurlFlag::ProxyTunnel(val) => val.clone(),
+            CurlFlag::Socks5(val) => val.clone(),
+            CurlFlag::File(val) => val.clone(),
+            CurlFlag::FtpAccount(val) => val.clone(),
+            CurlFlag::FtpSsl(val) => val.clone(),
+            CurlFlag::Trace(val) => val.clone(),
+            CurlFlag::DataUrlEncode(val) => val.clone(),
+            CurlFlag::DumpHeaders(val) => val.clone(),
+            CurlFlag::Referrer(val) => val.clone(),
+            CurlFlag::Insecure(val) => val.clone(),
+            CurlFlag::PreventDefaultConfig(val) => val.clone(),
+            CurlFlag::CaCert(val) => val.clone(),
+            CurlFlag::CaNative(val) => val.clone(),
+            CurlFlag::CaPath(val) => val.clone(),
         }
     }
 }
