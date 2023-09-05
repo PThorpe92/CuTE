@@ -1,13 +1,28 @@
 use crate::app::Screen;
 use tui::{
     backend::Backend,
-    layout::{Alignment, Rect},
+    layout::{Alignment, Constraint, Rect},
     style::{Color, Modifier, Style},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
 
 use crate::app::{App, Command};
+pub static MAIN_MENU_OPTIONS: [&str; 5] = [
+    "Build and run a new cURL command\n  \n",
+    "Build and run a new wget command\n  \n",
+    "Build/send new custom HTTP request\n  \n",
+    "View my stored API keys\n  \n",
+    "View or execute my saved commands\n  \n",
+];
+pub static COMMAND_MENU_OPTIONS: [&str; 6] = [
+    "Choose an HTTP method:",
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "PATCH",
+];
 
 /// Renders the user interface widgets.
 pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -28,6 +43,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         _ => {}
     }
 }
+
 pub fn render_home<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let choices = [
         ListItem::new("Build and run a new cURL command\n  \n"),
@@ -42,7 +58,7 @@ pub fn render_home<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         .style(Style::default().fg(Color::White))
         .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
         .highlight_symbol("->");
-    let area = Rect::new(0, 0, 40, 10);
+    let area = centered_rect(70, 60, frame.size());
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
@@ -76,7 +92,7 @@ pub fn render_command_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, 
                 ListItem::new("HEAD"),
                 ListItem::new("OPTIONS"),
             ];
-            let area = Rect::new(0, 0, 40, 10);
+            let area = centered_rect(70, 60, frame.size());
             let new_list = List::new(choices)
                 .block(Block::default().title("List").borders(Borders::ALL))
                 .style(Style::default().fg(Color::White))
@@ -114,7 +130,7 @@ pub fn render_command_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, 
                 ListItem::new("HEAD"),
                 ListItem::new("OPTIONS"),
             ];
-            let area = Rect::new(0, 0, 40, 10);
+            let area = centered_rect(70, 60, frame.size());
             let new_list = List::new(choices)
                 .block(Block::default().title("List").borders(Borders::ALL))
                 .style(Style::default().fg(Color::White))
@@ -152,7 +168,7 @@ pub fn render_command_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, 
                 ListItem::new("HEAD"),
                 ListItem::new("OPTIONS"),
             ];
-            let area = Rect::new(0, 0, 40, 10);
+            let area = centered_rect(70, 60, frame.size());
             let new_list = List::new(choices)
                 .block(
                     Block::default()
@@ -193,7 +209,7 @@ pub fn render_keys_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         ListItem::new("Remove an API Key from database:\n \n"),
         ListItem::new("View my saved cURL or wget commands\n \n"),
     ];
-    let area = Rect::new(0, 0, 40, 10);
+    let area = centered_rect(70, 50, frame.size());
     let new_list = List::new(choices)
         .block(Block::default().title("List").borders(Borders::ALL))
         .style(Style::default().fg(Color::White))
@@ -220,4 +236,30 @@ pub fn render_keys_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         .alignment(Alignment::Center),
         frame.size(),
     )
+}
+// Helper func from ratatui exmaples
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = tui::layout::Layout::default()
+        .direction(tui::layout::Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    tui::layout::Layout::default()
+        .direction(tui::layout::Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }
