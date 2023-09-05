@@ -1,3 +1,5 @@
+![image](https://github.com/PThorpe92/curl-tui-rs/assets/121899304/69756e3b-e334-4086-b8f8-a85ca0317ba3)
+
 # Rust TUI HTTP Client with API Key Management
 
 
