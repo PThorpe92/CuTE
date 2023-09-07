@@ -10,7 +10,7 @@ pub struct App<'a> {
     pub running: bool,
     pub cursor: usize,
     pub current_screen: Screen,
-    pub selected: Option<ListItem<'a>>,
+    pub selected: Option<usize>,
     pub items: Vec<ListItem<'a>>,
     pub state: Option<ListState>,
 }
@@ -102,10 +102,17 @@ impl<'a> App<'a> {
     }
 
     pub fn select_item(&mut self) {
-        if let Some(item) = self.items.get_mut(self.cursor).cloned() {
-            self.selected = Some(item)
-        } else {
-            self.selected = None
+        // NOTES:
+        // All we are doing by getting the 'state' is to be able to set the selected list item
+        // but that doesn't do us any good... as a ListItem just contains some text which we can't
+        // match, We really only need the index of the selected item, so by hitting the enter key,
+        //we can just store the usize index of the "selected" item, and match that to decide
+        // what to do next on a screen by screen basis.
+
+        let state = self.state.as_mut().unwrap();
+        if let Some(selected) = state.selected() {
+            // ^^^ returns usize index
+            self.selected = Some(selected);
         }
     }
 }
