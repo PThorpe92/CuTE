@@ -1,26 +1,51 @@
-use crate::Request;
 use std::io::Read;
 use std::process::{Command, Stdio};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Curl {
-    pub cmd: &'static str,          // The final command string we will run
-    pub opts: Vec<Flag>,            // The opts we will build incrementally and store
-    pub req: Request,               // The final request we will make
-    pub resp: Option<&'static str>, // The response we get back from the command if not sent to file
+pub struct Curl<'a> {
+    pub cmd: String,           // The final command string we will run
+    pub opts: Vec<Flag>,       // The opts we will build incrementally and store
+    pub resp: Option<&'a str>, // The response we get back from the command if not sent to file
 }
-
-impl Curl {
-    pub fn default(url: &str) -> Self {
+// No need to have a request field, we can just build the command incrementally
+impl Curl<'_> {
+    pub fn new() -> Self {
         Self {
-            cmd: "curl",
+            cmd: String::from("curl"),
             opts: Vec::new(),
-            req: Request::default(url),
             resp: None,
         }
     }
+
+    pub fn default(url: &str) -> Self {
+        let mut self_ = Self {
+            cmd: String::from("curl"),
+            opts: Vec::new(),
+            resp: None,
+        };
+        self_.add_flag(
+            CurlFlag::new(None, CurlFlagType::Method),
+            Some("GET".to_string()),
+        );
+        self_.add_url(url);
+        self_
+    }
+
+    pub fn add_url(&mut self, url: &str) {
+        let current_cmd = self.cmd.clone();
+        self.cmd = format!("{} {}", current_cmd, url);
+    }
+
     pub fn add_flag(&mut self, flag: CurlFlag, value: Option<String>) {
         match flag {
+            CurlFlag::Method(_) => {
+                if let Some(val) = value.clone() {
+                    self.opts.push(Flag {
+                        flag: CurlFlag::new(None, CurlFlagType::Method),
+                        value: Some(val).clone(),
+                    });
+                }
+            }
             CurlFlag::Verbose(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Verbose),
                 value: None,
@@ -172,8 +197,6 @@ impl Curl {
             }
         }
 
-        output.arg(&self.req.url).stdout(Stdio::piped());
-
         // Spawn the command and capture its output
         let mut child = output.spawn()?;
 
@@ -265,12 +288,14 @@ impl CurlFlag {
             CurlFlag::CaCert(val) => val.clone(),
             CurlFlag::CaNative(val) => val.clone(),
             CurlFlag::CaPath(val) => val.clone(),
+            CurlFlag::Method(val) => val.clone(),
         }
     }
 }
 // Define the CurlFlag enum using the macro.
 define_curl_flags! {
     Verbose("-v"),
+    Method("-X"),
     Output("-o"),
     User("-u"),
     Bearer("-H"),
