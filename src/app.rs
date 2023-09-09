@@ -1,5 +1,8 @@
 use std::error;
-use tui::widgets::{ListItem, ListState};
+use tui::{
+    style::{Color, Modifier, Style},
+    widgets::{Block, Borders, List, ListItem, ListState},
+};
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -15,24 +18,151 @@ pub struct App<'a> {
     pub state: Option<ListState>,
 }
 
+pub static CURL_MENU_OPTIONS: [&str; 7] = [
+    "Add a URL\n \n",
+    "Add Authentication\n \n",
+    "Add Headers\n \n",
+    "Enable verbose output\n \n",
+    "Specify request output file\n \n",
+    "Add Request Body\n \n",
+    "Execute command\n \n",
+];
+
+pub static WGET_MENU_OPTIONS: [&str; 8] = [
+    "Add a URL\n \n",
+    "Add Authentication\n \n ",
+    "Add Headers\n \n",
+    "Enable verbose output\n \n",
+    "Specify download output file\n \n",
+    "Specify recursive download\n \n",
+    "Add Request Body\n \n",
+    "Execute command\n \n",
+];
+
+pub static COMMAND_MENU_OPTIONS: [&str; 6] = [
+    "Choose an HTTP method:\n \n",
+    "GET\n \n",
+    "POST\n \n",
+    "PUT\n \n",
+    "DELETE\n \n",
+    "PATCH\n \n",
+];
+
+pub static HTTP_MENU_OPTIONS: [&str; 6] = [
+    "Add a URL\n \n",
+    "Authentication\n \n",
+    "Add Headers\n \n",
+    "Specify response output file\n \n ",
+    "Add Request Body\n \n",
+    "Send Request \n \n",
+];
+
+pub static MAIN_MENU_OPTIONS: [&str; 5] = [
+    "Build and run a new cURL command\n  \n",
+    "Build and run a new wget command\n  \n",
+    "Build/send new custom HTTP request\n  \n",
+    "View my stored API keys\n  \n",
+    "View or execute my saved commands\n  \n",
+];
+
+// TODO: keys and saved commands menus
+// Filler for now until these are implemented:
+// obviously we need to be fetching these from the db
+pub static API_KEY_MENU_OPTIONS: [&str; 3] = [
+    "Add a new key\n \n",
+    "View my keys\n \n",
+    "Delete a key\n \n",
+];
+pub static SAVED_COMMAND_OPTIONS: [&str; 3] = [
+    "Add a new saved command\n \n",
+    "View my saved commands\n \n",
+    "Delete a saved command\n \n",
+];
+
 #[derive(Debug, PartialEq)]
 pub enum Screen {
     Home,
     Command(Command),
+    Curl,
+    Wget,
+    Custom,
     Keys,
     Saved,
 }
 
-impl Screen {
+impl<'a> Screen {
     pub fn default() -> Self {
         Screen::Home
     }
+
+    pub fn get_opts(&self) -> Vec<ListItem<'a>> {
+        match &self {
+            Screen::Home => {
+                return MAIN_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::Command(_) => {
+                return COMMAND_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::Keys => {
+                return API_KEY_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::Curl => {
+                return CURL_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::Wget => {
+                return WGET_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::Custom => {
+                return HTTP_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::Saved => {
+                return SAVED_COMMAND_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+        }
+    }
+
+    pub fn get_list(&self) -> List<'a> {
+        List::new(self.get_opts())
+            .block(
+                Block::default()
+                    .title(self.to_string().clone())
+                    .borders(Borders::ALL),
+            )
+            .style(Style::default().fg(Color::White))
+            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
+            .highlight_symbol("->")
+    }
+
     pub fn to_string(&self) -> String {
         match self {
-            Screen::Home => "Home",
+            Screen::Home => "Main Menu",
             Screen::Command(_) => "Command",
-            Screen::Keys => "Keys",
-            Screen::Saved => "Saved",
+            Screen::Keys => "My Saved API Keys",
+            Screen::Curl => "Curl",
+            Screen::Wget => "Wget",
+            Screen::Custom => "Custom HTTP Request",
+            Screen::Saved => "My Saved Commands",
         }
         .to_string()
     }
@@ -65,7 +195,7 @@ impl<'a> Default for App<'a> {
             running: true,
             cursor: 0,
             selected: None,
-            items: vec![],
+            items: Vec::from(Screen::Home.get_opts()),
             state: None,
         }
     }
