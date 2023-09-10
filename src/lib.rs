@@ -1,5 +1,4 @@
 use reqwest::{Client, Method};
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -37,62 +36,32 @@ pub static HEAD: &str = "HEAD";
 pub static OPTIONS: &str = "OPTIONS";
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Request {
-    pub cmd: CmdType,                           // curl, wget, custom
-    pub req_type: &'static str,                 // get, post, put, delete
-    pub url: &'static str,                      // the url to send the request to
-    pub headers: Option<Vec<(String, String)>>, // header collection in (key, value) pairs
-    pub body: Option<&'static str>,             // the body to send
-    pub timeout: u32,                           // how long to wait for a response
-    pub auth: Auth,                             // basic, bearer, digest, custom
-    pub output: Option<&'static str>,           // where to write the output
+pub struct Request<'a> {
+    pub method: &'a str,                          // get, post, put, delete
+    pub url: &'a str,                             // the url to send the request to
+    pub headers: Option<Vec<(&'a str, &'a str)>>, // header collection in (key, value) pairs
+    pub body: Option<&'a str>,                    // the body to send
+    pub timeout: u32,                             // how long to wait for a response
+    pub auth: Auth,                               // basic, bearer, digest, custom
+    pub output: Option<&'a str>,                  // where to write the output
 }
 
-impl Request {
-    // default method is GET
-    pub fn default(url: &str) -> Self {
+impl<'a> Request<'a> {
+    pub fn default() -> Self {
         Request {
-            cmd: CmdType::Curl,
-            req_type: GET,
-            url: Box::leak(String::from(url).into_boxed_str()),
-            headers: Some(vec![
-                (String::from("User-Agent"), String::from("Curl")),
-                (
-                    String::from("Content-Type"),
-                    String::from("application/json"),
-                ),
-            ]),
+            method: GET,
+            url: "",
+            headers: None,
             body: None,
             timeout: 30,
             auth: Auth::AnyAuth,
             output: None,
         }
     }
-    pub fn new(
-        cmd: CmdType,
-        req_type: &'static str,
-        url: &'static str,
-        headers: Option<Vec<(String, String)>>,
-        body: Option<&'static str>,
-        timeout: u32,
-        auth: Auth,
-        output: Option<&'static str>,
-    ) -> Self {
-        Request {
-            cmd,
-            req_type,
-            url,
-            headers,
-            body,
-            timeout,
-            auth,
-            output,
-        }
+    pub fn add_url(&mut self, url: &'a str) {
+        self.url = url.clone();
     }
-    pub fn add_url(&mut self, url: &'static str) {
-        self.url = url;
-    }
-    pub fn add_headers(&mut self, headers: Vec<(String, String)>) {
+    pub fn add_headers(&mut self, headers: Vec<(&'a str, &'a str)>) {
         self.headers = Some(headers);
     }
 
@@ -101,21 +70,19 @@ impl Request {
         let client = Client::new();
 
         // Create the request builder based on the request type
-        let mut request = match self.req_type.clone() {
+        let mut request = match self.method.clone() {
             "GET" => client.request(Method::GET, self.url),
             "POST" => client.request(Method::POST, self.url),
             "PUT" => client.request(Method::PUT, self.url),
             "DELETE" => client.request(Method::DELETE, self.url),
             "PATCH" => client.request(Method::PATCH, self.url),
-            "HEAD" => client.request(Method::HEAD, self.url),
-            "OPTIONS" => client.request(Method::OPTIONS, self.url),
             _ => client.request(Method::GET, self.url),
         };
 
         // Set headers
         if let Some(headers) = &self.headers {
             for (key, value) in headers {
-                request = request.header(key, value);
+                request = request.header(*key, *value);
             }
         }
 

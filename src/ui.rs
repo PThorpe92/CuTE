@@ -1,10 +1,13 @@
 use crate::app::Screen;
 use crate::app::{App, Command};
+use crate::curl::{Curl, CurlFlag, CurlFlagType};
+use crate::wget::Wget;
+use crate::{Request, DELETE, GET, PATCH, POST, PUT};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Rect},
-    style::{Color, Modifier, Style},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
+    style::{Color, Style},
+    widgets::{Block, BorderType, Borders, ListState, Paragraph},
     Frame,
 };
 
@@ -14,24 +17,24 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // See the following resources:
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui-org/ratatui/tree/master/examples
-    match &app.current_screen {
+    match &app.current_screen.clone() {
         Screen::Home => {
             render_home(app, frame);
             match app.selected {
                 Some(0) => {
-                    app.current_screen = Screen::Command(Command::Curl);
+                    app.goto_screen(Screen::Command(Command::Curl));
                     return;
                 }
                 Some(1) => {
-                    app.current_screen = Screen::Command(Command::Wget);
+                    app.goto_screen(Screen::Command(Command::Wget));
                     return;
                 }
                 Some(2) => {
-                    app.current_screen = Screen::Command(Command::Custom);
+                    app.goto_screen(Screen::Command(Command::Custom));
                     return;
                 }
                 Some(3) => {
-                    app.current_screen = Screen::Keys;
+                    app.goto_screen(Screen::Keys);
                     return;
                 }
                 Some(_) => {}
@@ -40,9 +43,125 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
         Screen::Command(cmd) => {
             render_command_menu(app, frame, cmd.clone());
+            app.command = Some(cmd.clone());
+            match app.selected.clone() {
+                Some(1) => {
+                    // GET
+                    match *cmd {
+                        Command::Curl => {
+                            let mut curl = Curl::new();
+                            curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(GET));
+                            app.goto_screen(Screen::CurlMenu(curl));
+                            return;
+                        }
+                        Command::Wget => {
+                            let wget = Wget::new(GET);
+                            app.goto_screen(Screen::WgetMenu(wget));
+                            return;
+                        }
+                        Command::Custom => {
+                            app.goto_screen(Screen::CustomMenu(Request::default()));
+                            return;
+                        }
+                    }
+                }
+                // POST
+                Some(2) => match *cmd {
+                    Command::Curl => {
+                        let mut curl = Curl::new();
+                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(POST));
+                        app.goto_screen(Screen::CurlMenu(curl));
+                        return;
+                    }
+                    Command::Wget => {
+                        let wget = Wget::new(POST);
+                        app.goto_screen(Screen::WgetMenu(wget));
+                        return;
+                    }
+                    Command::Custom => {
+                        app.goto_screen(Screen::CustomMenu(Request::default()));
+                        return;
+                    }
+                },
+                // PUT
+                Some(3) => match *cmd {
+                    Command::Curl => {
+                        let mut curl = Curl::new();
+                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(PUT));
+                        app.goto_screen(Screen::CurlMenu(curl));
+                        return;
+                    }
+                    Command::Wget => {
+                        let wget = Wget::new(PUT);
+                        app.goto_screen(Screen::WgetMenu(wget));
+                        return;
+                    }
+                    Command::Custom => {
+                        app.goto_screen(Screen::CustomMenu(Request::default()));
+                        return;
+                    }
+                },
+                // DELETE
+                Some(4) => match *cmd {
+                    Command::Curl => {
+                        let mut curl = Curl::new();
+                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(DELETE));
+                        app.goto_screen(Screen::CurlMenu(curl));
+                        return;
+                    }
+                    Command::Wget => {
+                        let wget = Wget::new(DELETE);
+                        app.goto_screen(Screen::WgetMenu(wget));
+                        return;
+                    }
+                    Command::Custom => {
+                        app.goto_screen(Screen::CustomMenu(Request::default()));
+                        return;
+                    }
+                },
+                // PATCH
+                Some(5) => match *cmd {
+                    Command::Curl => {
+                        let mut curl = Curl::new();
+                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(PATCH));
+                        app.goto_screen(Screen::CurlMenu(curl));
+                        return;
+                    }
+                    Command::Wget => {
+                        let wget = Wget::new(PATCH);
+                        app.goto_screen(Screen::WgetMenu(wget));
+                        return;
+                    }
+                    Command::Custom => {
+                        app.goto_screen(Screen::CustomMenu(Request::default()));
+                        return;
+                    }
+                },
+                Some(_) => {}
+                _ => {}
+            }
         }
         Screen::Keys => {
             render_keys_menu(app, frame);
+        }
+        Screen::CurlMenu(_) => {
+            render_curl_menu(app, frame, Command::Curl);
+            match app.selected {
+                Some(0) => {
+                    app.goto_screen(Screen::Command(Command::Curl));
+                    return;
+                }
+                Some(1) => {
+                    app.goto_screen(Screen::Command(Command::Wget));
+                    return;
+                }
+                Some(2) => {
+                    app.goto_screen(Screen::Command(Command::Custom));
+                    return;
+                }
+                Some(_) => {}
+                None => {}
+            }
         }
         _ => {}
     }
@@ -61,7 +180,7 @@ pub fn render_home<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 }
 
 pub fn render_command_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cmd: Command) {
-    let area = centered_rect(70, 60, frame.size());
+    let area = default_rect(frame.size());
     let new_list = app.current_screen.get_list();
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.items = Vec::from(app.current_screen.get_opts());
@@ -72,7 +191,7 @@ pub fn render_command_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, 
     frame.render_widget(menu_paragraph(), frame.size());
     match cmd {
         Command::Curl => {
-            app.current_screen = Screen::Command(Command::Curl);
+            app.current_screen = Screen::CurlMenu(Curl::new());
         }
         Command::Wget => {
             app.current_screen = Screen::Command(Command::Wget);
@@ -83,13 +202,28 @@ pub fn render_command_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, 
     }
 }
 
-pub fn render_keys_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    let area = centered_rect(70, 50, frame.size());
+pub fn render_curl_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cmd: Command) {
+    let area = default_rect(frame.size());
     let new_list = app.current_screen.get_list();
+
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.items = Vec::from(app.current_screen.get_opts());
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
+    frame.set_cursor(0, app.cursor as u16);
+    frame.render_stateful_widget(new_list, area, &mut state);
+    frame.render_widget(menu_paragraph(), frame.size());
+}
+
+pub fn render_keys_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+    let area = default_rect(frame.size());
+    let new_list = app.current_screen.get_list();
+    let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+
+    app.items = Vec::from(app.current_screen.get_opts());
+    app.state = Some(state.clone());
+    app.state.as_mut().unwrap().select(Some(app.cursor));
+
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
     frame.render_widget(
@@ -111,7 +245,7 @@ pub fn render_keys_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 }
 
 fn menu_paragraph() -> Paragraph<'static> {
-    Paragraph::new("Press q to exit \n Press Enter to select \n Please select a Menu item\n")
+    Paragraph::new("\nPress q to exit \n Press Enter to select \n Please select a Menu item\n")
         .block(
             Block::default()
                 .title("cURL-TUI")
@@ -148,4 +282,8 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             .as_ref(),
         )
         .split(popup_layout[1])[1]
+}
+
+fn default_rect(r: Rect) -> Rect {
+    centered_rect(70, 60, r)
 }

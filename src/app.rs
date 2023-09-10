@@ -1,3 +1,6 @@
+use crate::curl::Curl;
+use crate::wget::Wget;
+use crate::Request;
 use std::error;
 use tui::{
     style::{Color, Modifier, Style},
@@ -12,7 +15,11 @@ pub struct App<'a> {
     /// Is the application running?
     pub running: bool,
     pub cursor: usize,
-    pub current_screen: Screen,
+    pub current_screen: Screen<'a>,
+    // We need to be able to go back, so we must implement the most complex and notoriously
+    // difficult of all concepts in computer science.... the stack ;)
+    pub screen_stack: Vec<Screen<'a>>,
+    pub command: Option<Command>,
     pub selected: Option<usize>,
     pub items: Vec<ListItem<'a>>,
     pub state: Option<ListState>,
@@ -79,18 +86,18 @@ pub static SAVED_COMMAND_OPTIONS: [&str; 3] = [
     "Delete a saved command\n \n",
 ];
 
-#[derive(Debug, PartialEq)]
-pub enum Screen {
+#[derive(Debug, PartialEq, Clone)]
+pub enum Screen<'a> {
     Home,
     Command(Command),
-    Curl,
-    Wget,
-    Custom,
+    CurlMenu(Curl<'a>),
+    WgetMenu(Wget<'a>),
+    CustomMenu(Request<'a>),
     Keys,
     Saved,
 }
 
-impl<'a> Screen {
+impl<'a> Screen<'_> {
     pub fn default() -> Self {
         Screen::Home
     }
@@ -115,19 +122,19 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Curl => {
+            Screen::CurlMenu(_) => {
                 return CURL_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Wget => {
+            Screen::WgetMenu(_) => {
                 return WGET_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Custom => {
+            Screen::CustomMenu(_) => {
                 return HTTP_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
@@ -159,16 +166,16 @@ impl<'a> Screen {
             Screen::Home => "Main Menu",
             Screen::Command(_) => "Command",
             Screen::Keys => "My Saved API Keys",
-            Screen::Curl => "Curl",
-            Screen::Wget => "Wget",
-            Screen::Custom => "Custom HTTP Request",
+            Screen::CurlMenu(_) => "Curl",
+            Screen::WgetMenu(_) => "Wget",
+            Screen::CustomMenu(_) => "Custom HTTP Request",
             Screen::Saved => "My Saved Commands",
         }
         .to_string()
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Command {
     Curl,
     Wget,
@@ -191,12 +198,14 @@ impl Command {
 impl<'a> Default for App<'a> {
     fn default() -> Self {
         Self {
-            current_screen: Screen::Home,
             running: true,
             cursor: 0,
+            screen_stack: vec![Screen::Home],
             selected: None,
+            command: None,
             items: Vec::from(Screen::Home.get_opts()),
             state: None,
+            current_screen: Screen::Home,
         }
     }
 }
@@ -208,6 +217,23 @@ impl<'a> App<'a> {
     }
 
     pub fn tick(&self) {}
+
+    pub fn goto_screen(&mut self, screen: Screen<'a>) {
+        self.cursor = 0;
+        self.selected = None;
+        self.screen_stack.push(screen.clone());
+        self.current_screen = screen;
+    }
+
+    pub fn go_back_screen(&mut self) {
+        if self.screen_stack.len() == 1 {
+            return;
+        } else {
+            self.cursor = 0;
+            self.selected = None;
+            self.current_screen = self.screen_stack.last().unwrap().clone();
+        }
+    }
 
     pub fn quit(&mut self) {
         self.running = false;
