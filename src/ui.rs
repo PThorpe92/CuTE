@@ -1,15 +1,23 @@
+use crate::app::InputMode;
 use crate::app::Screen;
+use crate::app::CURL_MENU_OPTIONS;
+use crate::app::HTTP_MENU_OPTIONS;
 use crate::app::{App, Command};
-use crate::curl::{Curl, CurlFlag, CurlFlagType};
+use crate::curl::Curl;
 use crate::wget::Wget;
 use crate::{Request, DELETE, GET, PATCH, POST, PUT};
 use tui::{
     backend::Backend,
-    layout::{Alignment, Constraint, Rect},
-    style::{Color, Style},
-    widgets::{Block, BorderType, Borders, ListState, Paragraph},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
+
+pub static CURL: &str = "curl";
+pub static WGET: &str = "wget";
+pub static CUSTOM: &str = "custom";
 
 /// Renders the user interface widgets.
 pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -19,18 +27,26 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // - https://github.com/ratatui-org/ratatui/tree/master/examples
     match &app.current_screen.clone() {
         Screen::Home => {
-            render_home(app, frame);
+            let new_list = app.current_screen.get_list();
+            let area = centered_rect(70, 60, frame.size());
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(new_list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
             match app.selected {
                 Some(0) => {
-                    app.goto_screen(Screen::Command(Command::Curl));
+                    app.goto_screen(Screen::Command(String::from(CURL)));
                     return;
                 }
                 Some(1) => {
-                    app.goto_screen(Screen::Command(Command::Wget));
+                    app.goto_screen(Screen::Command(String::from(WGET)));
                     return;
                 }
                 Some(2) => {
-                    app.goto_screen(Screen::Command(Command::Custom));
+                    app.goto_screen(Screen::Command(String::from(CUSTOM)));
                     return;
                 }
                 Some(3) => {
@@ -41,207 +57,162 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 None => {}
             }
         }
+
         Screen::Command(cmd) => {
-            render_command_menu(app, frame, cmd.clone());
-            app.command = Some(cmd.clone());
+            let area = default_rect(frame.size());
+            let new_list = app.current_screen.get_list();
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            app.items = Vec::from(app.current_screen.get_opts());
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(new_list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
+            match cmd.as_str() {
+                "curl" => app.command = Some(Command::Curl(Curl::new())),
+                "wget" => app.command = Some(Command::Wget(Wget::new())),
+                "custom" => app.command = Some(Command::Custom(Request::default())),
+                _ => app.command = Some(Command::Custom(Request::default())),
+            }
             match app.selected.clone() {
-                Some(1) => {
-                    // GET
-                    match *cmd {
-                        Command::Curl => {
-                            let mut curl = Curl::new();
-                            curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(GET));
-                            app.goto_screen(Screen::CurlMenu(curl));
-                            return;
-                        }
-                        Command::Wget => {
-                            let wget = Wget::new(GET);
-                            app.goto_screen(Screen::WgetMenu(wget));
-                            return;
-                        }
-                        Command::Custom => {
-                            app.goto_screen(Screen::CustomMenu(Request::default()));
-                            return;
-                        }
-                    }
+                Some(num) => {
+                    app.command.as_mut().unwrap().set_method(GET);
+                    app.goto_screen(Screen::CurlMenu(String::from(
+                        HTTP_MENU_OPTIONS[num].clone(),
+                    )));
                 }
-                // POST
-                Some(2) => match *cmd {
-                    Command::Curl => {
-                        let mut curl = Curl::new();
-                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(POST));
-                        app.goto_screen(Screen::CurlMenu(curl));
-                        return;
-                    }
-                    Command::Wget => {
-                        let wget = Wget::new(POST);
-                        app.goto_screen(Screen::WgetMenu(wget));
-                        return;
-                    }
-                    Command::Custom => {
-                        app.goto_screen(Screen::CustomMenu(Request::default()));
-                        return;
-                    }
-                },
-                // PUT
-                Some(3) => match *cmd {
-                    Command::Curl => {
-                        let mut curl = Curl::new();
-                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(PUT));
-                        app.goto_screen(Screen::CurlMenu(curl));
-                        return;
-                    }
-                    Command::Wget => {
-                        let wget = Wget::new(PUT);
-                        app.goto_screen(Screen::WgetMenu(wget));
-                        return;
-                    }
-                    Command::Custom => {
-                        app.goto_screen(Screen::CustomMenu(Request::default()));
-                        return;
-                    }
-                },
-                // DELETE
-                Some(4) => match *cmd {
-                    Command::Curl => {
-                        let mut curl = Curl::new();
-                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(DELETE));
-                        app.goto_screen(Screen::CurlMenu(curl));
-                        return;
-                    }
-                    Command::Wget => {
-                        let wget = Wget::new(DELETE);
-                        app.goto_screen(Screen::WgetMenu(wget));
-                        return;
-                    }
-                    Command::Custom => {
-                        app.goto_screen(Screen::CustomMenu(Request::default()));
-                        return;
-                    }
-                },
-                // PATCH
-                Some(5) => match *cmd {
-                    Command::Curl => {
-                        let mut curl = Curl::new();
-                        curl.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(PATCH));
-                        app.goto_screen(Screen::CurlMenu(curl));
-                        return;
-                    }
-                    Command::Wget => {
-                        let wget = Wget::new(PATCH);
-                        app.goto_screen(Screen::WgetMenu(wget));
-                        return;
-                    }
-                    Command::Custom => {
-                        app.goto_screen(Screen::CustomMenu(Request::default()));
-                        return;
-                    }
-                },
-                Some(_) => {}
-                _ => {}
+                None => {}
             }
         }
         Screen::Keys => {
-            render_keys_menu(app, frame);
+            let area = default_rect(frame.size());
+            let new_list = app.current_screen.get_list();
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            if app.items.len() != 0 {
+                app.items.clear();
+            }
+            app.items = Vec::from(app.current_screen.get_opts());
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(new_list, area, &mut state);
+            frame.render_widget(
+                        Paragraph::new(
+                            "Create / Edit / Delete API Keys and tokens.\n
+                                    Press q to exit \n Press Enter to select \n Please select a Menu item\n",
+                        )
+                        .block(
+                            Block::default()
+                                .title("API Key Manager")
+                                .title_alignment(Alignment::Center)
+                                .borders(Borders::ALL)
+                                .border_type(BorderType::Rounded),
+                        )
+                        .style(Style::default().fg(Color::Cyan).bg(Color::Black))
+                        .alignment(Alignment::Center),
+                        frame.size(),
+                    )
         }
+
         Screen::CurlMenu(_) => {
-            render_curl_menu(app, frame, Command::Curl);
+            let area = default_rect(frame.size());
+            let new_list = app.current_screen.get_list();
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            if app.items.len() != 0 {
+                app.items.clear();
+            }
+            app.items = Vec::from(app.current_screen.get_opts());
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(new_list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
             match app.selected {
-                Some(0) => {
-                    app.goto_screen(Screen::Command(Command::Curl));
-                    return;
+                // Add a URL
+                Some(num) => {
+                    app.goto_screen(Screen::InputMenu(num.clone()));
                 }
-                Some(1) => {
-                    app.goto_screen(Screen::Command(Command::Wget));
-                    return;
-                }
-                Some(2) => {
-                    app.goto_screen(Screen::Command(Command::Custom));
-                    return;
-                }
-                Some(_) => {}
                 None => {}
             }
+        }
+        Screen::InputMenu(num) => {
+            render_input_screen(app, frame, CURL_MENU_OPTIONS.get(*num).unwrap());
         }
         _ => {}
     }
 }
 
-pub fn render_home<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    let new_list = app.current_screen.get_list();
-    let area = centered_rect(70, 60, frame.size());
-    let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-    app.state = Some(state.clone());
-    app.state.as_mut().unwrap().select(Some(app.cursor));
+/// Renders a screen we can grab input from, pass in the appropriate desination for the input
+fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, message: &str) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints(
+            [
+                Constraint::Length(1),
+                Constraint::Length(3),
+                Constraint::Min(1),
+            ]
+            .as_ref(),
+        )
+        .split(frame.size());
+    let (msg, style) = match app.input_mode {
+        InputMode::Normal => (
+            vec![
+                Span::raw("Press "),
+                Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to exit, "),
+                Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to start editing."),
+            ],
+            Style::default().add_modifier(Modifier::RAPID_BLINK),
+        ),
+        InputMode::Editing => (
+            vec![
+                Span::raw("Press "),
+                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to stop editing, "),
+                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to record the message"),
+            ],
+            Style::default(),
+        ),
+    };
+    let mut text = Text::from(Line::from(msg));
+    text.patch_style(style);
+    let help_message = Paragraph::new(text);
+    frame.render_widget(help_message, chunks[0]);
 
-    frame.set_cursor(0, app.cursor as u16);
-    frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(menu_paragraph(), frame.size());
-}
+    let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
 
-pub fn render_command_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cmd: Command) {
-    let area = default_rect(frame.size());
-    let new_list = app.current_screen.get_list();
-    let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-    app.items = Vec::from(app.current_screen.get_opts());
-    app.state = Some(state.clone());
-    app.state.as_mut().unwrap().select(Some(app.cursor));
-    frame.set_cursor(0, app.cursor as u16);
-    frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(menu_paragraph(), frame.size());
-    match cmd {
-        Command::Curl => {
-            app.current_screen = Screen::CurlMenu(Curl::new());
-        }
-        Command::Wget => {
-            app.current_screen = Screen::Command(Command::Wget);
-        }
-        Command::Custom => {
-            app.current_screen = Screen::Command(Command::Custom);
-        }
+    let scroll = app.input.visual_scroll(width as usize);
+    let input = Paragraph::new(app.input.value())
+        .style(match app.input_mode {
+            InputMode::Normal => Style::default(),
+            InputMode::Editing => Style::default().fg(Color::Yellow),
+        })
+        .scroll((0, scroll as u16))
+        .block(Block::default().borders(Borders::ALL).title("Input"));
+    frame.render_widget(input, chunks[1]);
+    match app.input_mode {
+        InputMode::Normal => {}
+        InputMode::Editing => frame.set_cursor(
+            chunks[1].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
+            chunks[1].y + 1,
+        ),
     }
-}
-
-pub fn render_curl_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cmd: Command) {
-    let area = default_rect(frame.size());
-    let new_list = app.current_screen.get_list();
-
-    let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-    app.items = Vec::from(app.current_screen.get_opts());
-    app.state = Some(state.clone());
-    app.state.as_mut().unwrap().select(Some(app.cursor));
-    frame.set_cursor(0, app.cursor as u16);
-    frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(menu_paragraph(), frame.size());
-}
-
-pub fn render_keys_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    let area = default_rect(frame.size());
-    let new_list = app.current_screen.get_list();
-    let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-
-    app.items = Vec::from(app.current_screen.get_opts());
-    app.state = Some(state.clone());
-    app.state.as_mut().unwrap().select(Some(app.cursor));
-
-    frame.set_cursor(0, app.cursor as u16);
-    frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(
-        Paragraph::new(
-            "Create / Edit / Delete API Keys and tokens.\n
-                    Press q to exit \n Press Enter to select \n Please select a Menu item\n",
-        )
-        .block(
-            Block::default()
-                .title("API Key Manager")
-                .title_alignment(Alignment::Center)
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded),
-        )
-        .style(Style::default().fg(Color::Cyan).bg(Color::Black))
-        .alignment(Alignment::Center),
-        frame.size(),
-    )
+    let messages: Vec<ListItem> = app
+        .messages
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            let content = vec![Line::from(Span::raw(format!("{}: {}", i, m)))];
+            ListItem::new(content)
+        })
+        .collect();
+    let messages = List::new(messages).block(Block::default().borders(Borders::ALL).title(message));
+    frame.render_widget(messages, chunks[2]);
 }
 
 fn menu_paragraph() -> Paragraph<'static> {

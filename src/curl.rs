@@ -31,6 +31,10 @@ impl<'a> Curl<'a> {
         self_
     }
 
+    pub fn set_method(&mut self, method: &'a str) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(method));
+    }
+
     pub fn add_url(&mut self, url: &'a str) {
         self.url = url;
     }

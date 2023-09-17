@@ -61,6 +61,11 @@ impl<'a> Request<'a> {
     pub fn add_url(&mut self, url: &'a str) {
         self.url = url.clone();
     }
+
+    pub fn add_method(&mut self, method: &'a str) {
+        self.method = method.clone();
+    }
+
     pub fn add_headers(&mut self, headers: Vec<(&'a str, &'a str)>) {
         self.headers = Some(headers);
     }

@@ -5,7 +5,7 @@ use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use std::io;
 use std::panic;
-use tui::backend::Backend;
+use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
 /// Representation of a terminal user interface.
@@ -30,9 +30,12 @@ impl<B: Backend> Tui<B> {
     ///
     /// It enables the raw mode and sets terminal properties.
     pub fn init(&mut self) -> AppResult<()> {
+        let mut stdout = io::stdout();
         terminal::enable_raw_mode()?;
-        crossterm::execute!(io::stderr(), EnterAlternateScreen, EnableMouseCapture)?;
+        crossterm::execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
 
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
         // Define a custom panic hook to reset the terminal properties.
         // This way, you won't have your terminal messed up if an unexpected error happens.
         let panic_hook = panic::take_hook();
