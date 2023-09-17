@@ -17,6 +17,7 @@ pub enum InputMode {
     Normal,
     Editing,
 }
+
 /// Application.
 #[derive(Debug)]
 pub struct App<'a> {
@@ -140,14 +141,14 @@ impl<'a> Screen {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command<'a> {
     Curl(Curl<'a>),
-    Wget(Wget<'a>),
-    Custom(Request<'a>),
+    Wget(Wget),
+    Custom(Request),
 }
 impl<'a> Command<'a> {
     pub fn default(curl: Curl<'a>) -> Self {
         Command::Curl(curl)
     }
-    pub fn set_method(&mut self, method: &'a str) {
+    pub fn set_method(&mut self, method: String) {
         match self {
             Command::Curl(curl) => {
                 curl.set_method(method);
@@ -160,16 +161,20 @@ impl<'a> Command<'a> {
             }
         }
     }
-    pub fn set_url(&mut self, url: &'a str) {
+
+    pub fn set_url(&mut self, url: String) {
         match self {
             Command::Curl(curl) => {
-                curl.add_url(url);
+                curl.set_url(url.clone());
+                return;
             }
             Command::Wget(wget) => {
                 wget.set_url(url);
+                return;
             }
             Command::Custom(req) => {
                 req.url = url;
+                return;
             }
         }
     }

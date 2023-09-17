@@ -3,49 +3,53 @@ use std::process::Command;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Curl<'a> {
-    pub cmd: &'a str,          // The final command string we will run
-    url: &'a str,              // The url we will send the request to
-    pub opts: Vec<Flag<'a>>,   // The opts we will build incrementally and store
-    pub resp: Option<&'a str>, // The response we get back from the command if not sent to file
+    pub cmd: String,          // The final command string we will run
+    pub url: String,          // The url we will send the request to
+    pub opts: Vec<Flag<'a>>,  // The opts we will build incrementally and store
+    pub resp: Option<String>, // The response we get back from the command if not sent to file
 }
+
 // No need to have a request field, we can just build the command incrementally
 impl<'a> Curl<'a> {
     pub fn new() -> Self {
         Self {
-            cmd: "curl",
-            url: "",
+            cmd: String::from("curl"),
+            url: String::new(),
             opts: Vec::new(),
             resp: None,
         }
     }
 
-    pub fn default(url: &'a str) -> Self {
+    pub fn default(url: String) -> Self {
         let mut self_ = Self {
-            cmd: "curl",
-            url: "",
+            cmd: String::from("curl"),
+            url: String::new(),
             opts: Vec::new(),
             resp: None,
         };
-        self_.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some("GET"));
-        self_.add_url(url);
+        self_.add_flag(
+            CurlFlag::new(None, CurlFlagType::Method),
+            Some(String::from("GET")),
+        );
+        self_.set_url(url.clone().to_string());
         self_
     }
 
-    pub fn set_method(&mut self, method: &'a str) {
+    pub fn set_method(&mut self, method: String) {
         self.add_flag(CurlFlag::new(None, CurlFlagType::Method), Some(method));
     }
 
-    pub fn add_url(&mut self, url: &'a str) {
-        self.url = url;
+    pub fn set_url(&mut self, url: String) {
+        self.url = url.clone();
     }
 
-    pub fn add_flag(&mut self, flag: CurlFlag<'a>, value: Option<&'a str>) {
+    pub fn add_flag(&mut self, flag: CurlFlag<'a>, value: Option<String>) {
         match flag {
             CurlFlag::Method(_) => {
                 if let Some(val) = value.clone() {
                     self.opts.push(Flag {
                         flag: CurlFlag::new(None, CurlFlagType::Method),
-                        value: Some(val).clone(),
+                        value: Some(val),
                     });
                 }
             }
@@ -158,7 +162,10 @@ impl<'a> Curl<'a> {
                 value: Some(value.clone().expect("Proxy value not provided")),
             }),
         }
-        self.opts.push(Flag { flag, value });
+        self.opts.push(Flag {
+            flag,
+            value: value.clone(),
+        });
     }
 
     pub fn execute_command(&self) -> Result<String, std::io::Error> {
@@ -205,10 +212,10 @@ impl<'a> Curl<'a> {
 // We may have "--verbose" which is a flag with no value
 // But each enum variant has the default flag stored as a static string, so we can use that
 // to build the command incrementally by just providing the argument value when we create the flag.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Flag<'a> {
     pub flag: CurlFlag<'a>,
-    pub value: Option<&'a str>,
+    pub value: Option<String>,
 }
 
 #[macro_export]

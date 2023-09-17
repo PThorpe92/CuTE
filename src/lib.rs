@@ -36,21 +36,21 @@ pub static HEAD: &str = "HEAD";
 pub static OPTIONS: &str = "OPTIONS";
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Request<'a> {
-    pub method: &'a str,                          // get, post, put, delete
-    pub url: &'a str,                             // the url to send the request to
-    pub headers: Option<Vec<(&'a str, &'a str)>>, // header collection in (key, value) pairs
-    pub body: Option<&'a str>,                    // the body to send
-    pub timeout: u32,                             // how long to wait for a response
-    pub auth: Auth,                               // basic, bearer, digest, custom
-    pub output: Option<&'a str>,                  // where to write the output
+pub struct Request {
+    pub method: String,                         // get, post, put, delete
+    pub url: String,                            // the url to send the request to
+    pub headers: Option<Vec<(String, String)>>, // header collection in (key, value) pairs
+    pub body: Option<String>,                   // the body to send
+    pub timeout: u32,                           // how long to wait for a response
+    pub auth: Auth,                             // basic, bearer, digest, custom
+    pub output: Option<String>,                 // where to write the output
 }
 
-impl<'a> Request<'a> {
+impl Request {
     pub fn default() -> Self {
         Request {
-            method: GET,
-            url: "",
+            method: String::from(GET),
+            url: String::new(),
             headers: None,
             body: None,
             timeout: 30,
@@ -58,15 +58,15 @@ impl<'a> Request<'a> {
             output: None,
         }
     }
-    pub fn add_url(&mut self, url: &'a str) {
+    pub fn add_url(&mut self, url: String) {
         self.url = url.clone();
     }
 
-    pub fn add_method(&mut self, method: &'a str) {
+    pub fn add_method(&mut self, method: String) {
         self.method = method.clone();
     }
 
-    pub fn add_headers(&mut self, headers: Vec<(&'a str, &'a str)>) {
+    pub fn add_headers(&mut self, headers: Vec<(String, String)>) {
         self.headers = Some(headers);
     }
 
@@ -75,19 +75,19 @@ impl<'a> Request<'a> {
         let client = Client::new();
 
         // Create the request builder based on the request type
-        let mut request = match self.method.clone() {
-            "GET" => client.request(Method::GET, self.url),
-            "POST" => client.request(Method::POST, self.url),
-            "PUT" => client.request(Method::PUT, self.url),
-            "DELETE" => client.request(Method::DELETE, self.url),
-            "PATCH" => client.request(Method::PATCH, self.url),
-            _ => client.request(Method::GET, self.url),
+        let mut request = match self.method.clone().as_str() {
+            "GET" => client.request(Method::GET, self.url.clone()),
+            "POST" => client.request(Method::POST, self.url.clone()),
+            "PUT" => client.request(Method::PUT, self.url.clone()),
+            "DELETE" => client.request(Method::DELETE, self.url.clone()),
+            "PATCH" => client.request(Method::PATCH, self.url.clone()),
+            _ => client.request(Method::GET, self.url.clone()),
         };
 
         // Set headers
         if let Some(headers) = &self.headers {
             for (key, value) in headers {
-                request = request.header(*key, *value);
+                request = request.header(key, value);
             }
         }
 
@@ -110,9 +110,9 @@ impl<'a> Request<'a> {
 
         // Send the request and handle the response
         let response = request.send().await?;
-        match self.output {
+        match &self.output {
             Some(output) => {
-                let mut file = BufWriter::new(File::create(output).unwrap());
+                let mut file = BufWriter::new(File::create(output.clone()).unwrap());
                 file.write_all(response.text().await?.as_bytes()).unwrap();
             }
             None => {

@@ -1,10 +1,9 @@
 use crate::app::InputMode;
 use crate::app::{App, AppResult};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use tui_input::backend::crossterm::EventHandler;
 use tui_input::InputRequest;
-/// Handles the key events and updates the state of [`App`].
 
+/// Handles the key events and updates the state of [`App`].
 pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
     match app.input_mode {
         InputMode::Normal => {
@@ -29,7 +28,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                 KeyCode::Enter => {
                     app.select_item();
                 }
-                KeyCode::Char('e') => {
+                KeyCode::Char('i') => {
                     app.input_mode = InputMode::Editing;
                 }
                 KeyCode::Char('j') => {
@@ -41,7 +40,9 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                 KeyCode::Char('h') => {
                     app.go_back_screen();
                 }
-
+                KeyCode::Char('b') => {
+                    app.go_back_screen();
+                }
                 _ => {}
             }
         }

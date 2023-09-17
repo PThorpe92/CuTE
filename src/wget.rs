@@ -1,23 +1,23 @@
 #[derive(Debug, Clone, PartialEq)]
-pub struct Wget<'a> {
+pub struct Wget {
     pub cmd: String,
-    pub url: &'a str,
+    pub url: String,
     pub download: bool,
-    pub output: &'a str,
+    pub output: String,
 }
-impl<'a> Wget<'a> {
+impl Wget {
     pub fn new() -> Self {
         Wget {
             cmd: String::from("wget"),
-            url: "",
+            url: String::new(),
             download: false,
-            output: "",
+            output: String::new(),
         }
     }
-    pub fn set_url(&mut self, url: &'a str) {
+    pub fn set_url(&mut self, url: String) {
         self.url = url;
     }
-    pub fn set_output(&mut self, output: &'a str) {
+    pub fn set_output(&mut self, output: String) {
         self.output = output;
     }
     pub fn set_download(&mut self, download: bool) {

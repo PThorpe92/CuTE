@@ -76,7 +76,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             }
             match app.selected.clone() {
                 Some(num) => {
-                    app.command.as_mut().unwrap().set_method(GET);
+                    app.command.as_mut().unwrap().set_method(String::from(GET));
                     app.goto_screen(Screen::CurlMenu(String::from(
                         HTTP_MENU_OPTIONS[num].clone(),
                     )));
@@ -163,7 +163,7 @@ fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, mess
                 Span::raw("Press "),
                 Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to exit, "),
-                Span::styled("e", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled("i", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to start editing."),
             ],
             Style::default().add_modifier(Modifier::RAPID_BLINK),
@@ -174,7 +174,7 @@ fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, mess
                 Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to stop editing, "),
                 Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to record the message"),
+                Span::raw(" to submit."),
             ],
             Style::default(),
         ),
@@ -202,17 +202,29 @@ fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, mess
             chunks[1].y + 1,
         ),
     }
-    let messages: Vec<ListItem> = app
-        .messages
-        .iter()
-        .enumerate()
-        .map(|(i, m)| {
-            let content = vec![Line::from(Span::raw(format!("{}: {}", i, m)))];
-            ListItem::new(content)
-        })
-        .collect();
-    let messages = List::new(messages).block(Block::default().borders(Borders::ALL).title(message));
-    frame.render_widget(messages, chunks[2]);
+    if app.messages.len() > 0 {
+        match message {
+            "Add a URL\n \n" => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_url(app.messages[0].clone());
+                app.input_mode = InputMode::Normal;
+                app.current_screen = Screen::CurlMenu(String::new())
+            }
+            "Add Headers\n \n" => app
+                .command
+                .as_mut()
+                .unwrap()
+                .set_url(app.messages[0].clone()),
+            "Add Authentication\n \n" => app
+                .command
+                .as_mut()
+                .unwrap()
+                .set_url(app.messages[0].clone()),
+            &_ => {}
+        }
+    }
 }
 
 fn menu_paragraph() -> Paragraph<'static> {
