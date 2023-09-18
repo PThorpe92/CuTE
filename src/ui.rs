@@ -1,20 +1,19 @@
-use crate::app::InputMode;
-use crate::app::Screen;
-use crate::app::CURL_MENU_OPTIONS;
-use crate::app::HTTP_MENU_OPTIONS;
-use crate::app::{App, Command};
+use crate::app::{
+    App, Command, DisplayOpts, InputMode, Screen, METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS,
+};
 use crate::curl::Curl;
 use crate::wget::Wget;
-use crate::{Request, DELETE, GET, PATCH, POST, PUT};
+use crate::{Request, GET};
+use std::ops::Add;
+use tokio::runtime::{self, Runtime};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, BorderType, Borders, ListState, Paragraph},
     Frame,
 };
-
 pub static CURL: &str = "curl";
 pub static WGET: &str = "wget";
 pub static CUSTOM: &str = "custom";
@@ -25,6 +24,32 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // See the following resources:
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui-org/ratatui/tree/master/examples
+    let mut display_opts = String::new();
+    app.opts.iter().for_each(|opt| match opt {
+        DisplayOpts::Verbose => {
+            display_opts.push_str("Verbose\n");
+        }
+        DisplayOpts::URL(url) => {
+            let url_str = format!("URL: {}\n", url.clone());
+            display_opts.push_str(url_str.as_str());
+        }
+        _ => {}
+    });
+    let final_opts = display_opts.clone();
+    let opts = Paragraph::new(final_opts.as_str())
+        .block(
+            Block::default()
+                .title("Options")
+                .title_alignment(Alignment::Left)
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded),
+        )
+        .style(Style::default().fg(Color::Cyan).bg(Color::Yellow))
+        .alignment(Alignment::Left);
+    let area = small_rect(frame.size());
+    if app.opts.len() != 0 {
+        frame.render_widget(opts, area);
+    }
     match &app.current_screen.clone() {
         Screen::Home => {
             let new_list = app.current_screen.get_list();
@@ -32,21 +57,20 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
             app.state = Some(state.clone());
             app.state.as_mut().unwrap().select(Some(app.cursor));
-
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
             match app.selected {
                 Some(0) => {
-                    app.goto_screen(Screen::Command(String::from(CURL)));
+                    app.goto_screen(Screen::Method(String::from(CURL)));
                     return;
                 }
                 Some(1) => {
-                    app.goto_screen(Screen::Command(String::from(WGET)));
+                    app.goto_screen(Screen::Method(String::from(WGET)));
                     return;
                 }
                 Some(2) => {
-                    app.goto_screen(Screen::Command(String::from(CUSTOM)));
+                    app.goto_screen(Screen::Method(String::from(CUSTOM)));
                     return;
                 }
                 Some(3) => {
@@ -58,7 +82,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             }
         }
 
-        Screen::Command(cmd) => {
+        Screen::Method(cmd) => {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -77,8 +101,8 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             match app.selected.clone() {
                 Some(num) => {
                     app.command.as_mut().unwrap().set_method(String::from(GET));
-                    app.goto_screen(Screen::CurlMenu(String::from(
-                        HTTP_MENU_OPTIONS[num].clone(),
+                    app.goto_screen(Screen::RequestMenu(String::from(
+                        METHOD_MENU_OPTIONS[num].clone(),
                     )));
                 }
                 None => {}
@@ -115,7 +139,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     )
         }
 
-        Screen::CurlMenu(_) => {
+        Screen::RequestMenu(_) => {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -129,15 +153,42 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
             match app.selected {
-                // Add a URL
-                Some(num) => {
-                    app.goto_screen(Screen::InputMenu(num.clone()));
-                }
+                Some(num) => match num {
+                    // Add a URL, Authentication, Headers
+                    0 | 1 | 2 => {
+                        app.goto_screen(Screen::InputMenu(num));
+                    }
+                    // Verbose
+                    3 => {
+                        app.add_display_option(DisplayOpts::Verbose);
+                        app.selected = None;
+                    }
+                    // Output file, Request body
+                    4 | 5 => {
+                        app.goto_screen(Screen::InputMenu(num));
+                        app.selected = None;
+                    }
+                    6 => {
+                        let response = app.command.as_mut().unwrap().execute();
+                        let rt = tokio::runtime::Runtime::new().expect("Failed to create runtime");
+                        let result = rt.block_on(response); // TODO: this is blocking, whole thing
+                                                            // needs a recactor so we aren't doing what should be an async call in a
+                                                            // looping render function like a noob
+                        app.goto_screen(Screen::Response(
+                            result.unwrap_or(String::from("Internal Error with response")),
+                        ));
+                    }
+                    7 => {
+                        app.goto_screen(Screen::Saved);
+                        app.selected = None;
+                    }
+                    _ => {}
+                },
                 None => {}
             }
         }
         Screen::InputMenu(num) => {
-            render_input_screen(app, frame, CURL_MENU_OPTIONS.get(*num).unwrap());
+            render_input_screen(app, frame, REQUEST_MENU_OPTIONS.get(*num).unwrap());
         }
         _ => {}
     }
@@ -179,11 +230,19 @@ fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, mess
             Style::default(),
         ),
     };
-    let mut text = Text::from(Line::from(msg));
-    text.patch_style(style);
-    let help_message = Paragraph::new(text);
-    frame.render_widget(help_message, chunks[0]);
-
+    if message == "Add Headers\n \n" {
+        let mut header_prompt = Text::from(Line::from(
+            "Enter headers in the format: key:value\nAnd press enter to submit 1 pair at a time",
+        ));
+        header_prompt.patch_style(style);
+        let message = Paragraph::new(header_prompt);
+        frame.render_widget(message, chunks[0]);
+    } else {
+        let mut text = Text::from(Line::from(msg));
+        text.patch_style(style);
+        let help_message = Paragraph::new(text);
+        frame.render_widget(help_message, chunks[0]);
+    }
     let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
 
     let scroll = app.input.visual_scroll(width as usize);
@@ -204,24 +263,35 @@ fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, mess
     }
     if app.messages.len() > 0 {
         match message {
+            // this is matching what we passed in, to know what input we are dealing with
+            // TODO: make this more dynamic, this is horrendous spaghetti nonsense
             "Add a URL\n \n" => {
                 app.command
                     .as_mut()
                     .unwrap()
                     .set_url(app.messages[0].clone());
                 app.input_mode = InputMode::Normal;
-                app.current_screen = Screen::CurlMenu(String::new())
+                app.add_display_option(DisplayOpts::URL(app.messages[0].clone()));
+                app.current_screen = Screen::RequestMenu(String::new());
+                app.messages.remove(0);
             }
-            "Add Headers\n \n" => app
-                .command
-                .as_mut()
-                .unwrap()
-                .set_url(app.messages[0].clone()),
-            "Add Authentication\n \n" => app
-                .command
-                .as_mut()
-                .unwrap()
-                .set_url(app.messages[0].clone()),
+            "Add Headers\n \n" => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .add_headers((app.messages[0].clone(), app.messages[1].clone()));
+                app.messages.remove(0);
+                app.current_screen = Screen::RequestMenu(String::new());
+            }
+            "Specify request output file\n \n" => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_outfile(app.messages[0].clone());
+                app.add_display_option(DisplayOpts::Outfile(app.messages[0].clone()));
+                app.messages.remove(0);
+                app.goto_screen(Screen::RequestMenu(String::new()));
+            }
             &_ => {}
         }
     }
@@ -240,7 +310,18 @@ fn menu_paragraph() -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
-// Helper func from ratatui exmaples
+fn small_rect(r: Rect) -> Rect {
+    let layout = Layout::default()
+        .direction(Direction::Vertical) // Set the direction to horizontal
+        .constraints(vec![
+            Constraint::Percentage(85), // Occupy 85% of the available space
+            Constraint::Percentage(15), // Occupy 15% of the available space
+        ])
+        .split(r);
+    // Now, `layout` contains the two Rects based on the constraints
+    layout[1]
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = tui::layout::Layout::default()
         .direction(tui::layout::Direction::Vertical)
@@ -265,6 +346,9 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             .as_ref(),
         )
         .split(popup_layout[1])[1]
+}
+fn small_alert_box(r: Rect) -> Rect {
+    centered_rect(70, 60, r)
 }
 
 fn default_rect(r: Rect) -> Rect {

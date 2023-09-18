@@ -43,6 +43,10 @@ impl<'a> Curl<'a> {
         self.url = url.clone();
     }
 
+    pub fn remove_flag(&mut self, flag: CurlFlag<'a>) {
+        self.opts.retain(|x| x.flag != flag);
+    }
+
     pub fn add_flag(&mut self, flag: CurlFlag<'a>, value: Option<String>) {
         match flag {
             CurlFlag::Method(_) => {
@@ -168,14 +172,17 @@ impl<'a> Curl<'a> {
         });
     }
 
-    pub fn execute_command(&self) -> Result<String, std::io::Error> {
-        let mut output = Command::new("curl");
+    pub fn execute(&mut self) -> Result<String, std::io::Error> {
+        let mut output = Command::new(&self.cmd);
 
         // This takes each one of our added flags / args and creates the command
+        // also builds the command string so we can save it later
         for flag in &self.opts {
             output.arg(flag.flag.get_value());
+            self.cmd.push_str(flag.flag.get_value());
             if let Some(argument) = &flag.value {
                 output.arg(argument);
+                self.cmd.push_str(argument.clone().as_str())
             }
         }
 
@@ -190,6 +197,7 @@ impl<'a> Curl<'a> {
             let mut output_str = String::new();
             if let Some(mut stdout) = child.stdout {
                 stdout.read_to_string(&mut output_str)?;
+                // Hopefully our response
                 Ok(output_str)
             } else {
                 return Err(std::io::Error::new(

@@ -2,6 +2,7 @@ use reqwest::{Client, Method};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use tokio::runtime::Runtime;
 
 /// Application.
 pub mod app;
@@ -26,6 +27,9 @@ pub mod wget;
 
 // Response parser
 pub mod response;
+
+// Database
+pub mod db;
 
 pub static GET: &str = "GET";
 pub static POST: &str = "POST";
@@ -66,11 +70,22 @@ impl Request {
         self.method = method.clone();
     }
 
-    pub fn add_headers(&mut self, headers: Vec<(String, String)>) {
-        self.headers = Some(headers);
+    pub fn add_headers(&mut self, headers: (String, String)) {
+        match self.headers {
+            Some(ref mut vec) => {
+                let mut new_vec = vec.clone();
+                new_vec.push(headers);
+                self.headers = Some(new_vec);
+            }
+            None => {
+                let mut vec = Vec::new();
+                vec.push(headers);
+                self.headers = Some(vec);
+            }
+        }
     }
 
-    pub async fn send_request(&self) -> Result<(), reqwest::Error> {
+    pub async fn send_request(&self) -> Result<String, reqwest::Error> {
         // Create a reqwest Client
         let client = Client::new();
 
@@ -109,20 +124,20 @@ impl Request {
         }
 
         // Send the request and handle the response
+        let rt = Runtime::new().expect("Failed creating tokio runtime");
         let response = request.send().await?;
-        match &self.output {
-            Some(output) => {
-                let mut file = BufWriter::new(File::create(output.clone()).unwrap());
-                file.write_all(response.text().await?.as_bytes()).unwrap();
-            }
-            None => {
-                println!("{}", response.text().await?);
-            }
+        let ret = rt.block_on(response.text())?;
+        if self.output.is_some() {
+            let file = File::create(self.output.clone().unwrap()).expect("file creation failed");
+            let mut writer = BufWriter::new(file); // TODO: FIXME:
+            writer.write_all(ret.clone().as_bytes()).unwrap_or_default();
+            Ok(ret.to_string())
+        } else {
+            Ok(ret.clone().to_string())
         }
-
-        Ok(())
     }
 }
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Auth {
     AnyAuth,

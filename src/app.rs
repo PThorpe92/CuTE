@@ -1,13 +1,15 @@
-use crate::curl::Curl;
+use crate::curl::{Curl, CurlFlag, CurlFlagType};
 use crate::wget::Wget;
 use crate::Request;
 use lazy_static::lazy_static;
 use std::error;
+use tokio::runtime;
 use tui::{
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, List, ListItem, ListState},
 };
 use tui_input::Input;
+
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -28,6 +30,7 @@ pub struct App<'a> {
     pub screen_stack: Vec<Screen>,
     pub command: Option<Command<'a>>,
     pub selected: Option<usize>,
+    pub opts: Vec<DisplayOpts>,
     pub input: Input,
     pub messages: Vec<String>,
     pub input_mode: InputMode,
@@ -38,11 +41,10 @@ pub struct App<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Screen {
     Home,
-    Command(String),
-    CurlMenu(String),
-    WgetMenu(String),
-    CustomMenu(String),
+    Method(String),
+    RequestMenu(String),
     InputMenu(usize),
+    Response(String),
     Keys,
     Saved,
 }
@@ -60,8 +62,8 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Command(_) => {
-                return COMMAND_MENU_OPTIONS
+            Screen::Method(_) => {
+                return METHOD_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
                     .collect();
@@ -72,29 +74,23 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::CurlMenu(_) => {
-                return CURL_MENU_OPTIONS
+            Screen::RequestMenu(_) => {
+                return REQUEST_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
-                    .collect();
-            }
-            Screen::WgetMenu(_) => {
-                return WGET_MENU_OPTIONS
-                    .iter()
-                    .map(|i| ListItem::new(*i))
-                    .collect();
-            }
-            Screen::CustomMenu(_) => {
-                return HTTP_MENU_OPTIONS
-                    .iter()
-                    .map(|i| ListItem::new(*i))
-                    .collect();
+                    .collect()
             }
             Screen::Saved => {
                 return SAVED_COMMAND_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
                     .collect();
+            }
+            Screen::Response(_) => {
+                return RESPONSE_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect()
             }
             Screen::InputMenu(ind) => {
                 return INPUT_MENU_OPTIONS
@@ -126,16 +122,25 @@ impl<'a> Screen {
     pub fn to_string(&self) -> String {
         match self {
             Screen::Home => "Main Menu",
-            Screen::Command(_) => "Command",
+            Screen::Method(_) => "Choose an HTTP Method",
             Screen::Keys => "My Saved API Keys",
-            Screen::CurlMenu(_) => "Curl",
-            Screen::WgetMenu(_) => "Wget",
-            Screen::CustomMenu(_) => "Custom HTTP Request",
+            Screen::RequestMenu(_) => "Command Request Options",
             Screen::Saved => "My Saved Commands",
             Screen::InputMenu(_) => "User input",
+            Screen::Response(_) => "Response",
         }
         .to_string()
     }
+}
+
+/// Here are the options that require us to display a box letting
+/// the user know that they have selected that option.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DisplayOpts {
+    Verbose,
+    URL(String),
+    Outfile(String),
+    SaveCommand,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -144,10 +149,12 @@ pub enum Command<'a> {
     Wget(Wget),
     Custom(Request),
 }
+
 impl<'a> Command<'a> {
     pub fn default(curl: Curl<'a>) -> Self {
         Command::Curl(curl)
     }
+
     pub fn set_method(&mut self, method: String) {
         match self {
             Command::Curl(curl) => {
@@ -179,6 +186,62 @@ impl<'a> Command<'a> {
         }
     }
 
+    pub fn set_outfile(&mut self, file: String) {
+        match self {
+            Command::Curl(curl) => {
+                curl.add_flag(CurlFlag::Output(""), Some(file));
+                return;
+            }
+            Command::Wget(wget) => {
+                wget.set_output(file);
+                return;
+            }
+            Command::Custom(req) => {
+                req.output = Some(file.clone());
+                return;
+            }
+        }
+    }
+
+    pub fn add_headers(&mut self, headers: (String, String)) {
+        match self {
+            Command::Custom(req) => {
+                req.add_headers(headers);
+                return;
+            }
+            _ => {
+                return;
+            }
+        }
+    }
+
+    pub fn set_verbose(&mut self, verbose: bool) {
+        match self {
+            Command::Curl(curl) => {
+                if verbose {
+                    curl.add_flag(CurlFlag::Verbose("-v"), None);
+                } else {
+                    curl.remove_flag(CurlFlag::Verbose(""));
+                }
+            }
+            Command::Wget(wget) => {
+                wget.set_verbose(verbose);
+                return;
+            }
+            Command::Custom(_) => {
+                return;
+            }
+        }
+    }
+
+    pub async fn execute(&mut self) -> Result<String, std::io::Error> {
+        match self {
+            Command::Curl(curl) => Ok(curl.execute().unwrap_or("".to_string())),
+            Command::Wget(wget) => Ok(wget.execute().unwrap_or("".to_string())),
+            Command::Custom(req) => Ok(req.send_request().await.unwrap()),
+        }
+    }
+
     pub fn to_string(&self) -> String {
         match self {
             Command::Curl(_) => "Curl",
@@ -199,6 +262,7 @@ impl<'a> Default for App<'a> {
             command: None,
             input_mode: InputMode::Normal,
             messages: Vec::new(),
+            opts: Vec::new(),
             items: Vec::from(Screen::Home.get_opts()),
             input: Input::default(),
             state: None,
@@ -263,10 +327,26 @@ impl<'a> App<'_> {
             self.selected = Some(selected);
         }
     }
+
+    pub fn has_display_option(&self, opt: DisplayOpts) -> bool {
+        match self.opts.iter().find(|x| x == &&opt) {
+            Some(_) => true,
+            None => false,
+        }
+    }
+
+    // user selects once, we add. twice we remove.
+    pub fn add_display_option(&mut self, opt: DisplayOpts) {
+        if !self.has_display_option(opt.clone()) {
+            self.opts.push(opt);
+        } else {
+            self.opts.retain(|x| x != &opt);
+        }
+    }
 }
 
 lazy_static! {
-pub static ref CURL_MENU_OPTIONS: Vec<&'static str> = vec![
+pub static ref REQUEST_MENU_OPTIONS: Vec<&'static str> = vec![
     "Add a URL\n \n",
     "Add Authentication\n \n",
     "Add Headers\n \n",
@@ -274,34 +354,17 @@ pub static ref CURL_MENU_OPTIONS: Vec<&'static str> = vec![
     "Specify request output file\n \n",
     "Add Request Body\n \n",
     "Execute command\n \n",
-];
-pub static ref WGET_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Add a URL\n \n",
-    "Add Authentication\n \n ",
-    "Add Headers\n \n",
-    "Enable verbose output\n \n",
-    "Specify download output file\n \n",
-    "Specify recursive download\n \n",
-    "Add Request Body\n \n",
-    "Execute command\n \n",
+    "Save this command\n \n",
+    "Recursive download (wget only)\n \n"
 ];
 
-pub static ref COMMAND_MENU_OPTIONS: Vec<&'static str> = vec![
+pub static ref METHOD_MENU_OPTIONS: Vec<&'static str> = vec![
     "Choose an HTTP method:\n \n",
     "GET\n \n",
     "POST\n \n",
     "PUT\n \n",
     "DELETE\n \n",
     "PATCH\n \n",
-];
-
-pub static ref HTTP_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Add a URL\n \n",
-    "Authentication\n \n",
-    "Add Headers\n \n",
-    "Specify response output file\n \n ",
-    "Add Request Body\n \n",
-    "Send Request \n \n",
 ];
 
 pub static ref AUTHENTICATION_MENU_OPTIONS: Vec<&'static str> = vec![
@@ -318,9 +381,9 @@ pub static ref AUTHENTICATION_MENU_OPTIONS: Vec<&'static str> = vec![
 ];
 
 pub static ref INPUT_MENU_OPTIONS: Vec<&'static str> = vec![
-        "Please enter a URL for your request",
-        "Please specify your request headers",
-        "Please enter your request body",
+    "Please enter a URL for your request",
+    "Please specify your request headers",
+    "Please enter your request body",
 ];
 
 pub static ref MAIN_MENU_OPTIONS: Vec<&'static str> = vec![
@@ -329,6 +392,11 @@ pub static ref MAIN_MENU_OPTIONS: Vec<&'static str> = vec![
     "Build/send new custom HTTP request\n  \n",
     "View my stored API keys\n  \n",
     "View or execute my saved commands\n  \n",
+];
+pub static ref RESPONSE_MENU_OPTIONS: Vec<&'static str> = vec![
+        "Write to file?\n \n",
+        "View response headers\n \n",
+        "View response body\n \n",
 ];
 
 // TODO: keys and saved commands menus
