@@ -1,6 +1,6 @@
 use crate::app::InputMode;
 use crate::app::{App, AppResult};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tui_input::InputRequest;
 
 /// Handles the key events and updates the state of [`App`].

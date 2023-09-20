@@ -1,9 +1,9 @@
-use crate::curl::{Curl, CurlFlag, CurlFlagType};
+use crate::curl::{Curl, CurlFlag};
 use crate::wget::Wget;
 use crate::Request;
 use lazy_static::lazy_static;
 use std::error;
-use tokio::runtime;
+
 use tui::{
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, List, ListItem, ListState},
@@ -101,10 +101,10 @@ impl<'a> Screen {
                     .collect()
             }
             Screen::Success => {
-                return vec![ListItem::new("Success!").style(Style::default().fg(Color::Green))];
+                vec![ListItem::new("Success!").style(Style::default().fg(Color::Green))]
             }
             Screen::Error(_) => {
-                return vec![ListItem::new("Error!").style(Style::default().fg(Color::Red))];
+                vec![ListItem::new("Error!").style(Style::default().fg(Color::Red))]
             }
         }
     }
@@ -180,15 +180,12 @@ impl<'a> Command<'a> {
         match self {
             Command::Curl(curl) => {
                 curl.set_url(url.clone());
-                return;
             }
             Command::Wget(wget) => {
                 wget.set_url(url);
-                return;
             }
             Command::Custom(req) => {
                 req.url = url;
-                return;
             }
         }
     }
@@ -197,15 +194,12 @@ impl<'a> Command<'a> {
         match self {
             Command::Curl(curl) => {
                 curl.add_flag(CurlFlag::Output(""), Some(file));
-                return;
             }
             Command::Wget(wget) => {
                 wget.set_output(file);
-                return;
             }
             Command::Custom(req) => {
                 req.output = Some(file.clone());
-                return;
             }
         }
     }
@@ -214,10 +208,8 @@ impl<'a> Command<'a> {
         match self {
             Command::Custom(req) => {
                 req.add_headers(headers);
-                return;
             }
             _ => {
-                return;
             }
         }
     }
@@ -233,10 +225,8 @@ impl<'a> Command<'a> {
             }
             Command::Wget(wget) => {
                 wget.set_verbose(verbose);
-                return;
             }
             Command::Custom(_) => {
-                return;
             }
         }
     }
@@ -244,10 +234,8 @@ impl<'a> Command<'a> {
         match self {
             Command::Wget(wget) => {
                 wget.set_recursive_download(level as u8);
-                return;
             }
             _ => {
-                return;
             }
         }
     }
@@ -263,14 +251,14 @@ impl<'a> Command<'a> {
         match self {
             Command::Curl(curl) => {
                 curl.write_output()?;
-                return Ok(());
+                Ok(())
             }
             Command::Wget(wget) => {
                 wget.write_output()?;
-                return Ok(());
+                Ok(())
             }
             Command::Custom(_) => {
-                return Ok(());
+                Ok(())
             }
         }
     }
@@ -310,7 +298,7 @@ impl<'a> Default for App<'a> {
             input_mode: InputMode::Normal,
             messages: Vec::new(),
             opts: Vec::new(),
-            items: Vec::from(Screen::Home.get_opts()),
+            items: Screen::Home.get_opts(),
             input: Input::default(),
             state: None,
             current_screen: Screen::Home,
@@ -332,7 +320,6 @@ impl<'a> App<'_> {
         self.cursor = 0;
         self.items = screen.get_opts();
         self.selected = None;
-        return;
     }
 
     pub fn go_back_screen(&mut self) {
@@ -348,7 +335,6 @@ impl<'a> App<'_> {
                 self.current_screen = self.screen_stack.last().unwrap().clone();
             }
             None => {
-                return;
             }
         }
     }
@@ -358,7 +344,7 @@ impl<'a> App<'_> {
     }
 
     pub fn move_cursor_down(&mut self) {
-        if self.items.len() == 0 || self.cursor >= self.items.len() {
+        if self.items.is_empty() || self.cursor >= self.items.len() {
             return;
         }
         if let Some(res) = self.cursor.checked_add(1) {
@@ -367,7 +353,7 @@ impl<'a> App<'_> {
     }
 
     pub fn move_cursor_up(&mut self) {
-        if self.items.len() == 0 {
+        if self.items.is_empty() {
             return;
         }
         if let Some(res) = self.cursor.checked_sub(1) {
@@ -386,10 +372,7 @@ impl<'a> App<'_> {
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
     pub fn has_display_option(&self, opt: DisplayOpts) -> bool {
-        match self.opts.iter().find(|x| x == &&opt) {
-            Some(_) => true,
-            None => false,
-        }
+        self.opts.iter().any(|x| &x == &&opt)
     }
 
     // user selects once, we add. twice we remove.

@@ -1,4 +1,3 @@
-use serde_json::to_writer;
 use std::io::{Read, Write};
 use std::process::Command;
 
@@ -219,10 +218,10 @@ impl<'a> Curl<'a> {
                 // Hopefully our response
                 Ok(output_str)
             } else {
-                return Err(std::io::Error::new(
+                Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     "Failed to capture standard output",
-                ));
+                ))
             }
         } else {
             // Handle the case when the command fails
@@ -271,7 +270,7 @@ macro_rules! define_curl_flags {
 }
 impl CurlFlag<'_> {
     pub fn get_value(&self) -> &str {
-        match self.clone() {
+        match *self {
             CurlFlag::Verbose(val) => val,
             CurlFlag::Output(val) => val,
             CurlFlag::User(val) => val,

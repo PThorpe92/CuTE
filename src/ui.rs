@@ -1,12 +1,11 @@
 use crate::app::{
     App, Command, DisplayOpts, InputMode, InputOpt, Screen, METHOD_MENU_OPTIONS,
-    REQUEST_MENU_OPTIONS,
 };
 use crate::curl::Curl;
 use crate::wget::Wget;
 use crate::{Request, GET};
-use std::ops::Add;
-use tokio::runtime::{self, Runtime};
+
+use tokio::runtime::{Runtime};
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -52,7 +51,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         .style(Style::default().fg(Color::Cyan).bg(Color::Yellow))
         .alignment(Alignment::Left);
     let area = small_rect(frame.size());
-    if app.opts.len() != 0 {
+    if !app.opts.is_empty() {
         frame.render_widget(opts, area);
     }
     match &app.current_screen.clone() {
@@ -68,19 +67,15 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             match app.selected {
                 Some(0) => {
                     app.goto_screen(Screen::Method(String::from(CURL)));
-                    return;
                 }
                 Some(1) => {
                     app.goto_screen(Screen::Method(String::from(WGET)));
-                    return;
                 }
                 Some(2) => {
                     app.goto_screen(Screen::Method(String::from(CUSTOM)));
-                    return;
                 }
                 Some(3) => {
                     app.goto_screen(Screen::Keys);
-                    return;
                 }
                 Some(_) => {}
                 None => {}
@@ -91,7 +86,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-            app.items = Vec::from(app.current_screen.get_opts());
+            app.items = app.current_screen.get_opts();
             app.state = Some(state.clone());
             app.state.as_mut().unwrap().select(Some(app.cursor));
             frame.set_cursor(0, app.cursor as u16);
@@ -103,7 +98,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 "custom" => app.command = Some(Command::Custom(Request::default())),
                 _ => app.command = Some(Command::Custom(Request::default())),
             }
-            match app.selected.clone() {
+            match app.selected {
                 Some(num) => {
                     app.command.as_mut().unwrap().set_method(String::from(GET));
                     app.goto_screen(Screen::RequestMenu(String::from(
@@ -117,10 +112,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-            if app.items.len() != 0 {
+            if !app.items.is_empty() {
                 app.items.clear();
             }
-            app.items = Vec::from(app.current_screen.get_opts());
+            app.items = app.current_screen.get_opts();
             app.state = Some(state.clone());
             app.state.as_mut().unwrap().select(Some(app.cursor));
 
@@ -132,10 +127,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-            if app.items.len() != 0 {
+            if !app.items.is_empty() {
                 app.items.clear();
             }
-            app.items = Vec::from(app.current_screen.get_opts());
+            app.items = app.current_screen.get_opts();
             app.state = Some(state.clone());
             app.state.as_mut().unwrap().select(Some(app.cursor));
             frame.set_cursor(0, app.cursor as u16);
@@ -192,7 +187,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
         Screen::Success => {
             let area = default_rect(frame.size());
-            app.items = Vec::from(app.current_screen.get_opts());
+            app.items = app.current_screen.get_opts();
             frame.set_cursor(0, app.cursor as u16);
             frame.render_widget(menu_paragraph(), area);
         }
@@ -207,10 +202,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             let paragraph = Paragraph::new(Text::from(resp.as_str()))
                 .style(Style::default().fg(Color::Yellow).bg(Color::Black))
                 .alignment(Alignment::Center);
-            if app.items.len() != 0 {
+            if !app.items.is_empty() {
                 app.items.clear();
             }
-            app.items = Vec::from(app.current_screen.get_opts());
+            app.items = app.current_screen.get_opts();
             app.state = Some(state.clone());
             app.state.as_mut().unwrap().select(Some(app.cursor));
             frame.set_cursor(0, app.cursor as u16);
@@ -274,7 +269,7 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
             .as_ref(),
         )
         .split(frame.size());
-    let (msg, style) = match app.input_mode {
+    let (_msg, style) = match app.input_mode {
         InputMode::Normal => (
             vec![
                 Span::raw("Press "),
@@ -321,7 +316,7 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
         ),
     }
 
-    if app.messages.len() > 0 {
+    if !app.messages.is_empty() {
         match opt {
             InputOpt::URL => {
                 app.command
@@ -338,7 +333,7 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
                     .messages
                     .get(0)
                     .unwrap()
-                    .split(":")
+                    .split(':')
                     .collect::<Vec<&str>>();
                 let cpy = (
                     String::from(headers[0].clone()),
@@ -390,10 +385,10 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
 }
 
 fn render_input_with_prompt<B: Backend>(
-    app: &mut App,
+    _app: &mut App,
     frame: &mut Frame<'_, B>,
     prompt: Text,
-    opt: InputOpt,
+    _opt: InputOpt,
 ) {
     // Render the input with the provided prompt
     let chunks = Layout::default()

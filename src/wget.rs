@@ -40,7 +40,7 @@ impl Wget {
 
     pub fn execute(&mut self) -> Result<String, String> {
         let mut cmd = String::from(self.cmd.as_str());
-        cmd.push_str(" ");
+        cmd.push(' ');
         cmd.push_str(self.url.as_str());
         cmd.push_str(" -O ");
         cmd.push_str(self.output.as_str());
@@ -63,10 +63,8 @@ impl Wget {
     pub fn set_verbose(&mut self, verbose: bool) {
         if verbose {
             self.cmd.push_str(" --verbose");
-        } else {
-            if self.cmd.contains("--verbose") {
-                self.cmd = self.cmd.replace("--verbose", "");
-            }
+        } else if self.cmd.contains("--verbose") {
+            self.cmd = self.cmd.replace("--verbose", "");
         }
     }
 
