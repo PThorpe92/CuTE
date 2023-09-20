@@ -28,7 +28,7 @@ Require echo
 Set Shell "bash"
 Set FontSize 32
 Set Width 1800
-Set Height 1000
+Set Height 1200
 
 Show Type "/home/dvektor/Projects/cURLtui-rs/target/debug/cURLtui-rs"
 Sleep 900ms
@@ -62,3 +62,27 @@ Show Type "https://github.com/eza-community/eza"
 Sleep 900ms
 Enter
 Sleep 900ms
+Down
+Sleep 300ms
+Down 
+Sleep 300ms
+Down
+Sleep 300ms
+Enter
+Sleep 900ms
+Down
+Sleep 400ms
+Down 
+Sleep 400ms
+Up
+Sleep 400ms
+Up 
+Sleep 400ms
+Enter
+Sleep 4000ms
+Enter
+Sleep 4000ms
+Type "h"
+Sleep 2000ms 
+Type "q"
+

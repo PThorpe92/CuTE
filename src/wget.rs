@@ -1,17 +1,21 @@
+use std::io::Write;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Wget {
     pub cmd: String,
     pub url: String,
-    pub download: bool,
+    pub rec_download: u8,
     pub output: String,
+    pub response: String,
 }
 impl Wget {
     pub fn new() -> Self {
         Wget {
             cmd: String::from("wget"),
             url: String::new(),
-            download: false,
+            rec_download: 0,
             output: String::new(),
+            response: String::new(),
         }
     }
 
@@ -22,6 +26,17 @@ impl Wget {
     pub fn set_output(&mut self, output: String) {
         self.output = output;
     }
+    pub fn set_response(&mut self, response: String) {
+        self.response = response.clone();
+    }
+    pub fn write_output(&mut self) -> Result<(), std::io::Error> {
+        let mut file = std::fs::File::create(self.output.clone())?;
+        let mut writer = std::io::BufWriter::new(&mut file);
+        writer
+            .write_all(self.response.clone().as_bytes())
+            .expect("failed to write file");
+        Ok(())
+    }
 
     pub fn execute(&mut self) -> Result<String, String> {
         let mut cmd = String::from(self.cmd.as_str());
@@ -29,8 +44,9 @@ impl Wget {
         cmd.push_str(self.url.as_str());
         cmd.push_str(" -O ");
         cmd.push_str(self.output.as_str());
-        if self.download {
-            cmd.push_str(" --continue");
+        if self.rec_download > 0 {
+            let level = format!("-r --level={}", self.rec_download);
+            cmd.push_str(level.as_str());
         }
         let output = std::process::Command::new("sh")
             .arg("-c")
@@ -54,8 +70,12 @@ impl Wget {
         }
     }
 
-    pub fn set_download(&mut self, download: bool) {
-        self.download = download;
+    pub fn is_recursive(&self) -> bool {
+        self.cmd.contains("-r")
+    }
+
+    pub fn set_recursive_download(&mut self, download: u8) {
+        self.rec_download = download;
     }
 
     pub fn set_method(&mut self, method: String) {

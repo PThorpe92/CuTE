@@ -1,4 +1,5 @@
-use std::io::Read;
+use serde_json::to_writer;
+use std::io::{Read, Write};
 use std::process::Command;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -7,6 +8,7 @@ pub struct Curl<'a> {
     pub url: String,          // The url we will send the request to
     pub opts: Vec<Flag<'a>>,  // The opts we will build incrementally and store
     pub resp: Option<String>, // The response we get back from the command if not sent to file
+    pub outfile: Option<String>,
 }
 
 // No need to have a request field, we can just build the command incrementally
@@ -17,6 +19,7 @@ impl<'a> Curl<'a> {
             url: String::new(),
             opts: Vec::new(),
             resp: None,
+            outfile: None,
         }
     }
 
@@ -26,6 +29,7 @@ impl<'a> Curl<'a> {
             url: String::new(),
             opts: Vec::new(),
             resp: None,
+            outfile: None,
         };
         self_.add_flag(
             CurlFlag::new(None, CurlFlagType::Method),
@@ -41,6 +45,17 @@ impl<'a> Curl<'a> {
 
     pub fn set_url(&mut self, url: String) {
         self.url = url.clone();
+    }
+
+    pub fn set_response(&mut self, response: String) {
+        self.resp = Some(response.clone());
+    }
+
+    pub fn write_output(&mut self) -> Result<(), std::io::Error> {
+        let mut file = std::fs::File::create(self.outfile.clone().expect("./output.txt"))?;
+        let mut writer = std::io::BufWriter::new(&mut file);
+        writer.write_all(self.resp.clone().unwrap().as_bytes());
+        Ok(())
     }
 
     pub fn remove_flag(&mut self, flag: CurlFlag<'a>) {
@@ -69,10 +84,13 @@ impl<'a> Curl<'a> {
                 flag: CurlFlag::new(None, CurlFlagType::Ntlm),
                 value: None,
             }),
-            CurlFlag::Output(_) => self.opts.push(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::Output),
-                value: Some(value.clone().expect("Output file not provided")),
-            }),
+            CurlFlag::Output(_) => {
+                self.opts.push(Flag {
+                    flag: CurlFlag::new(None, CurlFlagType::Output),
+                    value: Some(value.clone().expect("Output file not provided")),
+                });
+                self.outfile = Some(value.clone().unwrap_or(String::from("output.txt")));
+            }
             CurlFlag::Trace(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Trace),
                 value: Some(
@@ -185,7 +203,8 @@ impl<'a> Curl<'a> {
                 self.cmd.push_str(argument.clone().as_str())
             }
         }
-
+        self.cmd.push_str(self.url.as_str());
+        output.arg(self.url.clone().as_str());
         // Spawn the command and capture its output
         let mut child = output.spawn()?;
 

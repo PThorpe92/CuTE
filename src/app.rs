@@ -43,10 +43,12 @@ pub enum Screen {
     Home,
     Method(String),
     RequestMenu(String),
-    InputMenu(usize),
+    InputMenu(InputOpt),
     Response(String),
+    Success,
     Keys,
     Saved,
+    Error(String),
 }
 
 impl<'a> Screen {
@@ -92,17 +94,17 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect()
             }
-            Screen::InputMenu(ind) => {
+            Screen::InputMenu(_) => {
                 return INPUT_MENU_OPTIONS
                     .iter()
-                    .enumerate()
-                    .map(|(i, x)| {
-                        if i == *ind {
-                            return ListItem::new(*x).style(Style::default().fg(Color::Yellow));
-                        }
-                        return ListItem::new(&**x);
-                    })
+                    .map(|x| ListItem::new(*x))
                     .collect()
+            }
+            Screen::Success => {
+                return vec![ListItem::new("Success!").style(Style::default().fg(Color::Green))];
+            }
+            Screen::Error(_) => {
+                return vec![ListItem::new("Error!").style(Style::default().fg(Color::Red))];
             }
         }
     }
@@ -128,6 +130,8 @@ impl<'a> Screen {
             Screen::Saved => "My Saved Commands",
             Screen::InputMenu(_) => "User input",
             Screen::Response(_) => "Response",
+            Screen::Success => "Success",
+            Screen::Error(_) => "Error",
         }
         .to_string()
     }
@@ -138,9 +142,12 @@ impl<'a> Screen {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DisplayOpts {
     Verbose,
+    // TODO: support more headers
+    Headers((String, String)),
     URL(String),
     Outfile(String),
     SaveCommand,
+    Response(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -233,12 +240,52 @@ impl<'a> Command<'a> {
             }
         }
     }
+    pub fn set_rec_download(&mut self, level: usize) {
+        match self {
+            Command::Wget(wget) => {
+                wget.set_recursive_download(level as u8);
+                return;
+            }
+            _ => {
+                return;
+            }
+        }
+    }
 
     pub async fn execute(&mut self) -> Result<String, std::io::Error> {
         match self {
             Command::Curl(curl) => Ok(curl.execute().unwrap_or("".to_string())),
             Command::Wget(wget) => Ok(wget.execute().unwrap_or("".to_string())),
             Command::Custom(req) => Ok(req.send_request().await.unwrap()),
+        }
+    }
+    pub fn write_output(&mut self) -> Result<(), std::io::Error> {
+        match self {
+            Command::Curl(curl) => {
+                curl.write_output()?;
+                return Ok(());
+            }
+            Command::Wget(wget) => {
+                wget.write_output()?;
+                return Ok(());
+            }
+            Command::Custom(_) => {
+                return Ok(());
+            }
+        }
+    }
+
+    pub fn set_response(&mut self, response: String) {
+        match self {
+            Command::Curl(curl) => {
+                curl.set_response(response);
+            }
+            Command::Wget(wget) => {
+                wget.set_response(response);
+            }
+            Command::Custom(req) => {
+                req.set_response(response);
+            }
         }
     }
 
@@ -289,12 +336,20 @@ impl<'a> App<'_> {
     }
 
     pub fn go_back_screen(&mut self) {
-        if self.screen_stack.len() == 1 {
-            return;
-        } else {
-            self.cursor = 0;
-            self.selected = None;
-            self.current_screen = self.screen_stack.last().unwrap().clone();
+        match self.screen_stack.pop() {
+            // we are not returning to an input menu, so we pop the last element that wasn't an input menu
+            Some(Screen::InputMenu(_)) => {
+                // we can unwrap, because if we have hit an input menu, it's guaranteed
+                self.current_screen = self.screen_stack.last().unwrap().clone();
+            }
+            Some(_) => {
+                self.cursor = 0;
+                self.selected = None;
+                self.current_screen = self.screen_stack.last().unwrap().clone();
+            }
+            None => {
+                return;
+            }
         }
     }
 
@@ -328,6 +383,8 @@ impl<'a> App<'_> {
         }
     }
 
+    // Display option is some state that requires us to display the users
+    // current selection on the screen so they know what they have selected
     pub fn has_display_option(&self, opt: DisplayOpts) -> bool {
         match self.opts.iter().find(|x| x == &&opt) {
             Some(_) => true,
@@ -344,72 +401,101 @@ impl<'a> App<'_> {
         }
     }
 }
+#[derive(Debug, Clone, PartialEq)]
+pub enum InputOpt {
+    URL,
+    Headers,
+    Output,
+    RequestBody,
+    RecursiveDownload,
+    Authentication,
+    Execute,
+}
+impl InputOpt {
+    pub fn to_string(&self) -> String {
+        match self {
+            InputOpt::URL => "URL",
+            InputOpt::Headers => "Headers",
+            InputOpt::Output => "Output",
+            InputOpt::RequestBody => "Request Body",
+            InputOpt::RecursiveDownload => "Recursive Download",
+            InputOpt::Authentication => "Authentication",
+            InputOpt::Execute => "Execute",
+        }
+        .to_string()
+    }
+}
+
+pub enum Auth {
+    Basic,
+    Bearer,
+    Digest,
+    Hawk,
+    OAuth,
+    AWSSignature,
+    NTLM,
+    Kerberos,
+    SPNEGO,
+    Custom,
+}
 
 lazy_static! {
-pub static ref REQUEST_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Add a URL\n \n",
-    "Add Authentication\n \n",
-    "Add Headers\n \n",
-    "Enable verbose output\n \n",
-    "Specify request output file\n \n",
-    "Add Request Body\n \n",
-    "Execute command\n \n",
-    "Save this command\n \n",
-    "Recursive download (wget only)\n \n"
-];
-
-pub static ref METHOD_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Choose an HTTP method:\n \n",
-    "GET\n \n",
-    "POST\n \n",
-    "PUT\n \n",
-    "DELETE\n \n",
-    "PATCH\n \n",
-];
-
-pub static ref AUTHENTICATION_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Basic\n \n",
-    "Bearer\n \n",
-    "Digest\n \n",
-    "Hawk\n \n",
-    "OAuth\n \n",
-    "AWS Signature\n \n",
-    "NTLM\n \n",
-    "Kerberos\n \n",
-    "SPNEGO\n \n",
-    "Custom\n \n",
-];
-
-pub static ref INPUT_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Please enter a URL for your request",
-    "Please specify your request headers",
-    "Please enter your request body",
-];
-
-pub static ref MAIN_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Build and run a new cURL command\n  \n",
-    "Build and run a new wget command\n  \n",
-    "Build/send new custom HTTP request\n  \n",
-    "View my stored API keys\n  \n",
-    "View or execute my saved commands\n  \n",
-];
-pub static ref RESPONSE_MENU_OPTIONS: Vec<&'static str> = vec![
+    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 9] = [
+        "Add a URL\n \n",
+        "Add Authentication\n \n",
+        "Add Headers\n \n",
+        "Enable verbose output\n \n",
+        "Specify request output file\n \n",
+        "Add Request Body\n \n",
+        "Execute command\n \n",
+        "Save this command\n \n",
+        "Recursive download (wget only)\n \n"
+    ];
+    pub static ref METHOD_MENU_OPTIONS: [&'static str; 6] = [
+        "Choose an HTTP method:\n \n",
+        "GET\n \n",
+        "POST\n \n",
+        "PUT\n \n",
+        "DELETE\n \n",
+        "PATCH\n \n",
+    ];
+    pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 10] = [
+        "Basic\n \n",
+        "Bearer\n \n",
+        "Digest\n \n",
+        "Hawk\n \n",
+        "OAuth\n \n",
+        "AWS Signature\n \n",
+        "NTLM\n \n",
+        "Kerberos\n \n",
+        "SPNEGO\n \n",
+        "Custom\n \n",
+    ];
+    pub static ref INPUT_MENU_OPTIONS: [&'static str; 3] = [
+        "Please enter a URL for your request",
+        "Please specify your request headers",
+        "Please enter your request body",
+    ];
+    pub static ref MAIN_MENU_OPTIONS: [&'static str; 5] = [
+        "Build and run a new cURL command\n  \n",
+        "Build and run a new wget command\n  \n",
+        "Build/send new custom HTTP request\n  \n",
+        "View my stored API keys\n  \n",
+        "View or execute my saved commands\n  \n",
+    ];
+    pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 3] = [
         "Write to file?\n \n",
         "View response headers\n \n",
         "View response body\n \n",
-];
-
-// TODO: keys and saved commands menus
-// Filler for now until these are implemented:
-// obviously we need to be fetching these from the db
-pub static ref API_KEY_MENU_OPTIONS: Vec<&'static str> = vec![
-    "Add a new key\n \n",
-    "View my keys\n \n",
-    "Delete a key\n \n",
-];
-pub static ref SAVED_COMMAND_OPTIONS: Vec<&'static str> = vec![
-    "Add a new saved command\n \n",
-    "View my saved commands\n \n",
-    "Delete a saved command\n \n",
-];
+    ];
+    pub static ref API_KEY_MENU_OPTIONS: [&'static str; 3] = [
+        "Add a new key\n \n",
+        "View my keys\n \n",
+        "Delete a key\n \n",
+    ];
+    pub static ref SAVED_COMMAND_OPTIONS: [&'static str; 3] = [
+        "Add a new saved command\n \n",
+        "View my saved commands\n \n",
+        "Delete a saved command\n \n",
+    ];
 }

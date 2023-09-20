@@ -70,6 +70,10 @@ impl Request {
         self.method = method.clone();
     }
 
+    pub fn set_response(&mut self, response: String) {
+        self.output = Some(response.clone());
+    }
+
     pub fn add_headers(&mut self, headers: (String, String)) {
         match self.headers {
             Some(ref mut vec) => {
