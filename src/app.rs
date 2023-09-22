@@ -36,6 +36,7 @@ pub struct App<'a> {
     pub input_mode: InputMode,
     pub items: Vec<ListItem<'a>>,
     pub state: Option<ListState>,
+    pub response: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -49,6 +50,7 @@ pub enum Screen {
     Keys,
     Saved,
     Error(String),
+    ViewBody,
 }
 
 impl<'a> Screen {
@@ -106,6 +108,9 @@ impl<'a> Screen {
             Screen::Error(_) => {
                 vec![ListItem::new("Error!").style(Style::default().fg(Color::Red))]
             }
+            Screen::ViewBody => {
+                vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
+            }
         }
     }
 
@@ -132,6 +137,7 @@ impl<'a> Screen {
             Screen::Response(_) => "Response",
             Screen::Success => "Success",
             Screen::Error(_) => "Error",
+            Screen::ViewBody => "View response body",
         }
         .to_string()
     }
@@ -150,7 +156,7 @@ pub enum DisplayOpts {
     Response(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub enum Command<'a> {
     Curl(Curl<'a>),
     Wget(Wget),
@@ -209,25 +215,28 @@ impl<'a> Command<'a> {
             Command::Custom(req) => {
                 req.add_headers(headers);
             }
-            _ => {
+            _ => {}
+        }
+    }
+    pub fn set_headers(&mut self, headers: Vec<String>) {
+        match self {
+            Command::Curl(curl) => {
+                curl.add_headers(headers);
             }
+            Command::Custom(_) => {
+                //req.set_headers(headers);
+            }
+            _ => {}
         }
     }
 
     pub fn set_verbose(&mut self, verbose: bool) {
         match self {
-            Command::Curl(curl) => {
-                if verbose {
-                    curl.add_flag(CurlFlag::Verbose("-v"), None);
-                } else {
-                    curl.remove_flag(CurlFlag::Verbose(""));
-                }
-            }
+            Command::Curl(curl) => curl.set_verbose(verbose),
             Command::Wget(wget) => {
                 wget.set_verbose(verbose);
             }
-            Command::Custom(_) => {
-            }
+            Command::Custom(_) => {}
         }
     }
     pub fn set_rec_download(&mut self, level: usize) {
@@ -235,8 +244,7 @@ impl<'a> Command<'a> {
             Command::Wget(wget) => {
                 wget.set_recursive_download(level as u8);
             }
-            _ => {
-            }
+            _ => {}
         }
     }
 
@@ -257,22 +265,20 @@ impl<'a> Command<'a> {
                 wget.write_output()?;
                 Ok(())
             }
-            Command::Custom(_) => {
-                Ok(())
-            }
+            Command::Custom(_) => Ok(()),
         }
     }
 
     pub fn set_response(&mut self, response: String) {
         match self {
             Command::Curl(curl) => {
-                curl.set_response(response);
+                curl.set_response(response.clone());
             }
             Command::Wget(wget) => {
-                wget.set_response(response);
+                wget.set_response(response.clone());
             }
             Command::Custom(req) => {
-                req.set_response(response);
+                req.set_response(response.clone());
             }
         }
     }
@@ -302,6 +308,7 @@ impl<'a> Default for App<'a> {
             input: Input::default(),
             state: None,
             current_screen: Screen::Home,
+            response: None,
         }
     }
 }
@@ -334,8 +341,7 @@ impl<'a> App<'_> {
                 self.selected = None;
                 self.current_screen = self.screen_stack.last().unwrap().clone();
             }
-            None => {
-            }
+            None => {}
         }
     }
 
@@ -373,6 +379,16 @@ impl<'a> App<'_> {
     // current selection on the screen so they know what they have selected
     pub fn has_display_option(&self, opt: DisplayOpts) -> bool {
         self.opts.iter().any(|x| &x == &&opt)
+    }
+
+    pub fn set_response(&mut self, response: String) {
+        self.response = Some(response.clone());
+        match self.command {
+            Some(ref mut cmd) => {
+                cmd.set_response(response);
+            }
+            None => {}
+        }
     }
 
     // user selects once, we add. twice we remove.
@@ -430,12 +446,11 @@ lazy_static! {
         "Enable verbose output\n \n",
         "Specify request output file\n \n",
         "Add Request Body\n \n",
-        "Execute command\n \n",
         "Save this command\n \n",
-        "Recursive download (wget only)\n \n"
+        "Recursive download (wget only)\n \n",
+        "Execute command\n \n",
     ];
-    pub static ref METHOD_MENU_OPTIONS: [&'static str; 6] = [
-        "Choose an HTTP method:\n \n",
+    pub static ref METHOD_MENU_OPTIONS: [&'static str; 5] = [
         "GET\n \n",
         "POST\n \n",
         "PUT\n \n",

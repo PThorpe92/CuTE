@@ -1,19 +1,23 @@
+use curl::easy::{Auth, Easy, Handler, List};
 use std::io::{Read, Write};
 use std::process::Command;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct Curl<'a> {
-    pub cmd: String,          // The final command string we will run
-    pub url: String,          // The url we will send the request to
-    pub opts: Vec<Flag<'a>>,  // The opts we will build incrementally and store
-    pub resp: Option<String>, // The response we get back from the command if not sent to file
-    pub outfile: Option<String>,
+    curl: Easy,           // The libcurl interface for our command/request
+    auth: Option<Auth>,   // The auth type we will use
+    cmd: String,          // The final command string we will run
+    url: String,          // The url we will send the request to
+    opts: Vec<Flag<'a>>,  // The opts we will build incrementally and store
+    resp: Option<String>, // The response we get back from the command if not sent to file
+    outfile: Option<String>,
 }
 
-// No need to have a request field, we can just build the command incrementally
 impl<'a> Curl<'a> {
     pub fn new() -> Self {
         Self {
+            curl: Easy::new(),
+            auth: None,
             cmd: String::from("curl"),
             url: String::new(),
             opts: Vec::new(),
@@ -23,19 +27,21 @@ impl<'a> Curl<'a> {
     }
 
     pub fn default(url: String) -> Self {
-        let mut self_ = Self {
+        let mut default = Self {
+            curl: Easy::new(),
+            auth: None,
             cmd: String::from("curl"),
             url: String::new(),
             opts: Vec::new(),
             resp: None,
             outfile: None,
         };
-        self_.add_flag(
+        default.add_flag(
             CurlFlag::new(None, CurlFlagType::Method),
             Some(String::from("GET")),
         );
-        self_.set_url(url.clone().to_string());
-        self_
+        default.set_url(url.clone().to_string());
+        default
     }
 
     pub fn set_method(&mut self, method: String) {
@@ -44,6 +50,7 @@ impl<'a> Curl<'a> {
 
     pub fn set_url(&mut self, url: String) {
         self.url = url.clone();
+        self.curl.url(url.as_str()).unwrap();
     }
 
     pub fn set_response(&mut self, response: String) {
@@ -53,7 +60,7 @@ impl<'a> Curl<'a> {
     pub fn write_output(&mut self) -> Result<(), std::io::Error> {
         let mut file = std::fs::File::create(self.outfile.clone().expect("./output.txt"))?;
         let mut writer = std::io::BufWriter::new(&mut file);
-        writer.write_all(self.resp.clone().unwrap().as_bytes());
+        let _ = writer.write_all(self.resp.clone().unwrap().as_bytes());
         Ok(())
     }
 
@@ -61,6 +68,132 @@ impl<'a> Curl<'a> {
         self.opts.retain(|x| x.flag != flag);
     }
 
+    pub fn add_headers(&mut self, headers: Vec<String>) {
+        let mut list = List::new();
+        let _ = headers.iter().map(|h| list.append(h.as_str()).unwrap());
+        self.curl.http_headers(list).unwrap();
+    }
+
+    pub fn set_verbose(&mut self, verbose: bool) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::Verbose), None);
+        self.curl.verbose(verbose).unwrap_or_default();
+    }
+
+    pub fn set_any_auth(&mut self) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::AnyAuth), None);
+        self.curl.http_auth(&Auth::new());
+    }
+
+    pub fn set_basic_auth(&mut self, on: bool) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::Basic), None);
+        self.auth.as_mut().unwrap().basic(on);
+    }
+
+    pub fn set_digest_auth(&mut self, on: bool) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::Digest), None);
+        self.auth.as_mut().unwrap().digest(on);
+    }
+
+    pub fn set_spegno_auth(&mut self, on: bool) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::SpegnoAuth), None);
+        self.auth.as_mut().unwrap().gssnegotiate(on);
+    }
+
+    pub fn set_get_method(&mut self, method: bool) {
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::Method),
+            Some(String::from("GET")),
+        );
+        self.curl.get(method).unwrap();
+    }
+
+    pub fn set_post_method(&mut self, method: bool) {
+        if method {
+            self.add_flag(
+                CurlFlag::new(None, CurlFlagType::Method),
+                Some(String::from("POST")),
+            );
+        } else {
+            self.remove_flag(CurlFlag::new(None, CurlFlagType::Method));
+        }
+        self.curl.post(method).unwrap();
+    }
+
+    pub fn set_put_method(&mut self, method: bool) {
+        if method {
+            self.add_flag(
+                CurlFlag::new(None, CurlFlagType::Method),
+                Some(String::from("PUT")),
+            );
+        } else {
+            self.remove_flag(CurlFlag::new(None, CurlFlagType::Method));
+        }
+        self.curl.put(method).unwrap();
+    }
+
+    pub fn set_patch_method(&mut self, method: bool) {
+        if method {
+            self.add_flag(
+                CurlFlag::new(None, CurlFlagType::Method),
+                Some(String::from("PATCH")),
+            );
+            self.curl.custom_request("PATCH").unwrap();
+        } else {
+            self.remove_flag(CurlFlag::new(None, CurlFlagType::Method));
+            self.curl.custom_request("").unwrap();
+        }
+    }
+
+    pub fn set_ntlm(&mut self, on: bool) {
+        if on {
+            self.add_flag(CurlFlag::new(None, CurlFlagType::Ntlm), None);
+        } else {
+            self.remove_flag(CurlFlag::new(None, CurlFlagType::Ntlm));
+        }
+        self.auth.as_mut().unwrap().ntlm(on);
+    }
+
+    pub fn set_progress(&mut self, on: bool) {
+        if on {
+            self.add_flag(CurlFlag::new(None, CurlFlagType::Progress), None);
+        } else {
+            self.remove_flag(CurlFlag::new(None, CurlFlagType::Progress));
+        }
+        self.curl.progress(on).unwrap();
+    }
+
+    // pub fn set_output(&mut self, output: String) {
+    //     self.add_flag(
+    //         CurlFlag::new(None, CurlFlagType::Output),
+    //         Some(output.clone()),
+    //     );
+    //     self.curl
+    //         .write_function(move |data| {
+    //             self.resp = Some(String::from_utf8_lossy(data).to_string());
+    //             Ok(data.len())
+    //         })
+    //         .unwrap();
+    // }
+
+    pub fn set_unix_socket(&mut self, socket: &str) {
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::UnixSocket),
+            Some(socket.to_string()),
+        );
+        self.curl.unix_socket(socket.clone()).unwrap();
+    }
+
+    pub fn show_header(&mut self, on: bool) {
+        if on {
+            self.add_flag(CurlFlag::new(None, CurlFlagType::DumpHeaders), None);
+        } else {
+            self.remove_flag(CurlFlag::new(None, CurlFlagType::DumpHeaders));
+        }
+        self.curl.show_header(on).unwrap();
+    }
+
+    // We are still doing everything the "long way" with flags because we are going to store the command
+    // string and the flags we use, for the user should they want to share it or use it later.
     pub fn add_flag(&mut self, flag: CurlFlag<'a>, value: Option<String>) {
         match flag {
             CurlFlag::Method(_) => {
@@ -71,10 +204,19 @@ impl<'a> Curl<'a> {
                     });
                 }
             }
-            CurlFlag::Verbose(_) => self.opts.push(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::Verbose),
-                value: None,
-            }),
+            CurlFlag::Verbose(_) => {
+                if self.opts.contains(&Flag {
+                    flag: CurlFlag::new(None, CurlFlagType::Verbose),
+                    value: None,
+                }) {
+                    self.opts.retain(|x| x.flag != flag);
+                } else {
+                    self.opts.push(Flag {
+                        flag: CurlFlag::new(None, CurlFlagType::Verbose),
+                        value: None,
+                    });
+                }
+            }
             CurlFlag::AnyAuth(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::AnyAuth),
                 value: None,
@@ -181,6 +323,14 @@ impl<'a> Curl<'a> {
             CurlFlag::Proxy(_) => self.opts.push(Flag {
                 flag: CurlFlag::new(None, CurlFlagType::Proxy),
                 value: Some(value.clone().expect("Proxy value not provided")),
+            }),
+            CurlFlag::SpegnoAuth(_) => self.opts.push(Flag {
+                flag: CurlFlag::new(None, CurlFlagType::SpegnoAuth),
+                value: None,
+            }),
+            CurlFlag::Progress(_) => self.opts.push(Flag {
+                flag: CurlFlag::new(None, CurlFlagType::Progress),
+                value: None,
             }),
         }
         self.opts.push(Flag {
@@ -290,6 +440,7 @@ impl CurlFlag<'_> {
             CurlFlag::Trace(val) => val,
             CurlFlag::DataUrlEncode(val) => val,
             CurlFlag::DumpHeaders(val) => val,
+            CurlFlag::Progress(val) => val,
             CurlFlag::Referrer(val) => val,
             CurlFlag::Insecure(val) => val,
             CurlFlag::PreventDefaultConfig(val) => val,
@@ -297,6 +448,7 @@ impl CurlFlag<'_> {
             CurlFlag::CaNative(val) => val,
             CurlFlag::CaPath(val) => val,
             CurlFlag::Method(val) => val,
+            CurlFlag::SpegnoAuth(val) => val,
         }
     }
 }
@@ -328,4 +480,6 @@ define_curl_flags! {
     CaCert("--cacert"),
     CaNative("--ca-native"),
     CaPath("--capath"),
+    SpegnoAuth("--negotiate"),
+    Progress("--progress-bar"),
 }

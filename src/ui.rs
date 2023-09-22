@@ -1,11 +1,9 @@
-use crate::app::{
-    App, Command, DisplayOpts, InputMode, InputOpt, Screen, METHOD_MENU_OPTIONS,
-};
+use crate::app::{App, Command, DisplayOpts, InputMode, InputOpt, Screen, METHOD_MENU_OPTIONS};
 use crate::curl::Curl;
 use crate::wget::Wget;
 use crate::{Request, GET};
 
-use tokio::runtime::{Runtime};
+use tokio::runtime::Runtime;
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -24,35 +22,38 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // See the following resources:
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui-org/ratatui/tree/master/examples
-    let mut display_opts = String::new();
-    app.opts.iter().for_each(|opt| match opt {
-        DisplayOpts::Verbose => {
-            display_opts.push_str("Verbose\n");
-        }
-        DisplayOpts::URL(url) => {
-            let url_str = format!("URL: {}\n", url.clone());
-            display_opts.push_str(url_str.as_str());
-        }
-        DisplayOpts::Response(resp) => {
-            let response = format!("Response: {}\n", resp.clone());
-            display_opts.push_str(response.as_str());
-        }
-        _ => {}
-    });
-    let final_opts = display_opts.clone();
-    let opts = Paragraph::new(final_opts.as_str())
-        .block(
-            Block::default()
-                .title("Options")
-                .title_alignment(Alignment::Left)
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded),
-        )
-        .style(Style::default().fg(Color::Cyan).bg(Color::Yellow))
-        .alignment(Alignment::Left);
-    let area = small_rect(frame.size());
-    if !app.opts.is_empty() {
+    if app.response.is_none() {
+        let mut display_opts = String::new();
+        app.opts.iter().for_each(|opt| match opt {
+            DisplayOpts::Verbose => {
+                display_opts.push_str("- Verbose\n");
+            }
+            DisplayOpts::URL(url) => {
+                let url_str = format!("- URL: {}\n", &url);
+                display_opts.push_str(url_str.as_str());
+            }
+            _ => {}
+        });
+        let final_opts = display_opts.clone();
+        let opts = Paragraph::new(final_opts.as_str())
+            .block(
+                Block::default()
+                    .title("Options")
+                    .title_alignment(Alignment::Left)
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded),
+            )
+            .style(Style::default().fg(Color::Cyan).bg(Color::Yellow))
+            .alignment(Alignment::Left);
+        let area = small_rect(frame.size());
         frame.render_widget(opts, area);
+    } else {
+        let area = small_rect(frame.size());
+        let response = app.response.clone().unwrap();
+        let paragraph = Paragraph::new(Text::from(response.as_str()))
+            .style(Style::default().fg(Color::Yellow).bg(Color::Black))
+            .alignment(Alignment::Center);
+        frame.render_widget(paragraph, area);
     }
     match &app.current_screen.clone() {
         Screen::Home => {
@@ -81,7 +82,6 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 None => {}
             }
         }
-
         Screen::Method(cmd) => {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
@@ -159,26 +159,26 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
                         app.selected = None;
                     }
-                    // Execute
+                    // Save this command
                     6 => {
+                        app.goto_screen(Screen::Saved);
+                        app.selected = None;
+                    }
+                    // Recursive download
+                    7 => {
+                        app.selected = None;
+                        app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
+                    }
+                    // Execute command
+                    8 => {
                         let response = app.command.as_mut().unwrap().execute();
                         let rt = Runtime::new().expect("Failed to create runtime");
                         let result = rt.block_on(response); // TODO: this is blocking, whole thing
                                                             // needs a refactor so we aren't doing what __should__ be an async call in a
                                                             // looping render function like a noob
-                        app.goto_screen(Screen::Response(
-                            result.unwrap_or(String::from("Internal Error with response")),
-                        ));
-                    }
-                    // Save the command
-                    7 => {
-                        app.goto_screen(Screen::Saved);
-                        app.selected = None;
-                    }
-                    // Specify recursive download (wget)
-                    9 => {
-                        app.selected = None;
-                        app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
+                        let pos = result.unwrap_or(String::from("Internal Error with response"));
+                        app.set_response(pos.clone());
+                        app.goto_screen(Screen::Response(pos));
                     }
                     _ => {}
                 },
@@ -195,8 +195,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             render_input_screen(app, frame, opt.clone());
         }
         Screen::Response(resp) => {
-            app.command.as_mut().unwrap().set_response(resp.clone());
-            let area = default_rect(frame.size());
+            let area = default_rect(small_alert_box(frame.size()));
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
             let paragraph = Paragraph::new(Text::from(resp.as_str()))
@@ -210,8 +209,8 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             app.state.as_mut().unwrap().select(Some(app.cursor));
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
-            let area = small_rect(frame.size());
-            frame.render_widget(paragraph, area);
+            let area_2 = small_alert_box(frame.size());
+            frame.render_widget(paragraph, area_2);
             match app.selected {
                 Some(num) => match num {
                     0 => {
@@ -220,10 +219,23 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     1 => {
                         app.goto_screen(Screen::Saved);
                     }
+                    2 => {
+                        app.goto_screen(Screen::ViewBody);
+                    }
                     _ => {}
                 },
                 None => {}
             }
+        }
+        Screen::ViewBody => {
+            // screen with only the body of the response
+            app.items.clear();
+            let area = small_rect(frame.size());
+            let response = app.response.clone().unwrap();
+            let paragraph = Paragraph::new(Text::from(response.as_str()))
+                .style(Style::default().fg(Color::Yellow).bg(Color::Black))
+                .alignment(Alignment::Center);
+            frame.render_widget(paragraph, area);
         }
         _ => {}
     }
@@ -433,6 +445,7 @@ fn success_paragraph() -> Paragraph<'static> {
         .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center)
 }
+
 fn api_key_paragraph() -> Paragraph<'static> {
     Paragraph::new(
         "Create / Edit / Delete API Keys and tokens.\n
