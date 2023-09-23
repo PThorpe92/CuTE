@@ -1,8 +1,8 @@
-use reqwest::{Client, Method, Response};
+use reqwest::{Client, Method};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use tokio::runtime::Runtime;
+
 
 /// Application.
 pub mod app;

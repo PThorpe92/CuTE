@@ -1,6 +1,6 @@
 use curl::easy::{Auth, Easy, Handler, List};
-use std::io::{Read, Write};
-use std::process::Command;
+use std::io::{Write};
+
 
 #[derive(Debug)]
 pub struct Curl<'a> {
