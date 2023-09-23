@@ -338,9 +338,14 @@ impl<'a> App<'_> {
                 self.current_screen = self.screen_stack.last().unwrap().clone();
             }
             Some(_) => {
-                self.cursor = 0;
-                self.selected = None;
-                self.current_screen = self.screen_stack.last().unwrap().clone();
+                match self.screen_stack.last() {
+                    Some(screen) => {
+                        self.cursor = 0;
+                        self.selected = None;
+                        self.current_screen = screen.clone();
+                    }
+                    _ => {}
+                }
             }
             None => {}
         }
