@@ -239,6 +239,7 @@ impl<'a> Command<'a> {
             Command::Custom(_) => {}
         }
     }
+
     pub fn set_rec_download(&mut self, level: usize) {
         match self {
             Command::Wget(wget) => {
@@ -252,7 +253,7 @@ impl<'a> Command<'a> {
         match self {
             Command::Curl(curl) => Ok(curl.execute().unwrap_or("".to_string())),
             Command::Wget(wget) => Ok(wget.execute().unwrap_or("".to_string())),
-            Command::Custom(req) => Ok(req.send_request().await.unwrap()),
+            Command::Custom(req) => Ok(req.send_request().await.unwrap_or_default()),
         }
     }
     pub fn write_output(&mut self) -> Result<(), std::io::Error> {
@@ -405,6 +406,7 @@ pub enum InputOpt {
     URL,
     Headers,
     Output,
+    Verbose,
     RequestBody,
     RecursiveDownload,
     Authentication,
@@ -420,6 +422,7 @@ impl InputOpt {
             InputOpt::RecursiveDownload => "Recursive Download",
             InputOpt::Authentication => "Authentication",
             InputOpt::Execute => "Execute",
+            InputOpt::Verbose => "Verbose",
         }
         .to_string()
     }

@@ -1,4 +1,4 @@
-use reqwest::{Client, Method};
+use reqwest::{Client, Method, Response};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -128,20 +128,27 @@ impl Request {
         }
 
         // Send the request and handle the response
-        let rt = Runtime::new().expect("Failed creating tokio runtime");
         let response = request.send().await?;
-        let ret = rt.block_on(response.text())?;
-        if self.output.is_some() {
-            let file = File::create(self.output.clone().unwrap()).expect("file creation failed");
-            let mut writer = BufWriter::new(file); // TODO: FIXME:
-            writer.write_all(ret.clone().as_bytes()).unwrap_or_default();
-            Ok(ret.to_string())
-        } else {
-            Ok(ret.clone().to_string())
+        let status = response.status().as_u16();
+        let res = response.text().await?;
+        match status {
+            200 => {
+                if self.output.is_some() {
+                    let file =
+                        File::create(self.output.clone().unwrap()).expect("file creation failed");
+                    let mut writer = BufWriter::new(file);
+                    let _ = writer.write_all(res.clone().as_bytes()).unwrap_or_default();
+                }
+                return Ok(res.clone());
+            }
+            401 => {
+                // do digest auth stuff here
+            }
+            _ => {}
         }
+        return Ok(res.clone());
     }
 }
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Auth {
     AnyAuth,

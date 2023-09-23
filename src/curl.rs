@@ -81,7 +81,10 @@ impl<'a> Curl<'a> {
 
     pub fn set_any_auth(&mut self) {
         self.add_flag(CurlFlag::new(None, CurlFlagType::AnyAuth), None);
-        self.curl.http_auth(&Auth::new());
+        match self.curl.http_auth(&Auth::new()) {
+            Ok(_) => {}
+            Err(_) => {}
+        }
     }
 
     pub fn set_basic_auth(&mut self, on: bool) {
@@ -339,47 +342,59 @@ impl<'a> Curl<'a> {
         });
     }
 
-    pub fn execute(&mut self) -> Result<String, std::io::Error> {
-        let mut output = Command::new(&self.cmd);
-
-        // This takes each one of our added flags / args and creates the command
-        // also builds the command string so we can save it later
-        for flag in &self.opts {
-            output.arg(flag.flag.get_value());
-            self.cmd.push_str(flag.flag.get_value());
-            if let Some(argument) = &flag.value {
-                output.arg(argument);
-                self.cmd.push_str(argument.clone().as_str())
-            }
+    pub fn execute(&mut self) -> Result<String, curl::Error> {
+        let mut data = Vec::new();
+        {
+            let mut transfer = self.curl.transfer();
+            transfer
+                .write_function(|new_data| {
+                    data.extend_from_slice(new_data);
+                    Ok(new_data.len())
+                })
+                .unwrap();
+            transfer.perform().unwrap();
         }
-        self.cmd.push_str(self.url.as_str());
-        output.arg(self.url.clone().as_str());
-        // Spawn the command and capture its output
-        let mut child = output.spawn()?;
-
-        // Wait for the command to complete
-        let status = child.wait()?;
-
-        if status.success() {
-            // If the command was successful, read and return the output
-            let mut output_str = String::new();
-            if let Some(mut stdout) = child.stdout {
-                stdout.read_to_string(&mut output_str)?;
-                // Hopefully our response
-                Ok(output_str)
-            } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Failed to capture standard output",
-                ))
-            }
-        } else {
-            // Handle the case when the command fails
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Command failed with {:?}", status),
-            ))
-        }
+        return Ok(String::from_utf8(data).unwrap());
+        //     let mut output = Command::new(&self.cmd);
+        //
+        //     // This takes each one of our added flags / args and creates the command
+        //     // also builds the command string so we can save it later
+        //     for flag in &self.opts {
+        //         output.arg(flag.flag.get_value());
+        //         self.cmd.push_str(flag.flag.get_value());
+        //         if let Some(argument) = &flag.value {
+        //             output.arg(argument);
+        //             self.cmd.push_str(argument.clone().as_str())
+        //         }
+        //     }
+        //     self.cmd.push_str(self.url.as_str());
+        //     output.arg(self.url.clone().as_str());
+        //     // Spawn the command and capture its output
+        //     let mut child = output.spawn()?;
+        //
+        //     // Wait for the command to complete
+        //     let status = child.wait()?;
+        //
+        //     if status.success() {
+        //         // If the command was successful, read and return the output
+        //         let mut output_str = String::new();
+        //         if let Some(mut stdout) = child.stdout {
+        //             stdout.read_to_string(&mut output_str)?;
+        //             // Hopefully our response
+        //             Ok(output_str)
+        //         } else {
+        //             Err(std::io::Error::new(
+        //                 std::io::ErrorKind::Other,
+        //                 "Failed to capture standard output",
+        //             ))
+        //         }
+        //     } else {
+        //         // Handle the case when the command fails
+        //         Err(std::io::Error::new(
+        //             std::io::ErrorKind::Other,
+        //             format!("Command failed with {:?}", status),
+        //         ))
+        //     }
     }
 }
 

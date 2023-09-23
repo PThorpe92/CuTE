@@ -146,7 +146,13 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     2 => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
                     // Verbose
                     3 => {
-                        app.add_display_option(DisplayOpts::Verbose);
+                        if app.opts.contains(&DisplayOpts::Verbose) {
+                            app.opts.retain(|x| x != &DisplayOpts::Verbose);
+                            app.command.as_mut().unwrap().set_verbose(false);
+                        } else {
+                            app.add_display_option(DisplayOpts::Verbose);
+                            app.command.as_mut().unwrap().set_verbose(true);
+                        }
                         app.selected = None;
                     }
                     // Output file,
