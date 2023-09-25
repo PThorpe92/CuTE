@@ -31,6 +31,8 @@ pub mod response;
 // Database
 pub mod db;
 
+
+
 pub static GET: &str = "GET";
 pub static POST: &str = "POST";
 pub static PUT: &str = "PUT";
