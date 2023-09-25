@@ -2,13 +2,14 @@ use cURLtui_rs::app::{App, AppResult};
 use cURLtui_rs::event::{Event, EventHandler};
 use cURLtui_rs::handler::handle_key_events;
 use cURLtui_rs::tui::Tui;
+
 use std::io;
-use std::process::Command;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();
+    /*
     if !is_command_available("curl") {
         eprintln!("Error: 'curl' is not installed on your system.");
         eprintln!("Please install 'curl' and try again.");
@@ -21,7 +22,7 @@ fn main() -> AppResult<()> {
         eprintln!("Please install 'wget' and try again.");
         std::process::exit(1);
     }
-
+    */
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
     let events = EventHandler::new(250);
@@ -42,9 +43,4 @@ fn main() -> AppResult<()> {
     Ok(())
 }
 
-fn is_command_available(command: &str) -> bool {
-    match Command::new("which").arg(command).status() {
-        Ok(status) => status.success(),
-        Err(_) => false,
-    }
-}
+
