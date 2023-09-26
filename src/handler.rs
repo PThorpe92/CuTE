@@ -57,37 +57,36 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                 }
             }
         }
-        InputMode::Editing => match key_event.code {
-            KeyCode::Enter => {
-                app.messages.push(app.input.value().into());
-                app.input.reset();
-            }
-            KeyCode::Char(c) => match app.input.handle(InputRequest::InsertChar(c)) {
-                Some(_) => {}
-                None => {}
-            },
-            KeyCode::Backspace => match app.input.handle(InputRequest::DeletePrevChar) {
-                Some(_) => {}
-                None => {}
-            },
 
-            KeyCode::Delete => match app.input.handle(InputRequest::DeleteNextChar) {
-                Some(_) => {}
-                None => {}
+        InputMode::Editing => match key_event.kind {
+            KeyEventKind::Press => match key_event.code {
+                KeyCode::Enter => {
+                    app.messages.push(app.input.value().into());
+                    app.input.reset();
+                }
+                // Fixed A Few Clippy Warnings Here.
+                // Nothing Was Happening If None, So,
+                // Might As Well Check Check is_some()
+                KeyCode::Char(c) => if app.input.handle(InputRequest::InsertChar(c)).is_some() {},
+                KeyCode::Backspace => {
+                    if app.input.handle(InputRequest::DeletePrevChar).is_some() {}
+                }
+                KeyCode::Delete => if app.input.handle(InputRequest::DeleteNextChar).is_some() {},
+                KeyCode::Left => if app.input.handle(InputRequest::GoToPrevChar).is_some() {},
+                KeyCode::Right => {
+                    if app
+                        .input
+                        .handle(tui_input::InputRequest::GoToNextChar)
+                        .is_some()
+                    {}
+                }
+                KeyCode::Esc => {
+                    app.input_mode = InputMode::Normal;
+                }
+                _ => {}
             },
-
-            KeyCode::Left => match app.input.handle(InputRequest::GoToPrevChar) {
-                Some(_) => {}
-                None => {}
-            },
-            KeyCode::Right => match app.input.handle(tui_input::InputRequest::GoToNextChar) {
-                Some(_) => {}
-                None => {}
-            },
-            KeyCode::Esc => {
-                app.input_mode = InputMode::Normal;
-            }
-            _ => {}
+            KeyEventKind::Release => {}
+            KeyEventKind::Repeat => {}
         },
     }
     Ok(())
