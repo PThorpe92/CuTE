@@ -1,8 +1,8 @@
-use reqwest::{Client, Method};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
+use reqwest::{Client, Method};
 
 /// Application.
 pub mod app;
@@ -30,8 +30,6 @@ pub mod response;
 
 // Database
 pub mod db;
-
-
 
 pub static GET: &str = "GET";
 pub static POST: &str = "POST";
