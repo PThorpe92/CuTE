@@ -7,7 +7,6 @@ pub mod app;
 // Database
 pub mod database;
 
-
 // Structures And Functions That Represent Screen Data
 pub mod screens;
 
@@ -22,5 +21,3 @@ pub mod events;
 
 // User Interface, Wigets, And Rendering
 pub mod ui;
-
-

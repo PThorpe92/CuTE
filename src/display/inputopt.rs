@@ -22,6 +22,6 @@ impl InputOpt {
             InputOpt::Execute => "Execute",
             InputOpt::Verbose => "Verbose",
         }
-            .to_string()
+        .to_string()
     }
 }
