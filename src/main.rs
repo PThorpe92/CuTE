@@ -1,12 +1,15 @@
+
 use std::io;
 
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
-use cURLtui_rs::app::{App, AppResult};
-use cURLtui_rs::event::{Event, EventHandler};
-use cURLtui_rs::handler::handle_key_events;
-use cURLtui_rs::tui::Tui;
+
+use CuTE::app::{App, AppResult};
+use CuTE::event::{Event, EventHandler};
+use CuTE::handler::handle_key_events;
+use CuTE::tui::Tui;
+
 
 fn main() -> AppResult<()> {
     let mut app = App::new();

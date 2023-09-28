@@ -273,16 +273,33 @@ impl<'a> Command<'a> {
     }
 
     pub fn set_method(&mut self, method: String) {
-        match self {
-            Command::Curl(curl) => {
-                curl.set_method(method);
-            }
-            Command::Wget(wget) => {
-                wget.set_method(method.to_string());
-            }
-            Command::Custom(req) => {
-                req.method = method;
-            }
+        match method.as_str() {
+            "GET" => match self {
+                Command::Curl(curl) => curl.set_get_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "POST" => match self {
+                Command::Curl(curl) => curl.set_post_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "PUT" => match self {
+                Command::Curl(curl) => curl.set_put_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "PATCH" => match self {
+                Command::Curl(curl) => curl.set_patch_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "DELETE" => match self {
+                Command::Curl(curl) => curl.set_delete_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            _ => {}
         }
     }
 
