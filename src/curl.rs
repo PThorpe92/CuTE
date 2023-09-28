@@ -274,10 +274,7 @@ impl<'a> Curl<'a> {
             Some(output.clone()),
         );
         self.outfile = Some(output.clone());
-    }Can you fix these conflicts? 
-
-Looks good, I'll merge as soon as they are fixed
-
+    }
     // pub fn set_output(&mut self, output: String) {
     //     self.add_flag(
     //         CurlFlag::new(None, CurlFlagType::Output),
