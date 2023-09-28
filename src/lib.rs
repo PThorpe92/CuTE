@@ -31,6 +31,13 @@ pub mod response;
 // Database
 pub mod db;
 
+// *** These Modules Are UI Related ***
+
+// Structures And Functions That Represent Screen Data
+pub mod screens;
+// Structures That Represent Display Items
+pub mod display;
+
 pub static GET: &str = "GET";
 pub static POST: &str = "POST";
 pub static PUT: &str = "PUT";
@@ -41,13 +48,19 @@ pub static OPTIONS: &str = "OPTIONS";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
-    pub method: String,                         // get, post, put, delete
-    pub url: String,                            // the url to send the request to
-    pub headers: Option<Vec<(String, String)>>, // header collection in (key, value) pairs
-    pub body: Option<String>,                   // the body to send
-    pub timeout: u32,                           // how long to wait for a response
-    pub auth: Auth,                             // basic, bearer, digest, custom
-    pub output: Option<String>,                 // where to write the output
+    pub method: String,
+    // get, post, put, delete
+    pub url: String,
+    // the url to send the request to
+    pub headers: Option<Vec<(String, String)>>,
+    // header collection in (key, value) pairs
+    pub body: Option<String>,
+    // the body to send
+    pub timeout: u32,
+    // how long to wait for a response
+    pub auth: Auth,
+    // basic, bearer, digest, custom
+    pub output: Option<String>, // where to write the output
 }
 
 impl Request {
@@ -149,6 +162,7 @@ impl Request {
         return Ok(res.clone());
     }
 }
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Auth {
     AnyAuth,
@@ -172,6 +186,7 @@ pub struct DigestAuth {
     password: String,
     method: String,
 }
+
 impl DigestAuth {
     pub fn new(realm: &str, nonce: &str, qop: &str, nc: &str, cnonce: &str, uri: &str) -> Self {
         DigestAuth {
