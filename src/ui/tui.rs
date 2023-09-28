@@ -1,12 +1,14 @@
-use crate::app::{App, AppResult};
-use crate::event::EventHandler;
-use crate::ui;
-use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
-use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use std::io;
 use std::panic;
+
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
+
+use crate::app::{App, AppResult};
+use crate::events::event::EventHandler;
+use crate::ui::render::render;
 
 /// Representation of a terminal user interface.
 ///
@@ -54,7 +56,7 @@ impl<B: Backend> Tui<B> {
     /// [`Draw`]: tui::Terminal::draw
     /// [`rendering`]: crate::ui:render
     pub fn draw(&mut self, app: &mut App) -> AppResult<()> {
-        self.terminal.draw(|frame| ui::render(app, frame))?;
+        self.terminal.draw(|frame| render(app, frame))?;
         Ok(())
     }
 

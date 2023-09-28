@@ -1,8 +1,3 @@
-use crate::app::{App, Command, DisplayOpts, InputMode, InputOpt, Screen, METHOD_MENU_OPTIONS};
-use crate::curl::Curl;
-use crate::wget::Wget;
-use crate::{Request, GET};
-
 use tokio::runtime::Runtime;
 use tui::{
     backend::Backend,
@@ -12,6 +7,18 @@ use tui::{
     widgets::{Block, BorderType, Borders, ListState, Paragraph},
     Frame,
 };
+
+use crate::app::{App, InputMode};
+use crate::display::displayopts::DisplayOpts;
+use crate::display::inputopt::InputOpt;
+use crate::display::menuopts::METHOD_MENU_OPTIONS;
+use crate::request::command::Command;
+use crate::request::curl::Curl;
+use crate::request::methods::GET;
+use crate::request::request::Request;
+use crate::request::wget::Wget;
+use crate::screens::screen::Screen;
+
 pub static CURL: &str = "curl";
 pub static WGET: &str = "wget";
 pub static CUSTOM: &str = "custom";
@@ -23,6 +30,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui-org/ratatui/tree/master/examples
     if app.response.is_none() {
+        // Render Display Options *******************************************
         let mut display_opts = String::new();
         app.opts.iter().for_each(|opt| match opt {
             DisplayOpts::Verbose => {
@@ -47,6 +55,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             .alignment(Alignment::Left);
         let area = small_rect(frame.size());
         frame.render_widget(opts, area);
+        // ******************************************************************
     } else {
         let area = small_rect(frame.size());
         let response = app.response.clone().unwrap();
@@ -55,7 +64,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             .alignment(Alignment::Center);
         frame.render_widget(paragraph, area);
     }
+
+    // Render the current screen
     match &app.current_screen.clone() {
+        // HOME SCREEN ******************************************************
         Screen::Home => {
             let new_list = app.current_screen.get_list();
             let area = centered_rect(70, 60, frame.size());
@@ -82,6 +94,8 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 None => {}
             }
         }
+
+        // METHOD SCREEN ****************************************************
         Screen::Method(cmd) => {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
@@ -108,6 +122,8 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 None => {}
             }
         }
+
+        // KEYS SCREEN **********************************************
         Screen::Keys => {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
@@ -123,6 +139,8 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(api_key_paragraph(), frame.size());
         }
+
+        // REQUEST MENU SCREEN **********************************************
         Screen::RequestMenu(_) => {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
@@ -191,15 +209,21 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 None => {}
             }
         }
+
+        // SUCESSS SCREEN *********************************************************
         Screen::Success => {
             let area = default_rect(frame.size());
             app.items = app.current_screen.get_opts();
             frame.set_cursor(0, app.cursor as u16);
             frame.render_widget(menu_paragraph(), area);
         }
+
+        // INPUT MENU SCREEN *****************************************************
         Screen::InputMenu(opt) => {
             render_input_screen(app, frame, opt.clone());
         }
+
+        // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
             let area = default_rect(small_alert_box(frame.size()));
             let new_list = app.current_screen.get_list();
@@ -233,6 +257,8 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 None => {}
             }
         }
+
+        // VIEW BODY ********************************************************************
         Screen::ViewBody => {
             // screen with only the body of the response
             app.items.clear();
@@ -247,7 +273,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     }
 }
 
-/// Renders a screen we can grab input from, pass in the appropriate desination for the input
+/// Renders a screen we can grab input from, pass in the appropriate designation for the input
 fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt: InputOpt) {
     match opt {
         InputOpt::Headers => render_headers_input(app, frame, opt),
@@ -439,6 +465,7 @@ fn menu_paragraph() -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
+/* Never Used
 fn success_paragraph() -> Paragraph<'static> {
     Paragraph::new("Command successfully saved\n")
         .block(
@@ -451,6 +478,7 @@ fn success_paragraph() -> Paragraph<'static> {
         .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center)
 }
+ */
 
 fn api_key_paragraph() -> Paragraph<'static> {
     Paragraph::new(
@@ -505,6 +533,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         )
         .split(popup_layout[1])[1]
 }
+
 fn small_alert_box(r: Rect) -> Rect {
     centered_rect(70, 60, r)
 }

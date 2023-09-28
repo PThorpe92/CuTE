@@ -105,6 +105,7 @@ impl SavedCommand {
         Ok(serde_json::from_str(json).expect("Failed to deserialize"))
     }
 }
+
 impl SavedKey {
     pub fn new(key: &str) -> Self {
         SavedKey {

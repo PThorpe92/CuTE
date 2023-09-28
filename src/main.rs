@@ -1,15 +1,12 @@
-
 use std::io;
 
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
-
 use CuTE::app::{App, AppResult};
-use CuTE::event::{Event, EventHandler};
-use CuTE::handler::handle_key_events;
-use CuTE::tui::Tui;
-
+use CuTE::events::event::{Event, EventHandler};
+use CuTE::events::handler::handle_key_events;
+use CuTE::ui::tui::Tui;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();

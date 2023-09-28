@@ -1,11 +1,10 @@
-
 use std::io::Write;
 
-use curl::easy::{Auth, Easy, Handler, List};
+use curl::easy::{Auth, Easy, List};
 
 #[derive(Debug)]
 pub struct Curl<'a> {
-      // The libcurl interface for our command/request
+    // The libcurl interface for our command/request
     curl: Easy,
     // The auth type we will use
     auth: AuthType,
@@ -17,11 +16,12 @@ pub struct Curl<'a> {
     opts: Vec<Flag<'a>>,
     // The response we get back from the command if not sent to file
     resp: Option<String>,
-  // Filepath of file to be uploaded 
+    // Filepath of file to be uploaded
     upload_file: Option<String>,
-  // Filepath of the response output file or download
+    // Filepath of the response output file or download
     outfile: Option<String>,
 }
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum AuthType {
     None,
@@ -768,7 +768,7 @@ mod tests {
         assert_eq!(curl.opts.len(), 1);
         assert!(curl.opts.contains(&Flag {
             flag: CurlFlag::new(None, CurlFlagType::AnyAuth),
-            value: None
+            value: None,
         }));
     }
 
@@ -783,6 +783,7 @@ mod tests {
             value: Some(usr_pwd.to_string()),
         }));
     }
+
     #[test]
     fn test_set_digest_auth() {
         let mut curl = Curl::new();
