@@ -508,46 +508,41 @@ impl<'a> App<'_> {
             // I only care if its the same KIND of option, not the same value
             // This is annoying, I tried to do this an easier way
 
-            // TODO: Lets refactor this.
-            if let DisplayOpts::URL(_) = *element {
-                if mem::discriminant(&opt) == mem::discriminant(element) {
-                    return true;
+            match *element {
+                DisplayOpts::URL(_) => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
                 }
-            }
-
-            if let DisplayOpts::Headers(_) = *element {
-                if mem::discriminant(&opt) == mem::discriminant(element) {
-                    return true;
+                DisplayOpts::Headers(_) => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
                 }
-            }
-
-            if let DisplayOpts::Outfile(_) = *element {
-                if mem::discriminant(&opt) == mem::discriminant(element) {
-                    return true;
+                DisplayOpts::Outfile(_) => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
                 }
-            }
-
-            if let DisplayOpts::Verbose = *element {
-                if mem::discriminant(&opt) == mem::discriminant(element) {
-                    return true;
+                DisplayOpts::Response(_) => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
                 }
-            }
-
-            if let DisplayOpts::SaveCommand = *element {
-                if mem::discriminant(&opt) == mem::discriminant(element) {
-                    return true;
+                DisplayOpts::SaveCommand => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
                 }
-            }
-
-            if let DisplayOpts::Response(_) = *element {
-                if mem::discriminant(&opt) == mem::discriminant(element) {
-                    return true;
+                DisplayOpts::ShareableCmd(_) => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
                 }
-            }
-
-            if let DisplayOpts::ShareableCmd(_) = *element {
-                if mem::discriminant(&opt) == mem::discriminant(element) {
-                    return true;
+                DisplayOpts::Verbose => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
                 }
             }
         }
