@@ -465,6 +465,7 @@ fn menu_paragraph() -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
+/* Never Used
 fn success_paragraph() -> Paragraph<'static> {
     Paragraph::new("Command successfully saved\n")
         .block(
@@ -477,6 +478,7 @@ fn success_paragraph() -> Paragraph<'static> {
         .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center)
 }
+ */
 
 fn api_key_paragraph() -> Paragraph<'static> {
     Paragraph::new(
