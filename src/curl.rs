@@ -8,7 +8,7 @@ pub struct Curl<'a> {
       // The libcurl interface for our command/request
     curl: Easy,
     // The auth type we will use
-    auth: Option<Auth>,
+    auth: AuthType,
     // The final command string we will run
     cmd: String,
     // The url we will send the request to
