@@ -4,9 +4,9 @@ use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
 use cURLtui_rs::app::{App, AppResult};
-use cURLtui_rs::event::{Event, EventHandler};
-use cURLtui_rs::handler::handle_key_events;
-use cURLtui_rs::tui::Tui;
+use cURLtui_rs::events::event::{Event, EventHandler};
+use cURLtui_rs::events::handler::handle_key_events;
+use cURLtui_rs::ui::tui::Tui;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();

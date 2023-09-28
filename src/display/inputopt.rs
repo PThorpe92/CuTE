@@ -22,23 +22,6 @@ impl InputOpt {
             InputOpt::Execute => "Execute",
             InputOpt::Verbose => "Verbose",
         }
-        .to_string()
+            .to_string()
     }
-}
-
-/* This Should Maybe Be In Its Own Auth File
-* But For Now Its Here
- */
-
-pub enum Auth {
-    Basic,
-    Bearer,
-    Digest,
-    Hawk,
-    OAuth,
-    AWSSignature,
-    NTLM,
-    Kerberos,
-    SPNEGO,
-    Custom,
 }

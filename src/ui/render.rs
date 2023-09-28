@@ -8,14 +8,16 @@ use tui::{
     Frame,
 };
 
-use crate::app::{App, Command, InputMode};
-use crate::curl::Curl;
+use crate::app::{App, InputMode};
 use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::METHOD_MENU_OPTIONS;
+use crate::request::command::Command;
+use crate::request::curl::Curl;
+use crate::request::methods::GET;
+use crate::request::request::Request;
+use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
-use crate::wget::Wget;
-use crate::{Request, GET};
 
 pub static CURL: &str = "curl";
 pub static WGET: &str = "wget";

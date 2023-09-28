@@ -8,6 +8,7 @@ pub struct Wget {
     pub output: String,
     pub response: String,
 }
+
 impl Wget {
     pub fn new() -> Self {
         Wget {

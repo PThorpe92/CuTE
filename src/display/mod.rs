@@ -14,3 +14,6 @@ pub mod displayopts;
 
 // Shareable Command
 pub mod shareablecmd;
+
+// AuthType
+pub mod auth;
