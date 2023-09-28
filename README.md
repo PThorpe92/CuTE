@@ -5,22 +5,33 @@
 # Rust TUI HTTP Client with API Key Management
 
 
-Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests, including `curl`, `wget`, and custom requests. Additionally, the tool
-provides convenient functionality for managing and storing API keys securely. No more having to remember endless cURL flags and craft extensive commands.
+Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by cURL), recursive downloading of files (powered by WGET), and storage management of your API keys.
+
+Have you ever wanted to just grab some data from an API, or demonstrate that your REST endpoint is working, and had to craft some 2 paragraph long curl CLI command, just to forget every flag and option you used the next time you need to do it? 
+
+Now, not only can you execute these commands from a simple TUI and either view the response or write it to a file, but _CuTE_ will build the actual curl command string you need to run it again, should you wish to share it with someone else, use it on a server, or just keep it for later.
 
 ## Features
 
 - **Interactive TUI Interface**: The application offers an intuitive TUI interface that makes it easy to construct and execute HTTP requests without leaving the terminal.
 
-- **Multiple Request Types**: With this tool, you can effortlessly create and send `curl`, `wget`, and custom HTTP requests. This ensures flexibility in your interaction with different APIs.
+- **Multiple Request Types**: With this tool, you can effortlessly create and send all the standard HTTP request types, and even use multiple forms of Authentication, without knowing an entire sub-language known as `curl-cli-flags`. This ensures flexibility in your interaction with different APIs.
 
-- **API Key Management**: The project includes a secure API key management system. You can store your API keys within the application and easily associate them with specific requests.
+- **API Key Management**: The project includes a simple-to-use API key management system. You can store your API keys within the application and assign them names for easy reference.
 
-- **Configurable Profiles**: Configure different profiles for various projects or APIs, each with its own set of stored API keys and preferences.
+- **Response Visualization**: The tool pretty-prints JSON and XML responses in a human-readable format within the TUI. This enables quick assessment of the results of your requests.
 
-- **Response Visualization**: The tool displays the HTTP responses in a human-readable format within the TUI. This enables quick assessment of the results of your requests.
+- **Cross Platform**: This application builds and runs on Linux, MacOS and even _Windows_.
 
-- **History and Favorites**: Keep track of your recent requests in a history log, and mark specific requests as favorites for quicker access.
+
+## Why?
+
+- Have __you__ even ran `curl --help all` ?
+
+## Why don't you support `X`?
+
+- See above `why`: Supporting every available action in libcurl would be a monumental task. If there are enough requests for a specific feature, it will be considered. Otherwise, PR's are welcome.
+
 
 ## Installation
 
@@ -28,17 +39,17 @@ provides convenient functionality for managing and storing API keys securely. No
 
 2. **Clone the Repository**: Clone this repository to your local machine using the following command:
    ```
-   git clone https://github.com/PThorpe92/curl-tui-rs.git
+   git clone https://github.com/PThorpe92/CuTE.git
    ```
 
 3. **Navigate to Project Directory**: Move into the project directory:
    ```
-   cd curl-tui-rs
+   cd CuTE
    ```
 
 4. **Build and Run**: Build and run the application using Cargo:
    ```
-   cargo run
+   cargo build --release 
    ```
 
 ## Usage
@@ -47,13 +58,13 @@ Upon launching the application, you'll be presented with the TUI interface. Here
 
 1. **Main Menu**: The main menu will provide options to create different types of HTTP requests and manage API keys.
 
-2. **Creating Requests**: Select the desired request type (e.g., `curl`, `wget`, or custom). Follow the prompts to input the necessary parameters such as URL, headers, and request body.
+2. **Request Type**: Select the type of HTTP request you would like to make. The tool supports GET, POST, PUT, PATCH, and DELETE requests.
 
 3. **API Key Management**: In the API key management section, you can add, edit, or delete API keys. Assign API keys to profiles and specific requests for easy integration.
 
-4. **Viewing Responses**: After executing a request, the tool will display the response in a readable format within the TUI.
+4. **Viewing Responses**: After executing a request, the tool will display the response in a readable format within the TUI, with the option to write it out to a file.
 
-5. **History and Favorites**: Use the history log to revisit recent requests and mark essential requests as favorites.
+5. **Saved Commands**: Much like the API keys, you can store and view past requests/commands for easy use later on.
 
 ## Contributing
 
@@ -67,6 +78,6 @@ This project is licensed under the [GPL3.0 License](LICENSE).
 
 ---
 
-Happy coding! If you have any questions or need assistance, feel free to reach out to me, [Preston T](https://github.com/PThorpe92)
+Happy coding! If you have any questions or need assistance, feel free to reach out to [Preston T](https://github.com/PThorpe92)
 
 **Disclaimer:** This project is provided as-is, and its creators are not responsible for any misuse or potential security vulnerabilities resulting from the usage of API keys.
