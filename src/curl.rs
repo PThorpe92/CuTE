@@ -1,15 +1,25 @@
-use curl::easy::{Auth, Easy, List};
+
 use std::io::Write;
+
+use curl::easy::{Auth, Easy, Handler, List};
 
 #[derive(Debug)]
 pub struct Curl<'a> {
-    curl: Easy,           // The libcurl interface for our command/request
-    auth: AuthType,       // The auth type we will use
-    cmd: String,          // The final command string we will run
-    url: String,          // The url we will send the request to
-    opts: Vec<Flag<'a>>,  // The opts we will build incrementally and store
-    resp: Option<String>, // The response we get back from the command if not sent to file
+      // The libcurl interface for our command/request
+    curl: Easy,
+    // The auth type we will use
+    auth: AuthType,
+    // The final command string we will run
+    cmd: String,
+    // The url we will send the request to
+    url: String,
+    // The opts we will build incrementally and store
+    opts: Vec<Flag<'a>>,
+    // The response we get back from the command if not sent to file
+    resp: Option<String>,
+  // Filepath of file to be uploaded 
     upload_file: Option<String>,
+  // Filepath of the response output file or download
     outfile: Option<String>,
 }
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -265,7 +275,6 @@ impl<'a> Curl<'a> {
         );
         self.outfile = Some(output.clone());
     }
-
     // pub fn set_output(&mut self, output: String) {
     //     self.add_flag(
     //         CurlFlag::new(None, CurlFlagType::Output),
