@@ -169,16 +169,33 @@ impl<'a> Command<'a> {
     }
 
     pub fn set_method(&mut self, method: String) {
-        match self {
-            Command::Curl(curl) => {
-                curl.set_method(method);
-            }
-            Command::Wget(wget) => {
-                wget.set_method(method.to_string());
-            }
-            Command::Custom(req) => {
-                req.method = method;
-            }
+        match method.as_str() {
+            "GET" => match self {
+                Command::Curl(curl) => curl.set_get_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "POST" => match self {
+                Command::Curl(curl) => curl.set_post_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "PUT" => match self {
+                Command::Curl(curl) => curl.set_put_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "PATCH" => match self {
+                Command::Curl(curl) => curl.set_patch_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            "DELETE" => match self {
+                Command::Curl(curl) => curl.set_delete_method(true),
+                Command::Wget(wget) => wget.set_method(method),
+                Command::Custom(req) => req.method = method,
+            },
+            _ => {}
         }
     }
 
@@ -337,16 +354,14 @@ impl<'a> App<'_> {
                 // we can unwrap, because if we have hit an input menu, it's guaranteed
                 self.current_screen = self.screen_stack.last().unwrap().clone();
             }
-            Some(_) => {
-                match self.screen_stack.last() {
-                    Some(screen) => {
-                        self.cursor = 0;
-                        self.selected = None;
-                        self.current_screen = screen.clone();
-                    }
-                    _ => {}
+            Some(_) => match self.screen_stack.last() {
+                Some(screen) => {
+                    self.cursor = 0;
+                    self.selected = None;
+                    self.current_screen = screen.clone();
                 }
-            }
+                _ => {}
+            },
             None => {}
         }
     }

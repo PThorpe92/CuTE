@@ -1,7 +1,7 @@
-use cURLtui_rs::app::{App, AppResult};
-use cURLtui_rs::event::{Event, EventHandler};
-use cURLtui_rs::handler::handle_key_events;
-use cURLtui_rs::tui::Tui;
+use CuTE::app::{App, AppResult};
+use CuTE::event::{Event, EventHandler};
+use CuTE::handler::handle_key_events;
+use CuTE::tui::Tui;
 
 use std::io;
 use tui::backend::CrosstermBackend;
@@ -42,5 +42,3 @@ fn main() -> AppResult<()> {
     tui.exit()?;
     Ok(())
 }
-
-
