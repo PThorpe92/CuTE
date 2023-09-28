@@ -1,4 +1,4 @@
-use std::error;
+use std::{error, mem};
 
 use lazy_static::lazy_static;
 use tui::{
@@ -507,35 +507,48 @@ impl<'a> App<'_> {
         for element in self.opts.iter() {
             // I only care if its the same KIND of option, not the same value
             // This is annoying, I tried to do this an easier way
-            // but mem::discriminant doesnt like element as a comparison so I need to be particular
-            // im sorry i really dont like this
+
             // TODO: Lets refactor this.
             if let DisplayOpts::URL(_) = *element {
-                return true;
+                if mem::discriminant(&opt) == mem::discriminant(element) {
+                    return true;
+                }
             }
 
             if let DisplayOpts::Headers(_) = *element {
-                return true;
+                if mem::discriminant(&opt) == mem::discriminant(element) {
+                    return true;
+                }
             }
 
             if let DisplayOpts::Outfile(_) = *element {
-                return true;
+                if mem::discriminant(&opt) == mem::discriminant(element) {
+                    return true;
+                }
             }
 
             if let DisplayOpts::Verbose = *element {
-                return true;
+                if mem::discriminant(&opt) == mem::discriminant(element) {
+                    return true;
+                }
             }
 
             if let DisplayOpts::SaveCommand = *element {
-                return true;
+                if mem::discriminant(&opt) == mem::discriminant(element) {
+                    return true;
+                }
             }
 
             if let DisplayOpts::Response(_) = *element {
-                return true;
+                if mem::discriminant(&opt) == mem::discriminant(element) {
+                    return true;
+                }
             }
 
             if let DisplayOpts::ShareableCmd(_) = *element {
-                return true;
+                if mem::discriminant(&opt) == mem::discriminant(element) {
+                    return true;
+                }
             }
         }
         // Otherwise, its not there.
