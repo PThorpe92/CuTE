@@ -1,5 +1,5 @@
 [package]
-name = "cURLtui-rs"
+name = "CuTE"
 version = "0.1.0"
 authors = ["PThorpe92 <preston@unlockedlabs.org>"]
 license = "GPL-3.0"
