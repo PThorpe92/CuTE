@@ -1,15 +1,21 @@
-use curl::easy::{Auth, Easy, Handler, List};
-use std::io::{Write};
+use std::io::Write;
 
+use curl::easy::{Auth, Easy, Handler, List};
 
 #[derive(Debug)]
 pub struct Curl<'a> {
-    curl: Easy,           // The libcurl interface for our command/request
-    auth: Option<Auth>,   // The auth type we will use
-    cmd: String,          // The final command string we will run
-    url: String,          // The url we will send the request to
-    opts: Vec<Flag<'a>>,  // The opts we will build incrementally and store
-    resp: Option<String>, // The response we get back from the command if not sent to file
+    curl: Easy,
+    // The libcurl interface for our command/request
+    auth: Option<Auth>,
+    // The auth type we will use
+    cmd: String,
+    // The final command string we will run
+    url: String,
+    // The url we will send the request to
+    opts: Vec<Flag<'a>>,
+    // The opts we will build incrementally and store
+    resp: Option<String>,
+    // The response we get back from the command if not sent to file
     outfile: Option<String>,
 }
 
