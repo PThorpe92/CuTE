@@ -1,4 +1,3 @@
-use tokio::runtime::Runtime;
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -14,8 +13,6 @@ use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::request::command::Command;
 use crate::request::curl::Curl;
-use crate::request::methods::GET;
-use crate::request::request::Request;
 use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
 
@@ -79,16 +76,16 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.render_widget(menu_paragraph(), frame.size());
             match app.selected {
                 Some(0) => {
-                    app.goto_screen(Screen::Method(String::from(CURL)));
+                    app.goto_screen(Screen::Method);
                 }
                 Some(1) => {
-                    app.goto_screen(Screen::Method(String::from(WGET)));
+                    app.goto_screen(Screen::Downloads);
                 }
                 Some(2) => {
-                    app.goto_screen(Screen::Method(String::from(CUSTOM)));
+                    app.goto_screen(Screen::Keys);
                 }
                 Some(3) => {
-                    app.goto_screen(Screen::Keys);
+                    app.goto_screen(Screen::Commands);
                 }
                 Some(_) => {}
                 None => {}
@@ -96,7 +93,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
 
         // METHOD SCREEN ****************************************************
-        Screen::Method(cmd) => {
+        Screen::Method => {
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -106,15 +103,13 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
-            match cmd.as_str() {
-                "curl" => app.command = Some(Command::Curl(Curl::new())),
-                "wget" => app.command = Some(Command::Wget(Wget::new())),
-                "custom" => app.command = Some(Command::Custom(Request::default())),
-                _ => app.command = Some(Command::Custom(Request::default())),
-            }
+            app.command = Some(Command::Curl(Curl::new()));
             match app.selected {
                 Some(num) => {
-                    app.command.as_mut().unwrap().set_method(String::from(GET));
+                    app.command
+                        .as_mut()
+                        .unwrap()
+                        .set_method(String::from(METHOD_MENU_OPTIONS[num])); // safe index
                     app.goto_screen(Screen::RequestMenu(String::from(
                         METHOD_MENU_OPTIONS[num].clone(),
                     )));
@@ -123,6 +118,35 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             }
         }
 
+        Screen::Downloads => {
+            app.command = Some(Command::Wget(Wget::new()));
+            let area = default_rect(frame.size());
+            let list = app.current_screen.get_list();
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            app.items = app.current_screen.get_opts();
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
+            match app.selected {
+                // Setting Recursion level
+                Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload)),
+                // Add URL of download
+                Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
+                // Add file name for output/download
+                Some(2) => app.goto_screen(Screen::InputMenu(InputOpt::Output)),
+                // Execute command
+                Some(3) => {
+                    if let Ok(response) = app.command.as_mut().unwrap().execute() {
+                        app.response = Some(response.clone());
+                        app.goto_screen(Screen::Success);
+                    }
+                }
+                Some(_) => {}
+                None => {}
+            };
+        }
         // KEYS SCREEN **********************************************
         Screen::Keys => {
             let area = default_rect(frame.size());
@@ -185,7 +209,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     }
                     // Save this command
                     6 => {
-                        app.goto_screen(Screen::Saved);
+                        app.goto_screen(Screen::Commands);
                         app.selected = None;
                     }
                     // Recursive download
@@ -195,14 +219,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     }
                     // Execute command
                     8 => {
-                        let response = app.command.as_mut().unwrap().execute();
-                        let rt = Runtime::new().expect("Failed to create runtime");
-                        let result = rt.block_on(response); // TODO: this is blocking, whole thing
-                                                            // needs a refactor so we aren't doing what __should__ be an async call in a
-                                                            // looping render function like a noob
-                        let pos = result.unwrap_or(String::from("Internal Error with response"));
-                        app.set_response(pos.clone());
-                        app.goto_screen(Screen::Response(pos));
+                        if let Ok(response) = app.command.as_mut().unwrap().execute() {
+                            app.set_response(response.clone());
+                            app.goto_screen(Screen::Response(response));
+                        }
                     }
                     _ => {}
                 },
@@ -247,7 +267,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         app.goto_screen(Screen::InputMenu(InputOpt::Output));
                     }
                     1 => {
-                        app.goto_screen(Screen::Saved);
+                        app.goto_screen(Screen::Commands);
                     }
                     2 => {
                         app.goto_screen(Screen::ViewBody);
@@ -276,6 +296,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 /// Renders a screen we can grab input from, pass in the appropriate designation for the input
 fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt: InputOpt) {
     match opt {
+        InputOpt::URL => render_default_input(app, frame, opt),
         InputOpt::Headers => render_headers_input(app, frame, opt),
         InputOpt::RecursiveDownload => render_recursive_download_input(app, frame, opt),
         _ => render_default_input(app, frame, opt),
@@ -372,6 +393,7 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
                 app.current_screen = Screen::RequestMenu(String::new());
                 app.messages.remove(0);
             }
+
             InputOpt::Headers => {
                 let headers = app
                     .messages
@@ -386,11 +408,12 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
                 app.command
                     .as_mut()
                     .unwrap()
-                    .add_headers((headers[0].to_string(), headers[1].to_string()));
+                    .set_headers(headers.iter().map(|x| x.to_string()).collect());
                 app.add_display_option(DisplayOpts::Headers(cpy));
                 app.current_screen = Screen::RequestMenu(String::new());
                 app.messages.remove(0);
             }
+
             InputOpt::Output => {
                 app.command
                     .as_mut()
@@ -400,6 +423,7 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
                 app.messages.remove(0);
                 app.goto_screen(Screen::RequestMenu(String::new()));
             }
+
             InputOpt::Execute => {
                 // This means they have executed the command, and want to write to a file
                 app.command
@@ -416,12 +440,13 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
                 }
                 app.goto_screen(Screen::Home);
             }
+
             InputOpt::RecursiveDownload => {
                 let recursion_level = app.messages[0].parse::<usize>().unwrap();
                 app.command
                     .as_mut()
                     .unwrap()
-                    .set_rec_download(recursion_level);
+                    .set_rec_download_level(recursion_level);
             }
             _ => {}
         }

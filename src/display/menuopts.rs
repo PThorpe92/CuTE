@@ -6,6 +6,12 @@
 use lazy_static::lazy_static;
 
 lazy_static! {
+    pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
+        "Build and send an HTTP request\n  \n",
+        "Recursively download a file or directory\n  \n",
+        "View my stored API keys\n  \n",
+        "View or execute my saved commands\n  \n",
+    ];
     pub static ref REQUEST_MENU_OPTIONS: [&'static str; 9] = [
         "Add a URL\n \n",
         "Add Authentication\n \n",
@@ -40,13 +46,6 @@ lazy_static! {
         "Please enter a URL for your request",
         "Please specify your request headers",
         "Please enter your request body",
-    ];
-    pub static ref MAIN_MENU_OPTIONS: [&'static str; 5] = [
-        "Build and run a new cURL command\n  \n",
-        "Build and run a new wget command\n  \n",
-        "Build/send new custom HTTP request\n  \n",
-        "View my stored API keys\n  \n",
-        "View or execute my saved commands\n  \n",
     ];
     pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 3] = [
         "Write to file?\n \n",
