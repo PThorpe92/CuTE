@@ -8,9 +8,21 @@ pub struct Wget {
 }
 
 impl Wget {
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn new() -> Self {
         Wget {
             cmd: String::from("wget"),
+            rec_level: 0,
+            url: String::new(),
+            auth: None,
+            output: String::new(),
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn new() -> Self {
+        Wget {
+            cmd: String::new(),
             rec_level: 0,
             url: String::new(),
             auth: None,
@@ -87,44 +99,38 @@ impl Wget {
     }
 
     #[cfg(any(target_os = "windows"))]
-    pub fn build_string_win64(&mut self) {
+    pub fn build_string(&mut self) {
         // URL
         if self.has_url() {
-            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
-                self.cmd.push(' ');
-            }
             self.cmd.push_str("-url");
             self.cmd.push(' '); // Whitespace
             self.cmd.push_str(self.url.as_str());
+            self.cmd.push(' '); // Whitespace
         }
 
         // REC
         if self.has_rec() {
-            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
-                self.cmd.push(' ');
-            }
             self.cmd.push_str("-depth");
             self.cmd.push(' '); // Whitespace
             self.cmd.push_str(format!("{}", self.rec_level).as_str());
+            self.cmd.push(' '); // Whitespace
         }
 
         // AUTH
         if self.has_auth() {
-            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
-                self.cmd.push(' ');
-            }
             self.cmd.push_str(self.auth.as_ref().unwrap().as_str());
+            self.cmd.push(' '); // Whitespace
         }
 
         // OUTPUT
         if self.has_output() {
-            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
-                self.cmd.push(' ');
-            }
             self.cmd.push_str("-outputfile");
             self.cmd.push(' '); // Whitespace
             self.cmd.push_str(self.output.as_str());
+            self.cmd.push(' '); // Whitespace
         }
+
+        self.cmd = self.cmd.trim().to_string();
     }
 
     // Added Windows Specific Function
@@ -145,12 +151,17 @@ impl Wget {
     #[cfg(target_os = "windows")]
     pub fn execute(&mut self) -> Result<String, String> {
         let output = std::process::Command::new("powershell.exe")
-            .arg("-ExecutionPolicy Bypass")
+            .arg("-NoLogo")
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Unrestricted")
             .arg("-File")
-            .arg(".\\scripts\\wget.ps1")
+            .arg("scripts\\win64-wget.ps1")
             .arg(self.cmd.clone())
             .output()
             .expect("failed to execute process");
+        let outstr = format!("{:?}", output);
+        println!("{}", outstr);
         if output.status.success() {
             Ok(String::from_utf8(output.stdout).unwrap())
         } else {
@@ -160,6 +171,7 @@ impl Wget {
 }
 
 #[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_new_wget() {
     let wget = Wget::new();
     assert_eq!("wget", wget.cmd);
@@ -168,6 +180,16 @@ fn test_new_wget() {
 }
 
 #[test]
+#[cfg(target_os = "windows")]
+fn test_new_wget() {
+    let wget = Wget::new();
+    assert_eq!("", wget.cmd);
+    assert_eq!("", wget.url);
+    assert_eq!("", wget.output);
+}
+
+#[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_set_url() {
     let mut wget = Wget::new();
     wget.set_url(String::from("http://www.google.com"));
@@ -176,6 +198,7 @@ fn test_set_url() {
 }
 
 #[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_set_output() {
     let mut wget = Wget::new();
     wget.set_output(String::from("output"));
@@ -184,6 +207,7 @@ fn test_set_output() {
 }
 
 #[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_add_auth() {
     let mut wget = Wget::new();
     wget.add_auth("usr", "pwd");
@@ -192,6 +216,7 @@ fn test_add_auth() {
 }
 
 #[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_build_string() {
     let mut wget = Wget::new();
     wget.add_auth("usr", "pwd");
@@ -205,6 +230,7 @@ fn test_build_string() {
 }
 
 #[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_increase_rec_level() {
     let mut wget = Wget::new();
     wget.set_rec_download_level(2);
@@ -213,6 +239,7 @@ fn test_increase_rec_level() {
 }
 
 #[test]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_execute() {
     let mut wget = Wget::new();
     wget.set_url(String::from("http://www.google.com"));
@@ -223,4 +250,18 @@ fn test_execute() {
     assert_eq!(true, result.is_ok());
     assert!(std::fs::metadata("output").is_ok());
     std::fs::remove_file("output").unwrap();
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_execute() {
+    let mut wget = Wget::new();
+    wget.set_url(String::from("http://www.google.com"));
+    wget.set_output(String::from("output"));
+    wget.build_string();
+    assert_eq!("-url http://www.google.com -outputfile output", wget.cmd);
+    let result = wget.execute();
+    assert_eq!(true, result.is_ok());
+    assert!(std::fs::metadata("output.txt").is_ok());
+    std::fs::remove_file("output.txt").unwrap();
 }
