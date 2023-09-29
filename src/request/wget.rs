@@ -43,14 +43,21 @@ impl Wget {
         self.url = url;
     }
 
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn add_auth(&mut self, usr: &str, pwd: &str) {
         self.auth = Some(format!("--user={} --password={}", usr, pwd));
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn add_auth(&mut self, usr: &str, pwd: &str) {
+        self.auth = Some(format!("-username {} -password {}", usr, pwd));
     }
 
     pub fn set_output(&mut self, output: String) {
         self.output = output;
     }
 
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn build_string(&mut self) {
         if self.has_url() {
             if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
@@ -79,9 +86,67 @@ impl Wget {
         self.cmd = self.cmd.trim().to_string();
     }
 
+    #[cfg(any(target_os = "windows"))]
+    pub fn build_string_win64(&mut self) {
+        // URL
+        if self.has_url() {
+            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
+                self.cmd.push(' ');
+            }
+            self.cmd.push_str("-url");
+            self.cmd.push(' '); // Whitespace
+            self.cmd.push_str(self.url.as_str());
+        }
+
+        // REC
+        if self.has_rec() {
+            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
+                self.cmd.push(' ');
+            }
+            self.cmd.push_str("-depth");
+            self.cmd.push(' '); // Whitespace
+            self.cmd.push_str(format!("{}", self.rec_level).as_str());
+        }
+
+        // AUTH
+        if self.has_auth() {
+            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
+                self.cmd.push(' ');
+            }
+            self.cmd.push_str(self.auth.as_ref().unwrap().as_str());
+        }
+
+        // OUTPUT
+        if self.has_output() {
+            if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
+                self.cmd.push(' ');
+            }
+            self.cmd.push_str("-outputfile");
+            self.cmd.push(' '); // Whitespace
+            self.cmd.push_str(self.output.as_str());
+        }
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn execute(&mut self) -> Result<String, String> {
         let output = std::process::Command::new("sh")
             .arg("-c")
+            .arg(self.cmd.clone())
+            .output()
+            .expect("failed to execute process");
+        if output.status.success() {
+            Ok(String::from_utf8(output.stdout).unwrap())
+        } else {
+            Err(String::from_utf8(output.stderr).unwrap())
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn execute(&mut self) -> Result<String, String> {
+        let output = std::process::Command::new("powershell.exe")
+            .arg("-ExecutionPolicy Bypass")
+            .arg("-File")
+            .arg(".\\scripts\\wget.ps1")
             .arg(self.cmd.clone())
             .output()
             .expect("failed to execute process");
@@ -124,6 +189,7 @@ fn test_add_auth() {
     wget.build_string();
     assert_eq!("wget --user=usr --password=pwd", wget.cmd);
 }
+
 #[test]
 fn test_build_string() {
     let mut wget = Wget::new();
