@@ -127,6 +127,7 @@ impl Wget {
         }
     }
 
+    // Added Windows Specific Function
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn execute(&mut self) -> Result<String, String> {
         let output = std::process::Command::new("sh")
