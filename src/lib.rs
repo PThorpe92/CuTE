@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // Purpose: Main library file for the application.
 // ********************************************************************
 
