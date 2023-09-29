@@ -21,7 +21,7 @@ function Invoke-Recursive-WebRequest(
     # if url is not provided exit with an error message
     if (-not$url)
     {
-        Write-Error "Invoke-Recursive-WebRequest requires a url parameter"
+        Write "Invoke-Recursive-WebRequest requires a url parameter"
         return
     }
 
@@ -34,7 +34,7 @@ function Invoke-Recursive-WebRequest(
     #if output file is not provided exit with an error message
     if (-not$outputfile)
     {
-        Write-Error "Invoke-Recursive-WebRequest requires an outputfile parameter"
+        Write "Invoke-Recursive-WebRequest requires an outputfile parameter"
         return
     }
 
@@ -50,11 +50,11 @@ function Invoke-Recursive-WebRequest(
     # if a credential is provided, use it, otherwise, don't
     $webResponse = if ($credential)
     {
-        Invoke-WebRequest -UseBasicParsing -Uri $url -Credential $credential
+        Invoke-WebRequest -UseBasicParsing -Uri $url -Credential $credential -ErrorAction SilentlyContinue
     }
     else
     {
-        Invoke-WebRequest -UseBasicParsing -Uri $url
+        Invoke-WebRequest -UseBasicParsing -Uri $url -ErrorAction SilentlyContinue
     }
 
     # if depth is provided and greater than 0 then parse response for links to download
