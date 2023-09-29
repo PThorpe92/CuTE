@@ -3,19 +3,23 @@ use tui::{
     layout::Alignment,
     style::{Color, Style},
     text::Text,
-    widgets::{Block, BorderType, Borders, ListState, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
 
 use crate::app::App;
 use crate::display::displayopts::DisplayOpts;
-use crate::display::inputopt::InputOpt;
-use crate::display::menuopts::METHOD_MENU_OPTIONS;
-use crate::request::command::Command;
-use crate::request::curl::Curl;
+use crate::screens::downloads::handle_downloads_screen;
+use crate::screens::home::handle_home_screen;
 use crate::screens::input::render_input_screen;
 use crate::screens::keys::handle_api_key_screen;
+use crate::screens::method::handle_method_select_screen;
+use crate::screens::request::handle_request_menu_screen;
+use crate::screens::response::handle_response_screen;
 use crate::screens::screen::Screen;
+use crate::screens::success::handle_success_screen;
+use crate::screens::viewbody::handle_view_body_screen;
+use crate::ui::widgets::small_rect;
 
 pub static CURL: &str = "curl";
 pub static WGET: &str = "wget";
@@ -66,35 +70,20 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // Render the current screen
     match &app.current_screen.clone() {
         // HOME SCREEN ******************************************************
-        Screen::Home => {}
+        Screen::Home => {
+            handle_home_screen(app, frame);
+        }
 
         // METHOD SCREEN ****************************************************
         Screen::Method => {
-            let area = default_rect(frame.size());
-            let new_list = app.current_screen.get_list();
-            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-            app.items = app.current_screen.get_opts();
-            app.state = Some(state.clone());
-            app.state.as_mut().unwrap().select(Some(app.cursor));
-            frame.set_cursor(0, app.cursor as u16);
-            frame.render_stateful_widget(new_list, area, &mut state);
-            frame.render_widget(menu_paragraph(), frame.size());
-            app.command = Some(Command::Curl(Curl::new()));
-            match app.selected {
-                Some(num) => {
-                    app.command
-                        .as_mut()
-                        .unwrap()
-                        .set_method(String::from(METHOD_MENU_OPTIONS[num])); // safe index
-                    app.goto_screen(Screen::RequestMenu(String::from(
-                        METHOD_MENU_OPTIONS[num].clone(),
-                    )));
-                }
-                None => {}
-            }
+            handle_method_select_screen(app, frame);
         }
 
-        Screen::Downloads => {}
+        // DOWNLOAD SCREEN **************************************************
+        Screen::Downloads => {
+            handle_downloads_screen(app, frame);
+        }
+
         // KEYS SCREEN **********************************************
         Screen::Keys => {
             handle_api_key_screen(app, frame);
@@ -102,76 +91,12 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 
         // REQUEST MENU SCREEN **********************************************
         Screen::RequestMenu(_) => {
-            let area = default_rect(frame.size());
-            let new_list = app.current_screen.get_list();
-            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-            if !app.items.is_empty() {
-                app.items.clear();
-            }
-            app.items = app.current_screen.get_opts();
-            app.state = Some(state.clone());
-            app.state.as_mut().unwrap().select(Some(app.cursor));
-            frame.set_cursor(0, app.cursor as u16);
-            frame.render_stateful_widget(new_list, area, &mut state);
-            frame.render_widget(menu_paragraph(), frame.size());
-            match app.selected {
-                Some(num) => match num {
-                    // Add a URL,
-                    0 => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
-                    // Auth
-                    1 => app.goto_screen(Screen::InputMenu(InputOpt::Authentication)),
-                    // Headers
-                    2 => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
-                    // Verbose
-                    3 => {
-                        if app.opts.contains(&DisplayOpts::Verbose) {
-                            app.opts.retain(|x| x != &DisplayOpts::Verbose);
-                            app.command.as_mut().unwrap().set_verbose(false);
-                        } else {
-                            app.add_display_option(DisplayOpts::Verbose);
-                            app.command.as_mut().unwrap().set_verbose(true);
-                        }
-                        app.selected = None;
-                    }
-                    // Output file,
-                    4 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::Output));
-                        app.selected = None;
-                    }
-                    // Request Body
-                    5 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
-                        app.selected = None;
-                    }
-                    // Save this command
-                    6 => {
-                        app.goto_screen(Screen::Commands);
-                        app.selected = None;
-                    }
-                    // Recursive download
-                    7 => {
-                        app.selected = None;
-                        app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
-                    }
-                    // Execute command
-                    8 => {
-                        if let Ok(response) = app.command.as_mut().unwrap().execute() {
-                            app.set_response(response.clone());
-                            app.goto_screen(Screen::Response(response));
-                        }
-                    }
-                    _ => {}
-                },
-                None => {}
-            }
+            handle_request_menu_screen(app, frame);
         }
 
         // SUCESSS SCREEN *********************************************************
         Screen::Success => {
-            let area = default_rect(frame.size());
-            app.items = app.current_screen.get_opts();
-            frame.set_cursor(0, app.cursor as u16);
-            frame.render_widget(menu_paragraph(), area);
+            handle_success_screen(app, frame);
         }
 
         // INPUT MENU SCREEN *****************************************************
@@ -181,49 +106,12 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
-            let area = default_rect(small_alert_box(frame.size()));
-            let new_list = app.current_screen.get_list();
-            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-            let paragraph = Paragraph::new(Text::from(resp.as_str()))
-                .style(Style::default().fg(Color::Yellow).bg(Color::Black))
-                .alignment(Alignment::Center);
-            if !app.items.is_empty() {
-                app.items.clear();
-            }
-            app.items = app.current_screen.get_opts();
-            app.state = Some(state.clone());
-            app.state.as_mut().unwrap().select(Some(app.cursor));
-            frame.set_cursor(0, app.cursor as u16);
-            frame.render_stateful_widget(new_list, area, &mut state);
-            let area_2 = small_alert_box(frame.size());
-            frame.render_widget(paragraph, area_2);
-            match app.selected {
-                Some(num) => match num {
-                    0 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::Output));
-                    }
-                    1 => {
-                        app.goto_screen(Screen::Commands);
-                    }
-                    2 => {
-                        app.goto_screen(Screen::ViewBody);
-                    }
-                    _ => {}
-                },
-                None => {}
-            }
+            handle_response_screen(app, frame, resp.clone());
         }
 
         // VIEW BODY ********************************************************************
         Screen::ViewBody => {
-            // screen with only the body of the response
-            app.items.clear();
-            let area = small_rect(frame.size());
-            let response = app.response.clone().unwrap();
-            let paragraph = Paragraph::new(Text::from(response.as_str()))
-                .style(Style::default().fg(Color::Yellow).bg(Color::Black))
-                .alignment(Alignment::Center);
-            frame.render_widget(paragraph, area);
+            handle_view_body_screen(app, frame);
         }
         _ => {}
     }

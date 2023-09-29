@@ -1,3 +1,4 @@
+use tui::backend::Backend;
 use tui::layout::Alignment;
 use tui::style::{Color, Style};
 use tui::widgets::{Block, BorderType, Borders, ListState, Paragraph};
@@ -6,7 +7,7 @@ use tui::Frame;
 use crate::app::App;
 use crate::ui::widgets::default_rect;
 
-pub fn handle_api_key_screen<B>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_api_key_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
     let new_list = app.current_screen.get_list();
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));

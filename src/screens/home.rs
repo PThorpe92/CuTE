@@ -1,3 +1,4 @@
+use tui::backend::Backend;
 use tui::widgets::ListState;
 use tui::Frame;
 
@@ -5,7 +6,7 @@ use crate::app::App;
 use crate::screens::screen::Screen;
 use crate::ui::widgets::{centered_rect, menu_paragraph};
 
-pub fn handle_home_screen<B>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_home_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let new_list = app.current_screen.get_list();
     let area = centered_rect(70, 60, frame.size());
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));

@@ -1,3 +1,4 @@
+use tui::backend::Backend;
 use tui::widgets::ListState;
 use tui::Frame;
 
@@ -5,11 +6,10 @@ use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::request::command::Command;
 use crate::request::wget::Wget;
-use crate::screens::home::menu_paragraph;
 use crate::screens::screen::Screen;
-use crate::ui::widgets::default_rect;
+use crate::ui::widgets::{default_rect, menu_paragraph};
 
-pub fn handle_downloads_screen<B>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_downloads_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     app.command = Some(Command::Wget(Wget::new()));
     let area = default_rect(frame.size());
     let list = app.current_screen.get_list();
