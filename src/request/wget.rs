@@ -31,6 +31,7 @@ impl Wget {
     }
 
     // The menu must add the recursion level, then the url, then the output
+
     pub fn set_rec_download_level(&mut self, level: usize) {
         self.rec_level = level;
     }
@@ -109,7 +110,7 @@ impl Wget {
         }
 
         // REC
-        if self.has_rec() {
+        if self.rec_level > 0 {
             self.cmd.push_str("-depth");
             self.cmd.push(' '); // Whitespace
             self.cmd.push_str(format!("{}", self.rec_level).as_str());
@@ -198,6 +199,15 @@ fn test_set_url() {
 }
 
 #[test]
+#[cfg(target_os = "windows")]
+fn test_set_url() {
+    let mut wget = Wget::new();
+    wget.set_url(String::from("http://www.google.com"));
+    wget.build_string();
+    assert_eq!("-url http://www.google.com", wget.cmd);
+}
+
+#[test]
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_set_output() {
     let mut wget = Wget::new();
@@ -207,12 +217,30 @@ fn test_set_output() {
 }
 
 #[test]
+#[cfg(target_os = "windows")]
+fn test_set_output() {
+    let mut wget = Wget::new();
+    wget.set_output(String::from("output"));
+    wget.build_string();
+    assert_eq!("-outputfile output", wget.cmd);
+}
+
+#[test]
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_add_auth() {
     let mut wget = Wget::new();
     wget.add_auth("usr", "pwd");
     wget.build_string();
     assert_eq!("wget --user=usr --password=pwd", wget.cmd);
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_add_auth() {
+    let mut wget = Wget::new();
+    wget.add_auth("usr", "pwd");
+    wget.build_string();
+    assert_eq!("-username usr -password pwd", wget.cmd);
 }
 
 #[test]
@@ -230,11 +258,34 @@ fn test_build_string() {
 }
 
 #[test]
+#[cfg(target_os = "windows")]
+fn test_build_string() {
+    let mut wget = Wget::new();
+    wget.add_auth("usr", "pwd");
+    wget.set_url(String::from("http://www.google.com"));
+    wget.set_output(String::from("output"));
+    wget.build_string();
+    assert_eq!(
+        "-url http://www.google.com -username usr -password pwd -outputfile output",
+        wget.cmd
+    );
+}
+
+#[test]
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn test_increase_rec_level() {
     let mut wget = Wget::new();
     wget.set_rec_download_level(2);
     assert_eq!("wget", wget.cmd);
+    assert_eq!(2, wget.rec_level);
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_increase_rec_level() {
+    let mut wget = Wget::new();
+    wget.set_rec_download_level(2);
+    assert_eq!("", wget.cmd);
     assert_eq!(2, wget.rec_level);
 }
 
