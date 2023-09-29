@@ -14,14 +14,15 @@ use crate::display::menuopts::{
 #[derive(Debug, PartialEq, Clone)]
 pub enum Screen {
     Home,
-    Method(String),
+    Method,
+    Downloads,
     HeaderAddRemove,
     RequestMenu(String),
     InputMenu(InputOpt),
     Response(String),
     Success,
     Keys,
-    Saved,
+    Commands,
     Error(String),
     ViewBody,
 }
@@ -39,7 +40,7 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Method(_) => {
+            Screen::Method => {
                 return METHOD_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
@@ -63,7 +64,7 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Saved => {
+            Screen::Commands => {
                 return SAVED_COMMAND_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
@@ -90,6 +91,9 @@ impl<'a> Screen {
             Screen::ViewBody => {
                 vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
             }
+            Screen::Downloads => {
+                vec![ListItem::new("Downloads").style(Style::default().fg(Color::Green))]
+            }
         }
     }
 
@@ -108,16 +112,17 @@ impl<'a> Screen {
     pub fn to_string(&self) -> String {
         match self {
             Screen::Home => "Main Menu",
-            Screen::Method(_) => "Choose an HTTP Method",
+            Screen::Method => "Choose an HTTP Method",
             Screen::HeaderAddRemove => "Add or Remove Headers",
             Screen::Keys => "My Saved API Keys",
             Screen::RequestMenu(_) => "Command Request Options",
-            Screen::Saved => "My Saved Commands",
+            Screen::Commands => "My Saved Commands",
             Screen::InputMenu(_) => "User input",
             Screen::Response(_) => "Response",
             Screen::Success => "Success",
             Screen::Error(_) => "Error",
             Screen::ViewBody => "View response body",
+            Screen::Downloads => "Downloads",
         }
         .to_string()
     }
