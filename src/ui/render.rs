@@ -9,6 +9,7 @@ use tui::{
 
 use crate::app::App;
 use crate::display::displayopts::DisplayOpts;
+use crate::screens::debug::handle_debug_screen;
 use crate::screens::downloads::handle_downloads_screen;
 use crate::screens::home::handle_home_screen;
 use crate::screens::input::render_input_screen;
@@ -112,6 +113,11 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         // VIEW BODY ********************************************************************
         Screen::ViewBody => {
             handle_view_body_screen(app, frame);
+        }
+
+        // DEBUG SCREEN ********************************************************************
+        Screen::Debug => {
+            handle_debug_screen(app, frame);
         }
         _ => {}
     }

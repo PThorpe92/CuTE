@@ -7,8 +7,8 @@ use tui::widgets::{Block, Borders, List, ListItem};
 
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    API_KEY_MENU_OPTIONS, INPUT_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS,
-    REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS, SAVED_COMMAND_OPTIONS,
+    API_KEY_MENU_OPTIONS, DEBUG_MENU_OPTIONS, INPUT_MENU_OPTIONS, MAIN_MENU_OPTIONS,
+    METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS, SAVED_COMMAND_OPTIONS,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -22,6 +22,8 @@ pub enum Screen {
     Response(String),
     Success,
     Keys,
+    Debug,
+    // Debug Screen Which Allows Me To Test 1 Kind Of Screen At A Time
     Commands,
     Error(String),
     ViewBody,
@@ -94,9 +96,16 @@ impl<'a> Screen {
             Screen::Downloads => {
                 vec![ListItem::new("Downloads").style(Style::default().fg(Color::Green))]
             }
+            Screen::Debug => {
+                return DEBUG_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i).style(Style::default().fg(Color::LightMagenta)))
+                    .collect();
+            }
         }
     }
 
+    // Get List Calls Get Opts* Personal Reminder For Lorenzo.
     pub fn get_list(&self) -> List {
         List::new(self.get_opts())
             .block(
@@ -123,6 +132,7 @@ impl<'a> Screen {
             Screen::Error(_) => "Error",
             Screen::ViewBody => "View response body",
             Screen::Downloads => "Downloads",
+            Screen::Debug => "Debug Menu",
         }
         .to_string()
     }

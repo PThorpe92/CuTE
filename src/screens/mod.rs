@@ -26,3 +26,6 @@ pub mod response;
 
 // View Body Screen
 pub mod viewbody;
+
+// Debug Menu Screen
+pub mod debug;
