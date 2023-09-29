@@ -2,3 +2,4 @@
 pub mod tui;
 
 pub mod render;
+pub mod widgets;
