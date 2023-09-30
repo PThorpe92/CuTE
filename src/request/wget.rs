@@ -5,6 +5,7 @@ pub struct Wget {
     auth: Option<String>,
     url: String,
     output: String,
+    response: Option<String>,
 }
 
 impl Wget {
@@ -15,12 +16,17 @@ impl Wget {
             url: String::new(),
             auth: None,
             output: String::new(),
+            response: None,
         }
     }
 
     // The menu must add the recursion level, then the url, then the output
     pub fn set_rec_download_level(&mut self, level: usize) {
         self.rec_level = level;
+    }
+
+    pub fn get_response(&self) -> Option<String> {
+        self.response.clone()
     }
 
     pub fn has_url(&self) -> bool {
@@ -39,16 +45,16 @@ impl Wget {
         self.cmd.contains("-r")
     }
 
-    pub fn set_url(&mut self, url: String) {
-        self.url = url;
+    pub fn set_url(&mut self, url: &str) {
+        self.url = String::from(url);
     }
 
     pub fn add_auth(&mut self, usr: &str, pwd: &str) {
         self.auth = Some(format!("--user={} --password={}", usr, pwd));
     }
 
-    pub fn set_output(&mut self, output: String) {
-        self.output = output;
+    pub fn set_output(&mut self, output: &str) {
+        self.output = String::from(output);
     }
 
     pub fn build_string(&mut self) {
@@ -79,14 +85,15 @@ impl Wget {
         self.cmd = self.cmd.trim().to_string();
     }
 
-    pub fn execute(&mut self) -> Result<String, String> {
+    pub fn execute(&mut self) -> Result<(), String> {
         let output = std::process::Command::new("sh")
             .arg("-c")
             .arg(self.cmd.clone())
             .output()
             .expect("failed to execute process");
         if output.status.success() {
-            Ok(String::from_utf8(output.stdout).unwrap())
+            self.response = Some(String::from_utf8(output.stdout).unwrap());
+            Ok(())
         } else {
             Err(String::from_utf8(output.stderr).unwrap())
         }
@@ -104,7 +111,7 @@ fn test_new_wget() {
 #[test]
 fn test_set_url() {
     let mut wget = Wget::new();
-    wget.set_url(String::from("http://www.google.com"));
+    wget.set_url("http://www.google.com");
     wget.build_string();
     assert_eq!("wget http://www.google.com", wget.cmd);
 }
@@ -112,7 +119,7 @@ fn test_set_url() {
 #[test]
 fn test_set_output() {
     let mut wget = Wget::new();
-    wget.set_output(String::from("output"));
+    wget.set_output("output");
     wget.build_string();
     assert_eq!("wget -O output", wget.cmd);
 }
@@ -128,8 +135,8 @@ fn test_add_auth() {
 fn test_build_string() {
     let mut wget = Wget::new();
     wget.add_auth("usr", "pwd");
-    wget.set_url(String::from("http://www.google.com"));
-    wget.set_output(String::from("output"));
+    wget.set_url("http://www.google.com");
+    wget.set_output("output");
     wget.build_string();
     assert_eq!(
         "wget http://www.google.com --user=usr --password=pwd -O output",
@@ -148,8 +155,8 @@ fn test_increase_rec_level() {
 #[test]
 fn test_execute() {
     let mut wget = Wget::new();
-    wget.set_url(String::from("http://www.google.com"));
-    wget.set_output(String::from("output"));
+    wget.set_url("http://www.google.com");
+    wget.set_output("output");
     wget.build_string();
     assert_eq!("wget http://www.google.com -O output", wget.cmd);
     let result = wget.execute();

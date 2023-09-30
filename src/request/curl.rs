@@ -1,4 +1,8 @@
-use std::io::Write;
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    io::Write,
+};
 
 use curl::easy::{Auth, Easy, List};
 
@@ -7,7 +11,7 @@ pub struct Curl<'a> {
     // The libcurl interface for our command/request
     curl: Easy,
     // The auth type we will use
-    auth: AuthType,
+    auth: AuthKind,
     // The final command string we will run
     cmd: String,
     // The url we will send the request to
@@ -22,23 +26,55 @@ pub struct Curl<'a> {
     outfile: Option<String>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-enum AuthType {
+#[derive(Debug, Clone, PartialEq)]
+pub enum AuthKind {
     None,
-    Ntlm,
-    Basic,
-    Digest,
-    AwsSigv4,
-    Spegno,
-    NtlmWb,
-    DigestIe,
+    Ntlm(String),
+    Basic(String),
+    Bearer(String),
+    Digest(String),
+    AwsSigv4(String),
+    Spnego(String),
+    NtlmWb(String),
+    Kerberos(String),
 }
 
-impl<'a> Curl<'a> {
-    pub fn new() -> Self {
+impl Display for AuthKind {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            AuthKind::None => write!(f, "None"),
+            AuthKind::Ntlm(login) => write!(f, "NTLM: {}", login),
+            AuthKind::Basic(login) => write!(f, "Basic: {}", login),
+            AuthKind::Bearer(token) => write!(f, "Bearer: {}", token),
+            AuthKind::Digest(login) => write!(f, "Digest: {}", login),
+            AuthKind::AwsSigv4(login) => write!(f, "AWS SignatureV4: {}", login),
+            AuthKind::Spnego(login) => write!(f, "SPNEGO: {}", login),
+            AuthKind::NtlmWb(login) => write!(f, "NTLM WB: {}", login),
+            AuthKind::Kerberos(login) => write!(f, "Kerberos: {}", login),
+        }
+    }
+}
+
+impl AuthKind {
+    fn to_string(&self) -> String {
+        match self {
+            AuthKind::None => "None".to_string(),
+            AuthKind::Ntlm(login) => format!("NTLM: {}", login),
+            AuthKind::Basic(login) => format!("Basic: {}", login),
+            AuthKind::Bearer(token) => format!("Bearer: {}", token),
+            AuthKind::Digest(login) => format!("Digest: {}", login),
+            AuthKind::AwsSigv4(login) => format!("AWS SignatureV4: {}", login),
+            AuthKind::Spnego(login) => format!("SPNEGO: {}", login),
+            AuthKind::NtlmWb(login) => format!("NTLM WB: {}", login),
+            AuthKind::Kerberos(login) => format!("Kerberos: {}", login),
+        }
+    }
+}
+impl<'a> Default for Curl<'a> {
+    fn default() -> Self {
         Self {
             curl: Easy::new(),
-            auth: AuthType::None,
+            auth: AuthKind::None,
             cmd: String::from("curl "),
             url: String::new(),
             opts: Vec::new(),
@@ -47,40 +83,36 @@ impl<'a> Curl<'a> {
             outfile: None,
         }
     }
+}
 
-    pub fn default(url: String) -> Self {
-        let mut default = Self {
-            curl: Easy::new(),
-            auth: AuthType::None,
-            cmd: String::from("curl "),
-            url: String::new(),
-            opts: Vec::new(),
-            resp: None,
-            upload_file: None,
-            outfile: None,
-        };
-        default.add_flag(
-            CurlFlag::new(None, CurlFlagType::Method),
-            Some(String::from("GET")),
-        );
-        default.set_url(url.clone().to_string());
-        default
+impl<'a> Curl<'a> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn set_url(&mut self, url: String) {
-        self.url = url.clone();
-        self.curl.url(url.as_str()).unwrap();
+    pub fn set_url(&mut self, url: &str) {
+        self.url = String::from(url);
+        self.curl.url(&url).unwrap();
     }
 
-    pub fn set_response(&mut self, response: String) {
-        self.resp = Some(response.clone());
+    pub fn set_response(&mut self, response: &str) {
+        self.resp = Some(String::from(response));
+    }
+
+    pub fn get_response(&self) -> Option<String> {
+        self.resp.clone()
     }
 
     pub fn write_output(&mut self) -> Result<(), std::io::Error> {
-        let mut file = std::fs::File::create(self.outfile.clone().expect("./output.txt"))?;
-        let mut writer = std::io::BufWriter::new(&mut file);
-        let _ = writer.write_all(self.resp.clone().unwrap().as_bytes());
-        Ok(())
+        match self.outfile {
+            Some(ref mut outfile) => {
+                let mut file = std::fs::File::create(outfile)?;
+                let mut writer = std::io::BufWriter::new(&mut file);
+                let _ = writer.write_all(self.resp.clone().unwrap().as_bytes());
+                Ok(())
+            }
+            None => Ok(()),
+        }
     }
 
     pub fn remove_flag(&mut self, flag: Flag<'a>) {
@@ -104,8 +136,11 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_basic_auth(&mut self, login: String) {
-        self.add_flag(CurlFlag::new(None, CurlFlagType::Basic), Some(login));
-        self.auth = AuthType::Basic;
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::Basic),
+            Some(login.clone()),
+        );
+        self.auth = AuthKind::Basic(login);
     }
 
     pub fn set_digest_auth(&mut self, info: &str) {
@@ -113,147 +148,67 @@ impl<'a> Curl<'a> {
             CurlFlag::new(None, CurlFlagType::Digest),
             Some(info.to_string()),
         );
-        self.auth = AuthType::Digest;
+        self.auth = AuthKind::Digest(info.to_string());
     }
 
-    pub fn set_aws_sigv4_auth(&mut self, on: bool) {
-        if on {
-            self.add_flag(CurlFlag::new(None, CurlFlagType::Digest), None);
-            self.auth = AuthType::AwsSigv4;
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::Digest),
-                value: None,
-            });
-            self.auth = AuthType::None;
-        }
+    pub fn set_aws_sigv4_auth(&mut self, login: String) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::AwsSigv4), None);
+        self.auth = AuthKind::AwsSigv4(login);
     }
 
-    pub fn set_digest_ie_auth(&mut self, on: bool) {
-        if on {
-            self.add_flag(CurlFlag::new(None, CurlFlagType::Digest), None);
-            self.auth = AuthType::DigestIe;
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::Digest),
-                value: None,
-            });
-            self.auth = AuthType::DigestIe;
-        }
+    pub fn set_spnego_auth(&mut self, login: String) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::SpnegoAuth), None);
+        self.auth = AuthKind::Spnego(login.clone());
     }
 
-    pub fn set_spegno_auth(&mut self, on: bool) {
-        if on {
-            self.add_flag(CurlFlag::new(None, CurlFlagType::SpegnoAuth), None);
-            self.auth = AuthType::Spegno;
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::SpegnoAuth),
-                value: None,
-            });
-            self.auth = AuthType::Spegno;
-        }
+    pub fn set_get_method(&mut self) {
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::Method),
+            Some(String::from("GET")),
+        );
+        self.curl.get(true).unwrap();
     }
 
-    pub fn set_get_method(&mut self, method: bool) {
-        if method {
-            self.add_flag(
-                CurlFlag::new(None, CurlFlagType::Method),
-                Some(String::from("GET")),
-            );
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(Some("GET"), CurlFlagType::Method),
-                value: Some(String::from("GET")),
-            });
-        }
-        self.curl.get(method).unwrap();
+    pub fn set_post_method(&mut self) {
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::Method),
+            Some(String::from("POST")),
+        );
+        self.curl.post(true).unwrap();
     }
 
-    pub fn set_post_method(&mut self, method: bool) {
-        if method {
-            self.add_flag(
-                CurlFlag::new(None, CurlFlagType::Method),
-                Some(String::from("POST")),
-            );
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::Method),
-                value: Some(String::from("POST")),
-            });
-        }
-        self.curl.post(method).unwrap();
+    pub fn set_put_method(&mut self) {
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::Method),
+            Some(String::from("PUT")),
+        );
+        self.curl.put(true).unwrap();
     }
 
-    pub fn set_put_method(&mut self, method: bool) {
-        if method {
-            self.add_flag(
-                CurlFlag::new(None, CurlFlagType::Method),
-                Some(String::from("PUT")),
-            );
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::Method),
-                value: Some(String::from("PUT")),
-            });
-        }
-        self.curl.put(method).unwrap();
+    pub fn set_patch_method(&mut self) {
+        self.add_flag(
+            CurlFlag::new(Some("PATCH"), CurlFlagType::Method),
+            Some(String::from("PATCH")),
+        );
+        self.curl.custom_request("PATCH").unwrap();
     }
 
-    pub fn set_patch_method(&mut self, method: bool) {
-        if method {
-            self.add_flag(
-                CurlFlag::new(Some("PATCH"), CurlFlagType::Method),
-                Some(String::from("PATCH")),
-            );
-            self.curl.custom_request("PATCH").unwrap();
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(Some("PATCH"), CurlFlagType::Method),
-                value: Some(String::from("PATCH")),
-            });
-            self.curl.custom_request("").unwrap();
-        }
+    pub fn set_delete_method(&mut self) {
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::Method),
+            Some(String::from("DELETE")),
+        );
+        self.curl.custom_request("DELETE").unwrap();
     }
 
-    pub fn set_delete_method(&mut self, method: bool) {
-        if method {
-            self.add_flag(
-                CurlFlag::new(None, CurlFlagType::Method),
-                Some(String::from("DELETE")),
-            );
-            self.curl.custom_request("DELETE").unwrap();
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(Some("DELETE"), CurlFlagType::Method),
-                value: Some(String::from("DELETE")),
-            });
-            self.curl.custom_request("").unwrap();
-        }
+    pub fn set_ntlm_auth(&mut self, login: &str) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::Ntlm), None);
+        self.auth = AuthKind::Ntlm(login.to_string());
     }
 
-    pub fn set_ntlm_auth(&mut self, on: bool) {
-        if on {
-            self.add_flag(CurlFlag::new(None, CurlFlagType::Ntlm), None);
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::Ntlm),
-                value: None,
-            });
-        }
-        self.auth = AuthType::Ntlm;
-    }
-
-    pub fn set_ntlm_wb_auth(&mut self, on: bool) {
-        if on {
-            self.add_flag(CurlFlag::new(None, CurlFlagType::Ntlm), None);
-        } else {
-            self.remove_flag(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::NtlmWb),
-                value: None,
-            });
-        }
-        self.auth = AuthType::NtlmWb;
+    pub fn set_ntlm_wb_auth(&mut self, login: &str) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::Ntlm), None);
+        self.auth = AuthKind::NtlmWb(login.to_string());
     }
 
     pub fn set_progress(&mut self, on: bool) {
@@ -275,18 +230,6 @@ impl<'a> Curl<'a> {
         );
         self.outfile = Some(output.clone());
     }
-    // pub fn set_output(&mut self, output: String) {
-    //     self.add_flag(
-    //         CurlFlag::new(None, CurlFlagType::Output),
-    //         Some(output.clone()),
-    //     );
-    //     self.curl
-    //         .write_function(move |data| {
-    //             self.resp = Some(String::from_utf8_lossy(data).to_string());
-    //             Ok(data.len())
-    //         })
-    //         .unwrap();
-    // }
 
     pub fn set_unix_socket(&mut self, socket: &str) {
         self.add_flag(
@@ -296,12 +239,25 @@ impl<'a> Curl<'a> {
         self.curl.unix_socket(socket.clone()).unwrap();
     }
 
+    pub fn set_bearer_auth(&mut self, token: String) {
+        self.add_flag(
+            CurlFlag::new(None, CurlFlagType::Bearer),
+            Some(token.clone()),
+        );
+        self.auth = AuthKind::Bearer(token);
+    }
+
     pub fn show_headers(&mut self, file: &str) {
         self.add_flag(
             CurlFlag::new(None, CurlFlagType::DumpHeaders),
             Some(file.to_string()),
         );
         self.curl.show_header(true).unwrap();
+    }
+
+    pub fn set_kerberos_auth(&mut self, login: &str) {
+        self.add_flag(CurlFlag::new(None, CurlFlagType::Kerberos), None);
+        self.auth = AuthKind::Kerberos(login.to_string());
     }
 
     pub fn set_upload_file(&mut self, file: &str) {
@@ -448,8 +404,8 @@ impl<'a> Curl<'a> {
                 flag: CurlFlag::new(None, CurlFlagType::Proxy),
                 value: Some(value.clone().expect("Proxy value not provided")),
             }),
-            CurlFlag::SpegnoAuth(_) => self.opts.push(Flag {
-                flag: CurlFlag::new(None, CurlFlagType::SpegnoAuth),
+            CurlFlag::SpnegoAuth(_) => self.opts.push(Flag {
+                flag: CurlFlag::new(None, CurlFlagType::SpnegoAuth),
                 value: None,
             }),
             CurlFlag::Progress(_) => self.opts.push(Flag {
@@ -464,36 +420,77 @@ impl<'a> Curl<'a> {
                 flag: CurlFlag::new(None, CurlFlagType::NtlmWb),
                 value: None,
             }),
+            CurlFlag::Kerberos(_) => self.opts.push(Flag {
+                flag: CurlFlag::new(None, CurlFlagType::Kerberos),
+                value: None,
+            }),
         }
     }
 
-    pub fn execute(&mut self) -> Result<String, curl::Error> {
-        let mut data = Vec::new();
-        let auth = match self.auth {
-            AuthType::Basic => self.curl.http_auth(&Auth::new().basic(true)),
-            AuthType::Digest => self.curl.http_auth(&Auth::new().digest(true)),
-            AuthType::Ntlm => self.curl.http_auth(&Auth::new().ntlm(true)),
-            AuthType::NtlmWb => self.curl.http_auth(&Auth::new().ntlm_wb(true)),
-            AuthType::Spegno => self.curl.http_auth(&Auth::new().gssnegotiate(true)),
-            AuthType::DigestIe => self.curl.http_auth(&Auth::new().digest_ie(true)),
-            AuthType::AwsSigv4 => self.curl.http_auth(&Auth::new().aws_sigv4(true)),
-            _ => Ok(()),
+    pub fn execute(&mut self) -> Result<(), curl::Error> {
+        match &self.auth {
+            AuthKind::Basic(login) => {
+                self.curl
+                    .username(&login.split(':').next().unwrap())
+                    .unwrap();
+                self.curl
+                    .password(&login.split(':').last().unwrap())
+                    .unwrap();
+                let _ = self.curl.http_auth(&Auth::new().basic(true));
+            }
+            // for some reason, libcurl doesn't support bearer: token, so we have to do it manually
+            AuthKind::Bearer(token) => {
+                let mut list = List::new();
+                let _ = list.append(&format!("Authorization: Bearer {}", token.clone()));
+                let _ = self.curl.http_headers(list).unwrap();
+            }
+            AuthKind::Digest(login) => {
+                self.curl
+                    .username(&login.split(':').next().unwrap())
+                    .unwrap();
+                self.curl
+                    .password(&login.split(':').last().unwrap())
+                    .unwrap();
+                let _ = self.curl.http_auth(&Auth::new().digest(true));
+            }
+            AuthKind::Ntlm(login) => {
+                self.curl
+                    .username(&login.split(':').next().unwrap())
+                    .unwrap();
+                self.curl
+                    .password(&login.split(':').last().unwrap())
+                    .unwrap();
+                let _ = self.curl.http_auth(&Auth::new().ntlm(true));
+            }
+            AuthKind::NtlmWb(login) => {
+                self.curl.username(&login).unwrap();
+                let _ = self.curl.http_auth(&Auth::new().ntlm_wb(true));
+            }
+            AuthKind::Spnego(login) => {
+                self.curl.username(&login).unwrap();
+                let _ = self.curl.http_auth(&Auth::new().gssnegotiate(true));
+            }
+            AuthKind::AwsSigv4(login) => {
+                self.curl.username(&login).unwrap();
+                let _ = self.curl.http_auth(&Auth::new().aws_sigv4(true));
+            }
+            _ => {}
         };
-        match auth {
-            Ok(_) => (),
-            Err(e) => return Err(e),
-        }
+        let data = RefCell::new(Vec::new());
+        let mut transfer = self.curl.transfer();
         {
-            let mut transfer = self.curl.transfer();
             transfer
                 .write_function(|new_data| {
+                    let mut data = data.borrow_mut();
                     data.extend_from_slice(new_data);
                     Ok(new_data.len())
                 })
                 .unwrap();
             transfer.perform().unwrap();
+            let res = String::from_utf8(data.take()).unwrap();
+            self.resp = Some(res.clone());
+            Ok(())
         }
-        return Ok(String::from_utf8(data).unwrap());
     }
 }
 
@@ -564,7 +561,8 @@ impl CurlFlag<'_> {
             CurlFlag::CaNative(val) => val,
             CurlFlag::CaPath(val) => val,
             CurlFlag::Method(val) => val,
-            CurlFlag::SpegnoAuth(val) => val,
+            CurlFlag::SpnegoAuth(val) => val,
+            CurlFlag::Kerberos(val) => val,
         }
     }
 }
@@ -598,13 +596,28 @@ define_curl_flags! {
     CaCert("--cacert"),
     CaNative("--ca-native"),
     CaPath("--capath"),
-    SpegnoAuth("--negotiate"),
+    SpnegoAuth("--negotiate"),
+    Kerberos("--krb"),
     Progress("--progress-bar"),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    //
+    fn setup(method: &str) -> String {
+        let mut server = mockito::Server::new();
+        let url = server.url();
+        // Start a mock server
+        let _ = server
+            .mock(method, "/api/resource")
+            .with_status(200)
+            .with_body("Mocked Response")
+            .create();
+
+        // Return the URL of the mock server
+        url.to_string()
+    }
 
     #[test]
     fn test_new_curl() {
@@ -618,9 +631,9 @@ mod tests {
     fn test_build_command_str() {
         let url = "https://example.com".to_string();
         let mut curl = Curl::new();
-        curl.set_get_method(true);
+        curl.set_get_method();
         curl.set_verbose(true);
-        curl.set_url(url.clone());
+        curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X GET -v {}", url));
         assert_eq!(curl.opts.len(), 2);
@@ -631,14 +644,14 @@ mod tests {
     fn test_set_method() {
         // test POST method
         let mut curl = Curl::new();
-        curl.set_post_method(true);
+        curl.set_post_method();
         curl.build_command_str();
         assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, "curl -X POST");
 
         // Test setting method to GET
         let mut curl_get = Curl::new();
-        curl_get.set_get_method(true);
+        curl_get.set_get_method();
         curl_get.build_command_str();
         assert_eq!(curl_get.opts.len(), 1);
         assert_eq!(curl_get.cmd, "curl -X GET");
@@ -647,8 +660,8 @@ mod tests {
     #[test]
     fn test_set_url() {
         let mut curl = Curl::new();
-        let url = "https://example.com".to_string();
-        curl.set_url(url.clone());
+        let url = "https://example.com";
+        curl.set_url(url);
         curl.build_command_str();
         assert_eq!(curl.url, url);
         assert_eq!(curl.cmd, format!("curl {}", url));
@@ -657,16 +670,16 @@ mod tests {
     #[test]
     fn test_set_response() {
         let mut curl = Curl::new();
-        let response = "This is a response".to_string();
-        curl.set_response(response.clone());
-        assert_eq!(curl.resp, Some(response));
+        let response = "This is a response";
+        curl.set_response(response);
+        assert_eq!(curl.resp, Some(String::from(response)));
     }
 
     #[test]
     fn test_write_output() {
         let mut curl = Curl::new();
-        let response = "This is a response".to_string();
-        curl.set_response(response.clone());
+        let response = "This is a response";
+        curl.set_response(response);
         curl.set_output("output.txt".to_string());
         curl.write_output().unwrap();
     }
@@ -737,10 +750,9 @@ mod tests {
     #[test]
     fn test_execute() {
         let mut curl = Curl::new();
-        let url = String::from("ifconfig.me");
-        curl.set_url(url.clone());
+        curl.set_url("ifconfig.me");
         assert!(curl.execute().is_ok());
-        assert_eq!(curl.url, url);
+        assert_eq!(curl.url, "ifconfig.me");
     }
 
     #[test]
@@ -793,5 +805,118 @@ mod tests {
             flag: CurlFlag::new(None, CurlFlagType::Digest),
             value: Some(String::from("username:pwd")),
         }));
+    }
+
+    #[test]
+    fn test_set_aws_sigv4_auth() {
+        let mut curl = Curl::new();
+        curl.set_aws_sigv4_auth("user:password".to_string());
+        curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.auth, AuthKind::AwsSigv4("user:password".to_string()));
+        assert_eq!(curl.cmd, "curl --aws-sigv4");
+        assert!(curl.opts.contains(&Flag {
+            flag: CurlFlag::new(None, CurlFlagType::AwsSigv4),
+            value: None,
+        }));
+    }
+
+    #[test]
+    fn test_set_spnego_auth() {
+        let mut curl = Curl::new();
+        curl.set_spnego_auth("username:pwd".to_string());
+        curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.auth, AuthKind::Spnego("username:pwd".to_string()));
+        assert!(curl.opts.contains(&Flag {
+            flag: CurlFlag::new(None, CurlFlagType::SpnegoAuth),
+            value: None,
+        }));
+    }
+
+    #[test]
+    fn test_set_get_method() {
+        let mut curl = Curl::new();
+        let url = setup("GET");
+        curl.set_get_method();
+        curl.set_url(url.as_str());
+        curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.cmd, format!("curl -X GET {}", url.as_str()));
+        assert!(curl.opts.contains(&Flag {
+            flag: CurlFlag::new(None, CurlFlagType::Method),
+            value: Some(String::from("GET")),
+        }));
+        curl.execute().unwrap();
+        assert!(curl.resp.is_some());
+    }
+
+    #[test]
+    fn test_set_post_method() {
+        let url = setup("POST");
+
+        let mut curl = Curl::new();
+        curl.set_post_method();
+        curl.set_url(url.as_str());
+        curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.cmd, format!("curl -X POST {}", url.as_str()));
+        assert!(curl.opts.contains(&Flag {
+            flag: CurlFlag::new(None, CurlFlagType::Method),
+            value: Some(String::from("POST")),
+        }));
+        curl.execute().unwrap();
+        assert!(curl.resp.is_some());
+    }
+    #[test]
+    fn test_set_put_method() {
+        let url = setup("PUT");
+
+        let mut curl = Curl::new();
+        curl.set_put_method();
+        curl.set_url(url.as_str());
+        curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.cmd, format!("curl -X PUT {}", url.as_str()));
+        assert!(curl.opts.contains(&Flag {
+            flag: CurlFlag::new(None, CurlFlagType::Method),
+            value: Some(String::from("PUT")),
+        }));
+        curl.execute().unwrap();
+        assert!(curl.resp.is_some());
+    }
+    #[test]
+    fn test_set_patch_method() {
+        let url = setup("PATCH");
+
+        let mut curl = Curl::new();
+        curl.set_patch_method();
+        curl.set_url(url.as_str());
+        curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.cmd, format!("curl -X PATCH {}", url.as_str()));
+        assert!(curl.opts.contains(&Flag {
+            flag: CurlFlag::new(None, CurlFlagType::Method),
+            value: Some(String::from("PATCH")),
+        }));
+        curl.execute().unwrap();
+        assert!(curl.resp.is_some());
+    }
+    #[test]
+    fn test_set_delete_method() {
+        let url = setup("DELETE");
+
+        let mut curl = Curl::new();
+        curl.set_delete_method();
+        curl.set_url(url.as_str());
+        curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.cmd, format!("curl -X DELETE {}", url.as_str()));
+        assert!(curl.opts.contains(&Flag {
+            flag: CurlFlag::new(None, CurlFlagType::Method),
+            value: Some(String::from("DELETE")),
+        }));
+        curl.execute().unwrap();
+        assert!(curl.resp.is_some());
     }
 }

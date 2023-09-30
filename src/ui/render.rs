@@ -12,10 +12,9 @@ use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::request::command::Command;
-use crate::request::curl::Curl;
+use crate::request::curl::{AuthKind, Curl};
 use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
-
 pub static CURL: &str = "curl";
 pub static WGET: &str = "wget";
 pub static CUSTOM: &str = "custom";
@@ -36,6 +35,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             DisplayOpts::URL(url) => {
                 let url_str = format!("- URL: {}\n", &url);
                 display_opts.push_str(url_str.as_str());
+            }
+            DisplayOpts::RecDownload(num) => {
+                let rec_str = format!("- Recursive Download depth: {}\n", num);
+                display_opts.push_str(rec_str.as_str());
             }
             _ => {}
         });
@@ -74,21 +77,20 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
-            match app.selected {
-                Some(0) => {
-                    app.goto_screen(Screen::Method);
+            if let Some(num) = app.selected {
+                match num {
+                    0 => {
+                        app.command = Some(Command::Curl(Curl::new()));
+                        app.goto_screen(Screen::Method);
+                    }
+                    1 => {
+                        app.command = Some(Command::Wget(Wget::new()));
+                        app.goto_screen(Screen::Downloads);
+                    }
+                    2 => app.goto_screen(Screen::Keys),
+                    3 => app.goto_screen(Screen::Commands),
+                    _ => {}
                 }
-                Some(1) => {
-                    app.goto_screen(Screen::Downloads);
-                }
-                Some(2) => {
-                    app.goto_screen(Screen::Keys);
-                }
-                Some(3) => {
-                    app.goto_screen(Screen::Commands);
-                }
-                Some(_) => {}
-                None => {}
             }
         }
 
@@ -103,7 +105,6 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
-            app.command = Some(Command::Curl(Curl::new()));
             match app.selected {
                 Some(num) => {
                     app.command
@@ -119,7 +120,6 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
 
         Screen::Downloads => {
-            app.command = Some(Command::Wget(Wget::new()));
             let area = default_rect(frame.size());
             let list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -129,23 +129,38 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
-            match app.selected {
-                // Setting Recursion level
-                Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload)),
-                // Add URL of download
-                Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
-                // Add file name for output/download
-                Some(2) => app.goto_screen(Screen::InputMenu(InputOpt::Output)),
-                // Execute command
-                Some(3) => {
-                    if let Ok(response) = app.command.as_mut().unwrap().execute() {
-                        app.response = Some(response.clone());
-                        app.goto_screen(Screen::Success);
+            if let Some(num) = app.selected {
+                match num {
+                    // Setting Recursion level
+                    0 => {
+                        app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
+                        app.selected = None;
                     }
-                }
-                Some(_) => {}
-                None => {}
-            };
+                    // Add URL of download
+                    1 => {
+                        app.goto_screen(Screen::InputMenu(InputOpt::URL));
+                        app.selected = None;
+                    }
+                    // Add file name for output/download
+                    2 => {
+                        app.goto_screen(Screen::InputMenu(InputOpt::Output));
+                        app.selected = None;
+                        // Execute command
+                    }
+                    3 => match app.command.as_mut().unwrap().execute() {
+                        Ok(_) => {
+                            if let Some(response) = app.command.as_ref().unwrap().get_response() {
+                                app.response = Some(response.clone());
+                                app.goto_screen(Screen::Response(response));
+                            }
+                        }
+                        Err(e) => {
+                            app.goto_screen(Screen::Error(e.to_string()));
+                        }
+                    },
+                    _ => {}
+                };
+            }
         }
         // KEYS SCREEN **********************************************
         Screen::Keys => {
@@ -183,7 +198,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     // Add a URL,
                     0 => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
                     // Auth
-                    1 => app.goto_screen(Screen::InputMenu(InputOpt::Authentication)),
+                    1 => app.goto_screen(Screen::Authentication),
                     // Headers
                     2 => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
                     // Verbose
@@ -212,24 +227,61 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         app.goto_screen(Screen::Commands);
                         app.selected = None;
                     }
-                    // Recursive download
-                    7 => {
-                        app.selected = None;
-                        app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
-                    }
                     // Execute command
-                    8 => {
-                        if let Ok(response) = app.command.as_mut().unwrap().execute() {
-                            app.set_response(response.clone());
-                            app.goto_screen(Screen::Response(response));
+                    7 => match app.command.as_mut().unwrap().execute() {
+                        Ok(()) => {
+                            if let Some(response) = app.command.as_ref().unwrap().get_response() {
+                                app.response = Some(response.clone());
+                                app.goto_screen(Screen::Response(response));
+                            }
                         }
-                    }
+                        Err(e) => {
+                            app.goto_screen(Screen::Error(e.to_string()));
+                        }
+                    },
                     _ => {}
                 },
                 None => {}
             }
         }
-
+        // AUTHENTICATION SCREEN *************************************************
+        Screen::Authentication => {
+            let area = default_rect(frame.size());
+            let new_list = app.current_screen.get_list();
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            app.items = app.current_screen.get_opts();
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(new_list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
+            if let Some(num) = app.selected {
+                match num {
+                    0 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Basic(
+                        String::new(),
+                    )))),
+                    1 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Bearer(
+                        String::new(),
+                    )))),
+                    2 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Digest(
+                        String::new(),
+                    )))),
+                    3 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::AwsSigv4(
+                        String::new(),
+                    )))),
+                    4 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Spnego(
+                        String::new(),
+                    )))),
+                    5 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Kerberos(
+                        String::new(),
+                    )))),
+                    6 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Ntlm(
+                        String::new(),
+                    )))),
+                    _ => {}
+                }
+            }
+        }
         // SUCESSS SCREEN *********************************************************
         Screen::Success => {
             let area = default_rect(frame.size());
@@ -296,32 +348,33 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 /// Renders a screen we can grab input from, pass in the appropriate designation for the input
 fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt: InputOpt) {
     match opt {
-        InputOpt::URL => render_default_input(app, frame, opt),
-        InputOpt::Headers => render_headers_input(app, frame, opt),
-        InputOpt::RecursiveDownload => render_recursive_download_input(app, frame, opt),
-        _ => render_default_input(app, frame, opt),
+        InputOpt::URL => {
+            let text = Text::from(Line::from("Enter a URL and press Enter"));
+            render_default_input(app, frame, text, opt);
+        }
+        InputOpt::Headers => {
+            let text = Text::from(Line::from(
+                "MUST be \"Key:Value\" pair and press Enter \n Example: Content-Type: application/json",
+            ));
+            render_default_input(app, frame, text, opt);
+        }
+        InputOpt::RecursiveDownload => {
+            let text = Text::from("Enter the recursion level and press Enter \n Example: 2");
+            render_default_input(app, frame, text, opt);
+        }
+        _ => {
+            let text = Text::from("Enter a value and press Enter");
+            render_default_input(app, frame, text, opt);
+        }
     }
 }
 
-fn render_headers_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt: InputOpt) {
-    let header_prompt = Text::from(Line::from(
-        "MUST be \"Key:Value\" pair and press Enter \n Example: Content-Type: application/json",
-    ));
-    render_input_with_prompt(app, frame, header_prompt, opt);
-}
-
-fn render_recursive_download_input<B: Backend>(
+fn render_default_input<B: Backend>(
     app: &mut App,
     frame: &mut Frame<'_, B>,
+    mut prompt: Text,
     opt: InputOpt,
 ) {
-    let header_prompt = Text::from(Line::from(
-        "Enter the recursion level and press Enter \n Example: 2",
-    ));
-    render_input_with_prompt(app, frame, header_prompt, opt);
-}
-
-fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
@@ -357,10 +410,9 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
         ),
     };
 
-    let mut header_prompt = Text::from("Enter a value and press Enter");
-    header_prompt.patch_style(style);
+    prompt.patch_style(style);
 
-    render_input_with_prompt(app, frame, header_prompt, opt.clone());
+    render_input_with_prompt(app, frame, prompt, opt.clone());
 
     let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
 
@@ -371,7 +423,7 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
             InputMode::Editing => Style::default().fg(Color::Yellow),
         })
         .scroll((0, scroll as u16))
-        .block(Block::default().borders(Borders::ALL).title("Input"));
+        .block(Block::default().borders(Borders::ALL).title("Enter Input"));
     frame.render_widget(input, chunks[1]);
     match app.input_mode {
         InputMode::Normal => {}
@@ -382,74 +434,134 @@ fn render_default_input<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt
     }
 
     if !app.messages.is_empty() {
-        match opt {
-            InputOpt::URL => {
-                app.command
-                    .as_mut()
-                    .unwrap()
-                    .set_url(app.messages[0].clone());
-                app.input_mode = InputMode::Normal;
-                app.add_display_option(DisplayOpts::URL(app.messages[0].clone()));
-                app.current_screen = Screen::RequestMenu(String::new());
-                app.messages.remove(0);
-            }
+        app.input_mode = InputMode::Normal;
+        parse_input(app.messages[0].clone(), opt, app);
+        app.messages.remove(0);
+    }
+}
 
-            InputOpt::Headers => {
-                let headers = app
-                    .messages
-                    .get(0)
-                    .unwrap()
-                    .split(':')
-                    .collect::<Vec<&str>>();
-                let cpy = (
-                    String::from(headers[0].clone()),
-                    String::from(headers[1].clone()),
-                );
-                app.command
-                    .as_mut()
-                    .unwrap()
-                    .set_headers(headers.iter().map(|x| x.to_string()).collect());
-                app.add_display_option(DisplayOpts::Headers(cpy));
-                app.current_screen = Screen::RequestMenu(String::new());
-                app.messages.remove(0);
+fn parse_input(message: String, opt: InputOpt, app: &mut App) {
+    match opt {
+        InputOpt::URL => {
+            app.command.as_mut().unwrap().set_url(message.clone());
+            app.add_display_option(DisplayOpts::URL(message.clone()));
+            match app.command.as_ref().unwrap() {
+                Command::Curl(_) => app.current_screen = Screen::RequestMenu(String::new()),
+                Command::Wget(_) => app.current_screen = Screen::Downloads,
             }
-
-            InputOpt::Output => {
-                app.command
-                    .as_mut()
-                    .unwrap()
-                    .set_outfile(app.messages[0].clone());
-                app.add_display_option(DisplayOpts::Outfile(app.messages[0].clone()));
-                app.messages.remove(0);
-                app.goto_screen(Screen::RequestMenu(String::new()));
-            }
-
-            InputOpt::Execute => {
-                // This means they have executed the command, and want to write to a file
-                app.command
-                    .as_mut()
-                    .unwrap()
-                    .set_outfile(app.messages[0].clone());
-                match app.command.as_mut().unwrap().write_output() {
-                    Ok(_) => {
-                        app.goto_screen(Screen::Success);
-                    }
-                    Err(e) => {
-                        app.goto_screen(Screen::Error(e.to_string()));
-                    }
-                }
-                app.goto_screen(Screen::Home);
-            }
-
-            InputOpt::RecursiveDownload => {
-                let recursion_level = app.messages[0].parse::<usize>().unwrap();
-                app.command
-                    .as_mut()
-                    .unwrap()
-                    .set_rec_download_level(recursion_level);
-            }
-            _ => {}
         }
+        InputOpt::RequestBody => {
+            // This means they should be pasting in a large request body...
+            //  not sure how to handle this yet.
+        }
+        InputOpt::Verbose => {
+            // This shouldn't have sent them to this screen...
+        }
+
+        InputOpt::Headers => {
+            let headers = message.split(':').collect::<Vec<&str>>();
+            let cpy = (
+                String::from(headers[0].clone()),
+                String::from(headers[1].clone()),
+            );
+            app.command
+                .as_mut()
+                .unwrap()
+                .set_headers(headers.iter().map(|x| x.to_string()).collect());
+            app.add_display_option(DisplayOpts::Headers(cpy));
+            app.current_screen = Screen::RequestMenu(String::new());
+        }
+
+        InputOpt::Output => {
+            app.input_mode = InputMode::Normal;
+            app.command.as_mut().unwrap().set_outfile(&message);
+            app.add_display_option(DisplayOpts::Outfile(message.clone()));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
+
+        InputOpt::Execute => {
+            // This means they have executed the command, and want to write to a file
+            app.command.as_mut().unwrap().set_outfile(&message);
+            match app.command.as_mut().unwrap().write_output() {
+                Ok(_) => {
+                    app.goto_screen(Screen::Success);
+                }
+                Err(e) => {
+                    app.goto_screen(Screen::Error(e.to_string()));
+                }
+            }
+            app.goto_screen(Screen::Home);
+        }
+
+        InputOpt::RecursiveDownload => {
+            let recursion_level = message.parse::<usize>().unwrap();
+            app.command
+                .as_mut()
+                .unwrap()
+                .set_rec_download_level(recursion_level);
+            app.add_display_option(DisplayOpts::RecDownload(recursion_level));
+            app.current_screen = Screen::Downloads;
+        }
+
+        InputOpt::Auth(auth) => match auth {
+            AuthKind::Basic(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::Basic(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::Bearer(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::Bearer(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::Digest(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::Digest(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::AwsSigv4(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::AwsSigv4(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::Spnego(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::Spnego(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::Kerberos(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::Kerberos(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::Ntlm(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::Ntlm(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::NtlmWb(_) => {
+                app.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(AuthKind::NtlmWb(message.clone()));
+                app.add_display_option(DisplayOpts::Auth(message));
+            }
+            AuthKind::None => {}
+        },
     }
 }
 

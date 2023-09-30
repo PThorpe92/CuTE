@@ -2,14 +2,13 @@
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AuthType {
+    // OAuth looks impossible to implement
     Basic,
     Bearer,
     Digest,
     Hawk,
-    OAuth,
     AWSSignature,
     NTLM,
     Kerberos,
     SPNEGO,
-    Custom,
 }
