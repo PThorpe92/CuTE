@@ -222,7 +222,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_set_output() {
         let mut wget = Wget::new();
-        wget.set_output(String::from("output"));
+        wget.set_output("output");
         wget.build_string();
         assert_eq!("-outputfile output", wget.cmd);
     }
@@ -264,8 +264,8 @@ mod tests {
     fn test_build_string() {
         let mut wget = Wget::new();
         wget.add_auth("usr", "pwd");
-        wget.set_url(String::from("http://www.google.com"));
-        wget.set_output(String::from("output"));
+        wget.set_url("http://www.google.com");
+        wget.set_output("output");
         wget.build_string();
         assert_eq!(
             "-url http://www.google.com -username usr -password pwd -outputfile output",
@@ -283,6 +283,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn test_execute() {
         let mut wget = Wget::new();
         wget.set_url("http://www.google.com");
@@ -307,8 +308,8 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_execute() {
         let mut wget = Wget::new();
-        wget.set_url(String::from("http://www.google.com"));
-        wget.set_output(String::from("output"));
+        wget.set_url("http://www.google.com");
+        wget.set_output("output");
         wget.build_string();
         assert_eq!("-url http://www.google.com -outputfile output", wget.cmd);
         let result = wget.execute();
