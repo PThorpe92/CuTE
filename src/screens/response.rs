@@ -6,6 +6,7 @@ use tui::widgets::{ListState, Paragraph};
 use tui::Frame;
 
 use crate::app::App;
+use crate::display::inputopt::InputOpt;
 use crate::screens::screen::Screen;
 use crate::ui::widgets::boxes::{default_rect, small_alert_box};
 
@@ -29,7 +30,7 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
     match app.selected {
         Some(num) => match num {
             0 => {
-                app.goto_screen(Screen::Home); // TODO: FIX INPUT
+                app.goto_screen(Screen::InputMenu(InputOpt::Output));
             }
             1 => {
                 app.goto_screen(Screen::Commands);

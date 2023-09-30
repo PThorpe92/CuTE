@@ -27,7 +27,7 @@ pub fn handle_debug_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) 
         }
         Some(1) => {
             // Test Single Line Input Screen
-            app.goto_screen(Screen::TestInput(app.input.to_string()));
+            app.goto_screen(Screen::URLInput);
         }
         _ => {}
     }

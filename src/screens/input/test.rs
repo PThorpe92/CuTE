@@ -54,10 +54,7 @@ fn create_layout<B: Backend>(frame: &mut Frame<'_, B>) -> (Rc<[Rect]>, Rc<[Rect]
     (parent_chunks, right_col_chunks, left_col_chunks)
 }
 
-fn create_screen_title<'a, B: Backend>(
-    frame: &mut Frame<'_, B>,
-    title_str: &'a str,
-) -> Paragraph<'a> {
+fn create_screen_title<'a>(title_str: &'a str) -> Paragraph<'a> {
     let title_block = Block::default().style(Style::default());
 
     let title = Paragraph::new(Text::styled(title_str, Style::default().fg(Color::Green)))
@@ -65,7 +62,7 @@ fn create_screen_title<'a, B: Backend>(
     title
 }
 
-fn create_input_block<'a, B: Backend>(app: &'a mut App, frame: &mut Frame<'_, B>) -> Paragraph<'a> {
+fn create_input_block<'a>(app: &'a mut App) -> Paragraph<'a> {
     let input_block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default());
@@ -81,8 +78,8 @@ fn create_input_block<'a, B: Backend>(app: &'a mut App, frame: &mut Frame<'_, B>
 pub fn TextInput<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // Create Render Objects & Layout
     let (parent_chunks, right_col_chunks, left_col_chunks) = create_layout(frame);
-    let title = create_screen_title(frame, "Test Title");
-    let input = create_input_block(app, frame);
+    let title = create_screen_title("Test Title");
+    let input = create_input_block(app);
     // Render Widgets
     frame.render_widget(title, parent_chunks[0]); // Title Widget
     frame.render_widget(input, right_col_chunks[1]); // Input Widget

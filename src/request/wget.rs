@@ -22,6 +22,18 @@ impl Wget {
     }
 
     #[cfg(target_os = "windows")]
+    pub fn new() -> Self {
+        Wget {
+            cmd: String::new(),
+            rec_level: 0,
+            url: String::new(),
+            auth: None,
+            output: String::new(),
+            response: None,
+        }
+    }
+
+    #[cfg(target_os = "windows")]
     pub fn build_string(&mut self) {
         if self.has_url() {
             if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
@@ -136,13 +148,9 @@ impl Wget {
             Err(String::from_utf8(output.stderr).unwrap())
         }
     }
-}
-mod tests {
-    use crate::request::wget::Wget;
 
-    #[test]
     #[cfg(target_os = "windows")]
-    pub fn execute(&mut self) -> Result<String, String> {
+    pub fn execute(&mut self) -> Result<(), String> {
         let output = std::process::Command::new("powershell.exe")
             .arg("-NoLogo")
             .arg("-NoProfile")
@@ -153,14 +161,17 @@ mod tests {
             .arg(self.cmd.clone())
             .output()
             .expect("failed to execute process");
-        let outstr = format!("{:?}", output);
-        println!("{}", outstr);
         if output.status.success() {
-            Ok(String::from_utf8(output.stdout).unwrap())
+            self.response = Some(String::from_utf8(output.stdout).unwrap());
+            Ok(())
         } else {
             Err(String::from_utf8(output.stderr).unwrap())
         }
     }
+}
+
+mod tests {
+    use crate::request::wget::Wget;
 
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -193,7 +204,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_set_url_win() {
         let mut wget = Wget::new();
-        wget.set_url(String::from("http://www.google.com"));
+        wget.set_url("http://www.google.com");
         wget.build_string();
         assert_eq!("-url http://www.google.com", wget.cmd);
     }

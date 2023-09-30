@@ -6,11 +6,12 @@
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
+    pub static ref MAIN_MENU_OPTIONS: [&'static str; 5] = [
         "Build and send an HTTP request\n  \n",
         "Download a remote file or directory\n  \n",
         "View my stored API keys\n  \n",
         "View or execute my saved commands\n  \n",
+        "Debug Menu. \n \n",
     ];
     pub static ref REQUEST_MENU_OPTIONS: [&'static str; 8] = [
         "Add a URL\n \n",
@@ -66,4 +67,6 @@ lazy_static! {
         "View my saved commands\n \n",
         "Delete a saved command\n \n",
     ];
+    pub static ref DEBUG_MENU_OPTIONS: [&'static str; 2] =
+        ["Back...\n \n", "URL Input Screen Debug \n \n"];
 }

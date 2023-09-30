@@ -10,9 +10,7 @@ pub enum Command<'a> {
 }
 
 impl<'a> Command<'a> {
-    pub fn default(curl: Curl<'a>) -> Self {
-        Command::Curl(curl)
-    }
+    // Im gonna fix this. We should be implmenting the default trait for Command
 
     pub fn set_method(&mut self, method: String) {
         match method.as_str() {
@@ -148,5 +146,11 @@ impl<'a> Command<'a> {
             Command::Wget(_) => "Wget",
         }
         .to_string()
+    }
+}
+
+impl<'a> Default for Command<'a> {
+    fn default() -> Self {
+        Command::Curl(Curl::new())
     }
 }

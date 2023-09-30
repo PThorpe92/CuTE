@@ -29,3 +29,6 @@ pub mod debug;
 
 // All Input Type Screens
 pub mod input;
+
+// Auth Screen
+pub mod auth;
