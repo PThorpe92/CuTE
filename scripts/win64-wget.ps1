@@ -21,7 +21,7 @@ function Invoke-Recursive-WebRequest(
     # if url is not provided exit with an error message
     if (-not$url)
     {
-        Write "Invoke-Recursive-WebRequest requires a url parameter"
+        Write-Error "Invoke-Recursive-WebRequest requires a url parameter"
         return
     }
 
@@ -34,7 +34,7 @@ function Invoke-Recursive-WebRequest(
     #if output file is not provided exit with an error message
     if (-not$outputfile)
     {
-        Write "Invoke-Recursive-WebRequest requires an outputfile parameter"
+        Write-Error "Invoke-Recursive-WebRequest requires an outputfile parameter"
         return
     }
 
