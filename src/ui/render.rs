@@ -17,6 +17,13 @@ use crate::screens::keys::handle_api_key_screen;
 use crate::screens::method::handle_method_select_screen;
 use crate::screens::request::handle_request_menu_screen;
 use crate::screens::response::handle_response_screen;
+
+use crate::display::inputopt::InputOpt;
+use crate::display::menuopts::METHOD_MENU_OPTIONS;
+use crate::request::command::Command;
+use crate::request::curl::Curl;
+use crate::request::wget::Wget;
+
 use crate::screens::screen::Screen;
 use crate::screens::success::handle_success_screen;
 use crate::screens::viewbody::handle_view_body_screen;
@@ -77,6 +84,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 
         // METHOD SCREEN ****************************************************
         Screen::Method => {
+
             handle_method_select_screen(app, frame);
         }
 
@@ -128,6 +136,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         _ => {}
     }
 }
+
 
 /* Never Used
 fn success_paragraph() -> Paragraph<'static> {
