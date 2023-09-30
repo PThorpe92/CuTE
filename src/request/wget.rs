@@ -24,7 +24,7 @@ impl Wget {
     #[cfg(target_os = "windows")]
     pub fn new() -> Self {
         Wget {
-            cmd: String::new(),
+            cmd: String::from("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1"),
             rec_level: 0,
             url: String::new(),
             auth: None,
@@ -39,13 +39,16 @@ impl Wget {
             if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
                 self.cmd.push(' ');
             }
+            self.cmd.push_str("-url");
+            self.cmd.push(' ');
             self.cmd.push_str(self.url.as_str());
         }
         if self.has_rec() {
             if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
                 self.cmd.push(' ');
             }
-            self.cmd.push_str(format!("-r {}", self.rec_level).as_str());
+            self.cmd
+                .push_str(format!("-depth {}", self.rec_level).as_str());
         }
         if self.has_auth() {
             if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
@@ -57,7 +60,8 @@ impl Wget {
             if !self.cmd.as_bytes()[self.cmd.len() - 1].is_ascii_whitespace() {
                 self.cmd.push(' ');
             }
-            self.cmd.push_str(format!("-O {}", self.output).as_str());
+            self.cmd
+                .push_str(format!("-outputfile {}", self.output).as_str());
         }
         self.cmd = self.cmd.trim().to_string();
     }
@@ -151,14 +155,17 @@ impl Wget {
 
     #[cfg(target_os = "windows")]
     pub fn execute(&mut self) -> Result<(), String> {
-        let output = std::process::Command::new("powershell.exe")
-            .arg("-NoLogo")
-            .arg("-NoProfile")
-            .arg("-ExecutionPolicy")
-            .arg("Unrestricted")
-            .arg("-File")
-            .arg("scripts\\win64-wget.ps1")
-            .arg(self.cmd.clone())
+        let commands = self.cmd.split(" ").collect::<Vec<&str>>();
+        let args = commands[7..].join(" ");
+
+        let output = std::process::Command::new(commands[0])
+            .arg(commands[1]) // -NoLogo
+            .arg(commands[2]) // -NoProfile
+            .arg(commands[3]) // -ExecutionPolicy
+            .arg(commands[4]) // unrestricted
+            .arg(commands[5]) // -File
+            .arg(commands[6]) // scripts\\win64-wget.ps1
+            .arg(args) // Rest Of The Command Arguments
             .output()
             .expect("failed to execute process");
         if output.status.success() {
@@ -186,7 +193,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_new_wget() {
         let wget = Wget::new();
-        assert_eq!("", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1", wget.cmd);
         assert_eq!("", wget.url);
         assert_eq!("", wget.output);
     }
@@ -206,7 +213,7 @@ mod tests {
         let mut wget = Wget::new();
         wget.set_url("http://www.google.com");
         wget.build_string();
-        assert_eq!("-url http://www.google.com", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com", wget.cmd);
     }
 
     #[test]
@@ -224,7 +231,7 @@ mod tests {
         let mut wget = Wget::new();
         wget.set_output("output");
         wget.build_string();
-        assert_eq!("-outputfile output", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -outputfile output", wget.cmd);
     }
 
     #[test]
@@ -242,7 +249,7 @@ mod tests {
         let mut wget = Wget::new();
         wget.add_auth("usr", "pwd");
         wget.build_string();
-        assert_eq!("-username usr -password pwd", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -username usr -password pwd", wget.cmd);
     }
 
     #[test]
@@ -268,7 +275,7 @@ mod tests {
         wget.set_output("output");
         wget.build_string();
         assert_eq!(
-            "-url http://www.google.com -username usr -password pwd -outputfile output",
+            "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com -username usr -password pwd -outputfile output",
             wget.cmd
         );
     }
@@ -296,11 +303,12 @@ mod tests {
         std::fs::remove_file("output").unwrap();
     }
 
+    #[test]
     #[cfg(target_os = "windows")]
     fn test_increase_rec_level() {
         let mut wget = Wget::new();
         wget.set_rec_download_level(2);
-        assert_eq!("", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1", wget.cmd);
         assert_eq!(2, wget.rec_level);
     }
 
@@ -311,7 +319,7 @@ mod tests {
         wget.set_url("http://www.google.com");
         wget.set_output("output");
         wget.build_string();
-        assert_eq!("-url http://www.google.com -outputfile output", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com -outputfile output", wget.cmd);
         let result = wget.execute();
         assert_eq!(true, result.is_ok());
         assert!(std::fs::metadata("output.txt").is_ok());
