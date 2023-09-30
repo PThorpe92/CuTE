@@ -7,8 +7,9 @@ use tui::widgets::{Block, Borders, List, ListItem};
 
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    API_KEY_MENU_OPTIONS, DEBUG_MENU_OPTIONS, INPUT_MENU_OPTIONS, MAIN_MENU_OPTIONS,
-    METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS, SAVED_COMMAND_OPTIONS,
+    API_KEY_MENU_OPTIONS, AUTHENTICATION_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, INPUT_MENU_OPTIONS,
+    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
+    SAVED_COMMAND_OPTIONS,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -20,12 +21,9 @@ pub enum Screen {
     RequestMenu(String),
     InputMenu(InputOpt),
     Response(String),
+    Authentication,
     Success,
     Keys,
-    Debug,
-    // Debug Screen Which Allows Me To Test 1 Kind Of Screen At A Time
-    TestInput(String),
-    // Testing Input And Layout
     Commands,
     Error(String),
     ViewBody,
@@ -86,6 +84,12 @@ impl<'a> Screen {
                     .map(|x| ListItem::new(*x))
                     .collect();
             }
+            Screen::Authentication => {
+                return AUTHENTICATION_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
             Screen::Success => {
                 vec![ListItem::new("Success!").style(Style::default().fg(Color::Green))]
             }
@@ -96,24 +100,15 @@ impl<'a> Screen {
                 vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
             }
             Screen::Downloads => {
-                vec![ListItem::new("Downloads").style(Style::default().fg(Color::Green))]
-            }
-            Screen::Debug => {
-                return DEBUG_MENU_OPTIONS
+
+                return DOWNLOAD_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i).style(Style::default().fg(Color::LightMagenta)))
-                    .collect();
-            }
-            Screen::TestInput(_) => {
-                return INPUT_MENU_OPTIONS
-                    .iter()
-                    .map(|x| ListItem::new(*x).style(Style::default().fg(Color::LightMagenta)))
+                    .map(|i| ListItem::new(*i))
                     .collect();
             }
         }
     }
 
-    // Get List Calls Get Opts* Personal Reminder For Lorenzo.
     pub fn get_list(&self) -> List {
         List::new(self.get_opts())
             .block(
@@ -130,6 +125,7 @@ impl<'a> Screen {
         match self {
             Screen::Home => "Main Menu",
             Screen::Method => "Choose an HTTP Method",
+            Screen::Authentication => "Choose an authentication method",
             Screen::HeaderAddRemove => "Add or Remove Headers",
             Screen::Keys => "My Saved API Keys",
             Screen::RequestMenu(_) => "Command Request Options",
@@ -140,8 +136,6 @@ impl<'a> Screen {
             Screen::Error(_) => "Error",
             Screen::ViewBody => "View response body",
             Screen::Downloads => "Downloads",
-            Screen::Debug => "Debug Menu",
-            Screen::TestInput(_) => "Test Input",
         }
         .to_string()
     }

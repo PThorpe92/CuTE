@@ -1,3 +1,5 @@
+use crate::request::curl::AuthKind;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputOpt {
     URL,
@@ -6,7 +8,7 @@ pub enum InputOpt {
     Verbose,
     RequestBody,
     RecursiveDownload,
-    Authentication,
+    Auth(AuthKind),
     Execute,
 }
 
@@ -18,7 +20,10 @@ impl InputOpt {
             InputOpt::Output => "Output",
             InputOpt::RequestBody => "Request Body",
             InputOpt::RecursiveDownload => "Recursive Download",
-            InputOpt::Authentication => "Authentication",
+            InputOpt::Auth(val) => {
+                let auth = val.clone();
+                return format!("Authentication: {}", auth);
+            }
             InputOpt::Execute => "Execute",
             InputOpt::Verbose => "Verbose",
         }

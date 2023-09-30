@@ -34,7 +34,7 @@ pub struct App<'a> {
     pub items: Vec<ListItem<'a>>,
     pub state: Option<ListState>,
     pub response: Option<String>,
-    pub shareable_command: Option<ShareableCommand>,
+    pub shareable_command: ShareableCommand,
 }
 
 impl<'a> Default for App<'a> {
@@ -53,7 +53,7 @@ impl<'a> Default for App<'a> {
             state: None,
             current_screen: Screen::Home,
             response: None,
-            shareable_command: None,
+            shareable_command: ShareableCommand::new(),
         }
     }
 }
@@ -74,7 +74,7 @@ impl<'a> App<'_> {
         // Lets Init That
         match self.current_screen {
             Screen::RequestMenu(_) => {
-                self.shareable_command = Some(ShareableCommand::new());
+                self.shareable_command = ShareableCommand::new();
             }
             _ => {} // Lets Add Cases As We Add Features
         }
@@ -184,6 +184,16 @@ impl<'a> App<'_> {
                         return true;
                     }
                 }
+                DisplayOpts::RecDownload(_) => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
+                DisplayOpts::Auth(_) => {
+                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
             }
         }
         // Otherwise, its not there.
@@ -197,13 +207,15 @@ impl<'a> App<'_> {
         // We know that only 1 URL should ever be added,
         // So if we're adding a URL we should replace it if it already exists
         match opt {
-            DisplayOpts::URL(_) => !self.has_display_option(opt.clone()), // URL Should Be Replaced If It Already Exists
-            DisplayOpts::Headers(_) => true, // Headers Should Be "Pushed" or Added
-            DisplayOpts::Outfile(_) => !self.has_display_option(opt.clone()), // Outfile Should Be Replaced
-            DisplayOpts::Verbose => !self.has_display_option(opt.clone()), // Verbose Should Be Toggled
-            DisplayOpts::SaveCommand => !self.has_display_option(opt.clone()), // Save Command Should Be Toggled
-            DisplayOpts::Response(_) => !self.has_display_option(opt.clone()), // Response Should Be Replaced
-            DisplayOpts::ShareableCmd(_) => !self.has_display_option(opt.clone()), // Shareable Command Should Be Replaced With The New Version
+            DisplayOpts::URL(_) => !self.has_display_option(opt.clone()), // URL should be replaced if exists
+            DisplayOpts::Headers(_) => true, // Headers should be "pushed" or added
+            DisplayOpts::Outfile(_) => !self.has_display_option(opt.clone()), // Outfile should be replaced
+            DisplayOpts::Verbose => !self.has_display_option(opt.clone()), // Verbose should be toggled
+            DisplayOpts::SaveCommand => !self.has_display_option(opt.clone()), // Save command should be toggled
+            DisplayOpts::Response(_) => !self.has_display_option(opt.clone()), // Response should be replaced
+            DisplayOpts::ShareableCmd(_) => !self.has_display_option(opt.clone()), // Shareable command should be replaced with the new version
+            DisplayOpts::RecDownload(_) => !self.has_display_option(opt.clone()), // Recursive download depth should be replaced
+            DisplayOpts::Auth(_) => !self.has_display_option(opt.clone()), // Auth should be replaced
         }
     }
 
@@ -211,7 +223,7 @@ impl<'a> App<'_> {
         self.response = Some(response.clone());
         match self.command {
             Some(ref mut cmd) => {
-                cmd.set_response(response);
+                cmd.set_response(&response);
             }
             None => {}
         }
@@ -234,25 +246,19 @@ impl<'a> App<'_> {
                 // Im cloning this to shut the borrow checker up, there is probably a better way
                 DisplayOpts::Verbose => {
                     // Just add the verbose flag to the command
-                    self.shareable_command.as_mut().unwrap().set_verbose(true);
+                    self.shareable_command.set_verbose(true);
                 }
                 DisplayOpts::Headers((key, value)) => {
                     // Push Header To Shareable Command
-                    self.shareable_command
-                        .as_mut()
-                        .unwrap()
-                        .push_header((key, value));
+                    self.shareable_command.push_header((key, value));
                 }
                 DisplayOpts::URL(url) => {
                     // Set URL To Sharable Command
-                    self.shareable_command.as_mut().unwrap().set_url(url);
+                    self.shareable_command.set_url(url);
                 }
                 DisplayOpts::Outfile(outfile) => {
                     // Set Outfile To Shareable Command
-                    self.shareable_command
-                        .as_mut()
-                        .unwrap()
-                        .set_outfile(outfile);
+                    self.shareable_command.set_outfile(outfile);
                 }
                 _ => {
                     // Nothing
