@@ -6,7 +6,8 @@ use crate::app::App;
 use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
 use crate::screens::screen::Screen;
-use crate::ui::widgets::{default_rect, menu_paragraph};
+use crate::ui::widgets::boxes::default_rect;
+use crate::ui::widgets::menu::menu_widget;
 
 pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
@@ -20,13 +21,13 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
     app.state.as_mut().unwrap().select(Some(app.cursor));
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(menu_paragraph(), frame.size());
+    frame.render_widget(menu_widget(), frame.size());
     match app.selected {
         Some(num) => match num {
             // Add a URL,
             0 => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
             // Auth
-            1 => app.goto_screen(Screen::InputMenu(InputOpt::Authentication)),
+            1 => app.goto_screen(Screen::Authentication),
             // Headers
             2 => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
             // Verbose
@@ -55,18 +56,21 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
                 app.goto_screen(Screen::Commands);
                 app.selected = None;
             }
-            // Recursive download
-            7 => {
-                app.selected = None;
-                app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
-            }
             // Execute command
-            8 => {
-                if let Ok(response) = app.command.as_mut().unwrap().execute() {
-                    app.set_response(response.clone());
-                    app.goto_screen(Screen::Response(response));
+            7 => match app.command.as_mut().unwrap().execute() {
+                Ok(()) => {
+                    if app.command.as_ref().unwrap().get_response().is_some() {
+                        app.response = app.command.as_ref().unwrap().get_response().clone();
+                        app.goto_screen(Screen::Response(app.response.clone().unwrap()));
+                    } else {
+                        app.goto_screen(Screen::Error("Unable To Retreve Response...".to_string()));
+                    }
                 }
-            }
+                Err(e) => {
+                    app.goto_screen(Screen::Error(e.to_string()));
+                }
+            },
+
             _ => {}
         },
         None => {}

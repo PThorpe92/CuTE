@@ -1,15 +1,3 @@
-use tui::backend::Backend;
-use tui::layout::{Constraint, Direction, Layout};
-use tui::style::{Color, Modifier, Style};
-use tui::text::{Line, Span, Text};
-use tui::widgets::{Block, Borders, Paragraph};
-use tui::Frame;
-
-use crate::app::{App, InputMode};
-use crate::display::displayopts::DisplayOpts;
-use crate::display::inputopt::InputOpt;
-use crate::screens::screen::Screen;
-
 /// Renders a screen we can grab input from, pass in the appropriate designation for the input
 pub fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt: InputOpt) {
     match opt {

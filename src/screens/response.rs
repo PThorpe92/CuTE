@@ -8,7 +8,7 @@ use tui::Frame;
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::screens::screen::Screen;
-use crate::ui::widgets::{default_rect, small_alert_box};
+use crate::ui::widgets::boxes::{default_rect, small_alert_box};
 
 pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, resp: String) {
     let area = default_rect(small_alert_box(frame.size()));

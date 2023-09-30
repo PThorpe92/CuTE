@@ -7,8 +7,9 @@ use tui::widgets::{Block, Borders, List, ListItem};
 
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    API_KEY_MENU_OPTIONS, INPUT_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS,
-    REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS, SAVED_COMMAND_OPTIONS,
+    API_KEY_MENU_OPTIONS, AUTHENTICATION_MENU_OPTIONS, DEBUG_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS,
+    INPUT_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS,
+    RESPONSE_MENU_OPTIONS, SAVED_COMMAND_OPTIONS,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -20,11 +21,14 @@ pub enum Screen {
     RequestMenu(String),
     InputMenu(InputOpt),
     Response(String),
+    Authentication,
     Success,
     Keys,
     Commands,
     Error(String),
     ViewBody,
+    Debug,
+    URLInput,
 }
 
 impl<'a> Screen {
@@ -82,6 +86,12 @@ impl<'a> Screen {
                     .map(|x| ListItem::new(*x))
                     .collect();
             }
+            Screen::Authentication => {
+                return AUTHENTICATION_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
             Screen::Success => {
                 vec![ListItem::new("Success!").style(Style::default().fg(Color::Green))]
             }
@@ -92,7 +102,20 @@ impl<'a> Screen {
                 vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
             }
             Screen::Downloads => {
-                vec![ListItem::new("Downloads").style(Style::default().fg(Color::Green))]
+                return DOWNLOAD_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::Debug => {
+                // Menu For Debug Screens
+                return DEBUG_MENU_OPTIONS
+                    .iter()
+                    .map(|i| ListItem::new(*i))
+                    .collect();
+            }
+            Screen::URLInput => {
+                vec![ListItem::new("URL Input").style(Style::default().fg(Color::Green))]
             }
         }
     }
@@ -113,6 +136,7 @@ impl<'a> Screen {
         match self {
             Screen::Home => "Main Menu",
             Screen::Method => "Choose an HTTP Method",
+            Screen::Authentication => "Choose an authentication method",
             Screen::HeaderAddRemove => "Add or Remove Headers",
             Screen::Keys => "My Saved API Keys",
             Screen::RequestMenu(_) => "Command Request Options",
@@ -123,6 +147,8 @@ impl<'a> Screen {
             Screen::Error(_) => "Error",
             Screen::ViewBody => "View response body",
             Screen::Downloads => "Downloads",
+            Screen::Debug => "Debug Menu",
+            Screen::URLInput => "URL Input",
         }
         .to_string()
     }

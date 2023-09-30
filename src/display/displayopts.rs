@@ -11,5 +11,7 @@ pub enum DisplayOpts {
     Outfile(String),
     SaveCommand,
     Response(String),
+    RecDownload(usize),
+    Auth(String),
     ShareableCmd(ShareableCommand),
 }

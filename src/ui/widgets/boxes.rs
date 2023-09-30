@@ -1,8 +1,9 @@
-//* These Should Be Smaller Reusable Components
+/*
+* This file contains the functions that are used to create the different boxes
+* and rectangles and such that are used in the UI
+ */
 
-use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Style};
-use tui::widgets::{Block, BorderType, Borders, Paragraph};
+use tui::layout::{Constraint, Direction, Layout, Rect};
 
 pub fn small_alert_box(r: Rect) -> Rect {
     centered_rect(70, 60, r)
@@ -50,15 +51,20 @@ pub fn small_rect(r: Rect) -> Rect {
     layout[1]
 }
 
-pub fn menu_paragraph() -> Paragraph<'static> {
-    Paragraph::new("\nPress q to exit \n Press Enter to select \n Please select a Menu item\n")
-        .block(
-            Block::default()
-                .title("cURL-TUI")
-                .title_alignment(Alignment::Center)
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded),
+// **********************************************************************************
+
+pub fn single_line_input_box(frame_size: Rect) -> Rect {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints(
+            [
+                Constraint::Length(1),
+                Constraint::Length(3),
+                Constraint::Min(1),
+            ]
+            .as_ref(),
         )
-        .style(Style::default().fg(Color::Cyan).bg(Color::Black))
-        .alignment(Alignment::Center)
+        .split(frame_size);
+    chunks[0]
 }
