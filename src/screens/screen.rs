@@ -100,6 +100,7 @@ impl<'a> Screen {
                 vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
             }
             Screen::Downloads => {
+
                 return DOWNLOAD_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))

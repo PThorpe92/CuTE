@@ -12,6 +12,7 @@ use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::request::command::Command;
+
 use crate::request::curl::{AuthKind, Curl};
 use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
@@ -90,6 +91,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     2 => app.goto_screen(Screen::Keys),
                     3 => app.goto_screen(Screen::Commands),
                     _ => {}
+
                 }
             }
         }
@@ -120,6 +122,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
 
         Screen::Downloads => {
+
             let area = default_rect(frame.size());
             let list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -129,6 +132,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
+
             if let Some(num) = app.selected {
                 match num {
                     // Setting Recursion level
@@ -161,6 +165,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     _ => {}
                 };
             }
+
         }
         // KEYS SCREEN **********************************************
         Screen::Keys => {
@@ -239,6 +244,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                             app.goto_screen(Screen::Error(e.to_string()));
                         }
                     },
+
                     _ => {}
                 },
                 None => {}
@@ -366,6 +372,7 @@ fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt:
             let text = Text::from("Enter a value and press Enter");
             render_default_input(app, frame, text, opt);
         }
+
     }
 }
 
@@ -511,6 +518,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                     .set_auth(AuthKind::Basic(message.clone()));
                 app.add_display_option(DisplayOpts::Auth(message));
             }
+
             AuthKind::Bearer(_) => {
                 app.command
                     .as_mut()
@@ -526,6 +534,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 app.add_display_option(DisplayOpts::Auth(message));
             }
             AuthKind::AwsSigv4(_) => {
+
                 app.command
                     .as_mut()
                     .unwrap()
@@ -533,6 +542,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 app.add_display_option(DisplayOpts::Auth(message));
             }
             AuthKind::Spnego(_) => {
+
                 app.command
                     .as_mut()
                     .unwrap()
@@ -545,6 +555,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                     .unwrap()
                     .set_auth(AuthKind::Kerberos(message.clone()));
                 app.add_display_option(DisplayOpts::Auth(message));
+
             }
             AuthKind::Ntlm(_) => {
                 app.command
