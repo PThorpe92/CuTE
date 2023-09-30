@@ -3,6 +3,7 @@ use tui_input::InputRequest;
 
 use crate::app::InputMode;
 use crate::app::{App, AppResult};
+use crate::screens::screen::Screen;
 
 /// Handles the key events and updates the state of [`App`].
 pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
@@ -11,8 +12,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
             match key_event.kind {
                 KeyEventKind::Press => {
                     match key_event.code {
-                        // Exit application on `ESC` or `q`
-                        KeyCode::Esc | KeyCode::Char('q') => {
+                        KeyCode::Char('q') => {
                             app.quit();
                         }
                         // Exit application on `Ctrl-C`
@@ -32,7 +32,9 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                             app.select_item();
                         }
                         KeyCode::Char('i') => {
-                            app.input_mode = InputMode::Editing;
+                            if let Screen::InputMenu(_) = app.current_screen {
+                                app.input_mode = InputMode::Editing;
+                            }
                         }
                         KeyCode::Char('j') => {
                             app.move_cursor_down();

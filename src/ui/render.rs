@@ -91,7 +91,6 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     2 => app.goto_screen(Screen::Keys),
                     3 => app.goto_screen(Screen::Commands),
                     _ => {}
-
                 }
             }
         }
@@ -114,7 +113,9 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         .unwrap()
                         .set_method(String::from(METHOD_MENU_OPTIONS[num])); // safe index
                     app.goto_screen(Screen::RequestMenu(String::from(
-                        METHOD_MENU_OPTIONS[num].clone(),
+                        *METHOD_MENU_OPTIONS
+                            .get(num)
+                            .unwrap_or(&"Please select an HTTP method\n \n"),
                     )));
                 }
                 None => {}
@@ -122,7 +123,6 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
 
         Screen::Downloads => {
-
             let area = default_rect(frame.size());
             let list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -133,39 +133,36 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.render_stateful_widget(list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
 
-            if let Some(num) = app.selected {
-                match num {
-                    // Setting Recursion level
-                    0 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
-                        app.selected = None;
-                    }
-                    // Add URL of download
-                    1 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::URL));
-                        app.selected = None;
-                    }
-                    // Add file name for output/download
-                    2 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::Output));
-                        app.selected = None;
-                        // Execute command
-                    }
-                    3 => match app.command.as_mut().unwrap().execute() {
-                        Ok(_) => {
-                            if let Some(response) = app.command.as_ref().unwrap().get_response() {
-                                app.response = Some(response.clone());
-                                app.goto_screen(Screen::Response(response));
-                            }
+            match app.selected {
+                // Setting Recursion level
+                Some(0) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
+                    app.selected = None;
+                }
+                // Add URL of download
+                Some(1) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::URL));
+                    app.selected = None;
+                }
+                // Add file name for output/download
+                Some(2) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::Output));
+                    app.selected = None;
+                    // Execute command
+                }
+                Some(3) => match app.command.as_mut().unwrap().execute() {
+                    Ok(_) => {
+                        if let Some(response) = app.command.as_ref().unwrap().get_response() {
+                            app.response = Some(response.clone());
+                            app.goto_screen(Screen::Response(response));
                         }
-                        Err(e) => {
-                            app.goto_screen(Screen::Error(e.to_string()));
-                        }
-                    },
-                    _ => {}
-                };
-            }
-
+                    }
+                    Err(e) => {
+                        app.goto_screen(Screen::Error(e.to_string()));
+                    }
+                },
+                _ => {}
+            };
         }
         // KEYS SCREEN **********************************************
         Screen::Keys => {
@@ -199,55 +196,51 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
             match app.selected {
-                Some(num) => match num {
-                    // Add a URL,
-                    0 => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
-                    // Auth
-                    1 => app.goto_screen(Screen::Authentication),
-                    // Headers
-                    2 => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
-                    // Verbose
-                    3 => {
-                        if app.opts.contains(&DisplayOpts::Verbose) {
-                            app.opts.retain(|x| x != &DisplayOpts::Verbose);
-                            app.command.as_mut().unwrap().set_verbose(false);
-                        } else {
-                            app.add_display_option(DisplayOpts::Verbose);
-                            app.command.as_mut().unwrap().set_verbose(true);
+                // Add a URL,
+                Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
+                // Auth
+                Some(1) => app.goto_screen(Screen::Authentication),
+                // Headers
+                Some(2) => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
+                // Verbose
+                Some(3) => {
+                    if app.opts.contains(&DisplayOpts::Verbose) {
+                        app.opts.retain(|x| x != &DisplayOpts::Verbose);
+                        app.command.as_mut().unwrap().set_verbose(false);
+                    } else {
+                        app.add_display_option(DisplayOpts::Verbose);
+                        app.command.as_mut().unwrap().set_verbose(true);
+                    }
+                    app.selected = None;
+                }
+                // Output file,
+                Some(4) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::Output));
+                    app.selected = None;
+                }
+                // Request Body
+                Some(5) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
+                    app.selected = None;
+                }
+                // Save this command
+                Some(6) => {
+                    app.goto_screen(Screen::Commands);
+                    app.selected = None;
+                }
+                // Execute command
+                Some(7) => match app.command.as_mut().unwrap().execute() {
+                    Ok(()) => {
+                        if let Some(response) = app.command.as_ref().unwrap().get_response() {
+                            app.response = Some(response.clone());
+                            app.goto_screen(Screen::Response(response));
                         }
-                        app.selected = None;
                     }
-                    // Output file,
-                    4 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::Output));
-                        app.selected = None;
+                    Err(e) => {
+                        app.goto_screen(Screen::Error(e.to_string()));
                     }
-                    // Request Body
-                    5 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
-                        app.selected = None;
-                    }
-                    // Save this command
-                    6 => {
-                        app.goto_screen(Screen::Commands);
-                        app.selected = None;
-                    }
-                    // Execute command
-                    7 => match app.command.as_mut().unwrap().execute() {
-                        Ok(()) => {
-                            if let Some(response) = app.command.as_ref().unwrap().get_response() {
-                                app.response = Some(response.clone());
-                                app.goto_screen(Screen::Response(response));
-                            }
-                        }
-                        Err(e) => {
-                            app.goto_screen(Screen::Error(e.to_string()));
-                        }
-                    },
-
-                    _ => {}
                 },
-                None => {}
+                _ => {}
             }
         }
         // AUTHENTICATION SCREEN *************************************************
@@ -261,39 +254,40 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
             frame.render_widget(menu_paragraph(), frame.size());
-            if let Some(num) = app.selected {
-                match num {
-                    0 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Basic(
-                        String::new(),
-                    )))),
-                    1 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Bearer(
-                        String::new(),
-                    )))),
-                    2 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Digest(
-                        String::new(),
-                    )))),
-                    3 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::AwsSigv4(
-                        String::new(),
-                    )))),
-                    4 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Spnego(
-                        String::new(),
-                    )))),
-                    5 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Kerberos(
-                        String::new(),
-                    )))),
-                    6 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Ntlm(
-                        String::new(),
-                    )))),
-                    _ => {}
-                }
+            match app.selected {
+                Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Basic(
+                    String::new(),
+                )))),
+                Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Bearer(
+                    String::new(),
+                )))),
+                Some(2) => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Digest(
+                    String::new(),
+                )))),
+                Some(3) => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::AwsSigv4(
+                    String::new(),
+                )))),
+                Some(4) => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Spnego(
+                    String::new(),
+                )))),
+                Some(5) => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Kerberos(
+                    String::new(),
+                )))),
+                Some(6) => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Ntlm(
+                    String::new(),
+                )))),
+                _ => {}
             }
         }
         // SUCESSS SCREEN *********************************************************
         Screen::Success => {
             let area = default_rect(frame.size());
             app.items = app.current_screen.get_opts();
+            let paragraph = Paragraph::new(Text::from(app.response.as_ref().unwrap().as_str()))
+                .style(Style::default().fg(Color::Yellow).bg(Color::Black))
+                .alignment(Alignment::Center);
             frame.set_cursor(0, app.cursor as u16);
-            frame.render_widget(menu_paragraph(), area);
+            frame.render_widget(paragraph, area);
         }
 
         // INPUT MENU SCREEN *****************************************************
@@ -320,19 +314,19 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             let area_2 = small_alert_box(frame.size());
             frame.render_widget(paragraph, area_2);
             match app.selected {
-                Some(num) => match num {
-                    0 => {
-                        app.goto_screen(Screen::InputMenu(InputOpt::Output));
-                    }
-                    1 => {
-                        app.goto_screen(Screen::Commands);
-                    }
-                    2 => {
-                        app.goto_screen(Screen::ViewBody);
-                    }
-                    _ => {}
-                },
-                None => {}
+                // write to file
+                Some(0) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::Execute));
+                }
+                // save command
+                Some(1) => {
+                    app.goto_screen(Screen::Commands);
+                }
+                // view response body
+                Some(2) => {
+                    app.goto_screen(Screen::ViewBody);
+                }
+                _ => {}
             }
         }
 
@@ -372,7 +366,6 @@ fn render_input_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, opt:
             let text = Text::from("Enter a value and press Enter");
             render_default_input(app, frame, text, opt);
         }
-
     }
 }
 
@@ -427,10 +420,10 @@ fn render_default_input<B: Backend>(
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
             InputMode::Normal => Style::default(),
-            InputMode::Editing => Style::default().fg(Color::Yellow),
+            InputMode::Editing => Style::default().fg(Color::LightBlue),
         })
         .scroll((0, scroll as u16))
-        .block(Block::default().borders(Borders::ALL).title("Enter Input"));
+        .block(Block::default().borders(Borders::ALL).title("Input"));
     frame.render_widget(input, chunks[1]);
     match app.input_mode {
         InputMode::Normal => {}
@@ -488,6 +481,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
 
         InputOpt::Execute => {
             // This means they have executed the command, and want to write to a file
+            app.input_mode = InputMode::Normal;
             app.command.as_mut().unwrap().set_outfile(&message);
             match app.command.as_mut().unwrap().write_output() {
                 Ok(_) => {
@@ -497,7 +491,6 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                     app.goto_screen(Screen::Error(e.to_string()));
                 }
             }
-            app.goto_screen(Screen::Home);
         }
 
         InputOpt::RecursiveDownload => {
@@ -534,7 +527,6 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 app.add_display_option(DisplayOpts::Auth(message));
             }
             AuthKind::AwsSigv4(_) => {
-
                 app.command
                     .as_mut()
                     .unwrap()
@@ -542,7 +534,6 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 app.add_display_option(DisplayOpts::Auth(message));
             }
             AuthKind::Spnego(_) => {
-
                 app.command
                     .as_mut()
                     .unwrap()
@@ -555,7 +546,6 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                     .unwrap()
                     .set_auth(AuthKind::Kerberos(message.clone()));
                 app.add_display_option(DisplayOpts::Auth(message));
-
             }
             AuthKind::Ntlm(_) => {
                 app.command
@@ -613,7 +603,6 @@ fn menu_paragraph() -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
-/* Never Used
 fn success_paragraph() -> Paragraph<'static> {
     Paragraph::new("Command successfully saved\n")
         .block(
@@ -626,7 +615,6 @@ fn success_paragraph() -> Paragraph<'static> {
         .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center)
 }
- */
 
 fn api_key_paragraph() -> Paragraph<'static> {
     Paragraph::new(
