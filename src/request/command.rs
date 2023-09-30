@@ -40,7 +40,6 @@ impl<'a> Command<'a> {
             _ => {}
         }
     }
-
     pub fn add_download_auth(&mut self, user: &str, pwd: &str) {
         match self {
             Command::Wget(wget) => wget.add_auth(user, pwd),
@@ -54,7 +53,7 @@ impl<'a> Command<'a> {
                 curl.set_url(&url);
             }
             Command::Wget(wget) => {
-           wget.set_url(&url);
+                wget.set_url(&url);
             }
         }
     }
@@ -110,12 +109,10 @@ impl<'a> Command<'a> {
         }
     }
 
-
     pub fn execute(&mut self) -> Result<(), std::io::Error> {
         match self {
             Command::Curl(curl) => Ok(curl.execute().unwrap()),
             Command::Wget(wget) => Ok(wget.execute().unwrap()),
-
         }
     }
 
