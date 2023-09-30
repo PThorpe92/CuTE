@@ -173,6 +173,7 @@ impl Wget {
     }
 }
 mod tests {
+    use crate::request::wget::Wget;
 
     #[test]
     #[cfg(target_os = "windows")]
