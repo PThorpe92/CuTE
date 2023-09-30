@@ -121,41 +121,6 @@ impl Wget {
         self.cmd = self.cmd.trim().to_string();
     }
 
-    #[cfg(any(target_os = "windows"))]
-    pub fn build_string(&mut self) {
-        // URL
-        if self.has_url() {
-            self.cmd.push_str("-url");
-            self.cmd.push(' '); // Whitespace
-            self.cmd.push_str(self.url.as_str());
-            self.cmd.push(' '); // Whitespace
-        }
-
-        // REC
-        if self.rec_level > 0 {
-            self.cmd.push_str("-depth");
-            self.cmd.push(' '); // Whitespace
-            self.cmd.push_str(format!("{}", self.rec_level).as_str());
-            self.cmd.push(' '); // Whitespace
-        }
-
-        // AUTH
-        if self.has_auth() {
-            self.cmd.push_str(self.auth.as_ref().unwrap().as_str());
-            self.cmd.push(' '); // Whitespace
-        }
-
-        // OUTPUT
-        if self.has_output() {
-            self.cmd.push_str("-outputfile");
-            self.cmd.push(' '); // Whitespace
-            self.cmd.push_str(self.output.as_str());
-            self.cmd.push(' '); // Whitespace
-        }
-
-        self.cmd = self.cmd.trim().to_string();
-    }
-
     // Added Windows Specific Function
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn execute(&mut self) -> Result<(), String> {
