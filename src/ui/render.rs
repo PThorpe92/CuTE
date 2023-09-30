@@ -12,7 +12,7 @@ use crate::display::displayopts::DisplayOpts;
 use crate::screens::debug::handle_debug_screen;
 use crate::screens::downloads::handle_downloads_screen;
 use crate::screens::home::handle_home_screen;
-use crate::screens::input::render_input_screen;
+use crate::screens::input::url::handle_url_input_screen;
 use crate::screens::keys::handle_api_key_screen;
 use crate::screens::method::handle_method_select_screen;
 use crate::screens::request::handle_request_menu_screen;
@@ -20,7 +20,7 @@ use crate::screens::response::handle_response_screen;
 use crate::screens::screen::Screen;
 use crate::screens::success::handle_success_screen;
 use crate::screens::viewbody::handle_view_body_screen;
-use crate::ui::widgets::small_rect;
+use crate::ui::widgets::boxes::small_rect;
 
 pub static CURL: &str = "curl";
 pub static WGET: &str = "wget";
@@ -102,7 +102,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 
         // INPUT MENU SCREEN *****************************************************
         Screen::InputMenu(opt) => {
-            render_input_screen(app, frame, opt.clone());
+            //render_input_screen(app, frame, opt.clone());
         }
 
         // RESPONSE SCREEN ******************************************************
@@ -119,6 +119,12 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         Screen::Debug => {
             handle_debug_screen(app, frame);
         }
+
+        // TEST INPUT ********************************************************************
+        Screen::TestInput(_) => {
+            handle_url_input_screen(app, frame);
+        }
+
         _ => {}
     }
 }

@@ -43,11 +43,7 @@ lazy_static! {
         "SPNEGO\n \n",
         "Custom\n \n",
     ];
-    pub static ref INPUT_MENU_OPTIONS: [&'static str; 3] = [
-        "Please enter a URL for your request",
-        "Please specify your request headers",
-        "Please enter your request body",
-    ];
+    pub static ref INPUT_MENU_OPTIONS: [&'static str; 1] = ["Please Enter Some Text\n \n",];
     pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 3] = [
         "Write to file?\n \n",
         "View response headers\n \n",

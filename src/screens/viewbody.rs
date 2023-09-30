@@ -6,7 +6,7 @@ use tui::widgets::Paragraph;
 use tui::Frame;
 
 use crate::app::App;
-use crate::ui::widgets::small_rect;
+use crate::ui::widgets::boxes::small_rect;
 
 pub fn handle_view_body_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // screen with only the body of the response

@@ -24,6 +24,8 @@ pub enum Screen {
     Keys,
     Debug,
     // Debug Screen Which Allows Me To Test 1 Kind Of Screen At A Time
+    TestInput(String),
+    // Testing Input And Layout
     Commands,
     Error(String),
     ViewBody,
@@ -102,6 +104,12 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i).style(Style::default().fg(Color::LightMagenta)))
                     .collect();
             }
+            Screen::TestInput(_) => {
+                return INPUT_MENU_OPTIONS
+                    .iter()
+                    .map(|x| ListItem::new(*x).style(Style::default().fg(Color::LightMagenta)))
+                    .collect();
+            }
         }
     }
 
@@ -133,6 +141,7 @@ impl<'a> Screen {
             Screen::ViewBody => "View response body",
             Screen::Downloads => "Downloads",
             Screen::Debug => "Debug Menu",
+            Screen::TestInput(_) => "Test Input",
         }
         .to_string()
     }

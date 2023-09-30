@@ -3,9 +3,6 @@ pub mod screen;
 // Home Screen
 pub mod home;
 
-// Input Screen
-pub mod input;
-
 // API Keys
 pub mod keys;
 
@@ -29,3 +26,6 @@ pub mod viewbody;
 
 // Debug Menu Screen
 pub mod debug;
+
+// All Input Type Screens
+pub mod input;

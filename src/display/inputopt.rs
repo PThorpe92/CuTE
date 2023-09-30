@@ -14,7 +14,7 @@ impl InputOpt {
     pub fn to_string(&self) -> String {
         match self {
             InputOpt::URL => "URL",
-            InputOpt::Headers => "Headers",
+            InputOpt::Headers => "Header",
             InputOpt::Output => "Output",
             InputOpt::RequestBody => "Request Body",
             InputOpt::RecursiveDownload => "Recursive Download",

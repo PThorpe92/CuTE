@@ -4,9 +4,9 @@ use tui::Frame;
 
 use crate::app::App;
 use crate::display::displayopts::DisplayOpts;
-use crate::display::inputopt::InputOpt;
 use crate::screens::screen::Screen;
-use crate::ui::widgets::{default_rect, menu_paragraph};
+use crate::ui::widgets::boxes::default_rect;
+use crate::ui::widgets::menu::menu_widget;
 
 pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
@@ -20,15 +20,16 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
     app.state.as_mut().unwrap().select(Some(app.cursor));
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(menu_paragraph(), frame.size());
+    frame.render_widget(menu_widget(), frame.size());
+
     match app.selected {
         Some(num) => match num {
             // Add a URL,
-            0 => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
+            0 => app.goto_screen(Screen::Home), // TODO: FIX INPUT
             // Auth
-            1 => app.goto_screen(Screen::InputMenu(InputOpt::Authentication)),
+            1 => app.goto_screen(Screen::Home), // TODO: FIX INPUT
             // Headers
-            2 => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
+            2 => app.goto_screen(Screen::Home), // TODO: FIX INPUT
             // Verbose
             3 => {
                 if app.opts.contains(&DisplayOpts::Verbose) {
@@ -42,12 +43,12 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
             }
             // Output file,
             4 => {
-                app.goto_screen(Screen::InputMenu(InputOpt::Output));
+                app.goto_screen(Screen::Home); // TODO: FIX INPUT
                 app.selected = None;
             }
             // Request Body
             5 => {
-                app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
+                app.goto_screen(Screen::Home); // TODO: FIX INPUT
                 app.selected = None;
             }
             // Save this command
@@ -58,7 +59,7 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
             // Recursive download
             7 => {
                 app.selected = None;
-                app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
+                app.goto_screen(Screen::Home); // TODO: FIX INPUT
             }
             // Execute command
             8 => {
