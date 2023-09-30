@@ -6,6 +6,7 @@ use tui::{
     widgets::{Block, BorderType, Borders, ListState, Paragraph},
     Frame,
 };
+use crate::request::wget::Wget;
 use crate::request::curl::Curl;
 use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::app::{App, InputMode};
