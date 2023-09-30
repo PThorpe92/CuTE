@@ -1,7 +1,7 @@
 use crate::request::curl::{Curl, CurlFlag};
 use crate::request::wget::Wget;
 
-use super::curl::AuthKind;
+use super::curl::{AuthKind, CurlFlagType};
 
 #[derive(Debug)]
 pub enum Command<'a> {
@@ -39,9 +39,8 @@ impl<'a> Command<'a> {
         }
     }
     pub fn add_download_auth(&mut self, user: &str, pwd: &str) {
-        match self {
-            Command::Wget(wget) => wget.add_auth(user, pwd),
-            _ => {}
+        if let Command::Wget(wget) = self {
+            wget.add_auth(user, pwd)
         }
     }
 
@@ -59,7 +58,10 @@ impl<'a> Command<'a> {
     pub fn set_outfile(&mut self, file: &str) {
         match self {
             Command::Curl(curl) => {
-                curl.add_flag(CurlFlag::Output(""), Some(String::from(file)));
+                curl.add_flag(CurlFlag::Output(
+                    CurlFlagType::Output.get_value(),
+                    Some(String::from(file)),
+                ));
             }
             Command::Wget(wget) => {
                 wget.set_output(file);
@@ -68,11 +70,8 @@ impl<'a> Command<'a> {
     }
 
     pub fn set_headers(&mut self, headers: Vec<String>) {
-        match self {
-            Command::Curl(curl) => {
-                curl.add_headers(headers);
-            }
-            _ => {}
+        if let Command::Curl(curl) = self {
+            curl.add_headers(headers);
         }
     }
 
@@ -101,23 +100,27 @@ impl<'a> Command<'a> {
     }
 
     pub fn set_verbose(&mut self, verbose: bool) {
-        match self {
-            Command::Curl(curl) => curl.set_verbose(verbose),
-            _ => {}
+        if let Command::Curl(curl) = self {
+            curl.set_verbose(verbose);
         }
     }
 
     pub fn execute(&mut self) -> Result<(), std::io::Error> {
         match self {
-            Command::Curl(curl) => Ok(curl.execute().unwrap()),
-            Command::Wget(wget) => Ok(wget.execute().unwrap()),
+            Command::Curl(curl) => {
+                curl.execute().unwrap();
+                Ok(())
+            }
+            Command::Wget(wget) => {
+                wget.execute().unwrap();
+                Ok(())
+            }
         }
     }
 
     pub fn set_rec_download_level(&mut self, level: usize) {
-        match self {
-            Command::Wget(wget) => wget.set_rec_download_level(level),
-            _ => {}
+        if let Command::Wget(wget) = self {
+            wget.set_rec_download_level(level);
         }
     }
 
@@ -132,11 +135,8 @@ impl<'a> Command<'a> {
     }
 
     pub fn set_response(&mut self, response: &str) {
-        match self {
-            Command::Curl(curl) => {
-                curl.set_response(response);
-            }
-            _ => {}
+        if let Command::Curl(curl) = self {
+            curl.set_response(response);
         }
     }
 

@@ -80,6 +80,29 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         // HOME SCREEN ******************************************************
         Screen::Home => {
             handle_home_screen(app, frame);
+            let new_list = app.current_screen.get_list();
+            let area = centered_rect(70, 60, frame.size());
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(new_list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
+            if let Some(num) = app.selected {
+                match num {
+                    0 => {
+                        app.command = Some(Command::Curl(Curl::new()));
+                        app.goto_screen(Screen::Method);
+                    }
+                    1 => {
+                        app.command = Some(Command::Wget(Wget::new()));
+                        app.goto_screen(Screen::Downloads);
+                    }
+                    2 => app.goto_screen(Screen::Keys),
+                    3 => app.goto_screen(Screen::Commands),
+                    _ => {}
+                }
+            }
         }
 
         // METHOD SCREEN ****************************************************
@@ -89,6 +112,72 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 
         Screen::Downloads => {
             handle_downloads_screen(app, frame);
+            let area = default_rect(frame.size());
+            let new_list = app.current_screen.get_list();
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            app.items = app.current_screen.get_opts();
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(new_list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
+            match app.selected {
+                Some(num) => {
+                    app.command
+                        .as_mut()
+                        .unwrap()
+                        .set_method(String::from(METHOD_MENU_OPTIONS[num])); // safe index
+                    app.goto_screen(Screen::RequestMenu(String::from(
+                        *METHOD_MENU_OPTIONS
+                            .get(num)
+                            .unwrap_or(&"Please select an HTTP method\n \n"),
+                    )));
+                }
+                None => {}
+            }
+        }
+
+        Screen::Downloads => {
+            let area = default_rect(frame.size());
+            let list = app.current_screen.get_list();
+            let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
+            app.items = app.current_screen.get_opts();
+            app.state = Some(state.clone());
+            app.state.as_mut().unwrap().select(Some(app.cursor));
+            frame.set_cursor(0, app.cursor as u16);
+            frame.render_stateful_widget(list, area, &mut state);
+            frame.render_widget(menu_paragraph(), frame.size());
+
+            match app.selected {
+                // Setting Recursion level
+                Some(0) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::RecursiveDownload));
+                    app.selected = None;
+                }
+                // Add URL of download
+                Some(1) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::URL));
+                    app.selected = None;
+                }
+                // Add file name for output/download
+                Some(2) => {
+                    app.goto_screen(Screen::InputMenu(InputOpt::Output));
+                    app.selected = None;
+                    // Execute command
+                }
+                Some(3) => match app.command.as_mut().unwrap().execute() {
+                    Ok(_) => {
+                        if let Some(response) = app.command.as_ref().unwrap().get_response() {
+                            app.response = Some(response.clone());
+                            app.goto_screen(Screen::Response(response));
+                        }
+                    }
+                    Err(e) => {
+                        app.goto_screen(Screen::Error(e.to_string()));
+                    }
+                },
+                _ => {}
+            };
         }
 
         // KEYS SCREEN **********************************************
@@ -214,10 +303,10 @@ fn render_default_input<B: Backend>(
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
             InputMode::Normal => Style::default(),
-            InputMode::Editing => Style::default().fg(Color::Yellow),
+            InputMode::Editing => Style::default().fg(Color::LightBlue),
         })
         .scroll((0, scroll as u16))
-        .block(Block::default().borders(Borders::ALL).title("Enter Input"));
+        .block(Block::default().borders(Borders::ALL).title("Input"));
     frame.render_widget(input, chunks[1]);
     match app.input_mode {
         InputMode::Normal => {}
@@ -275,6 +364,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
 
         InputOpt::Execute => {
             // This means they have executed the command, and want to write to a file
+            app.input_mode = InputMode::Normal;
             app.command.as_mut().unwrap().set_outfile(&message);
             match app.command.as_mut().unwrap().write_output() {
                 Ok(_) => {
@@ -284,7 +374,6 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                     app.goto_screen(Screen::Error(e.to_string()));
                 }
             }
-            app.goto_screen(Screen::Home);
         }
 
         InputOpt::RecursiveDownload => {
@@ -397,7 +486,6 @@ fn menu_paragraph() -> Paragraph<'static> {
         .alignment(Alignment::Center)
 }
 
-/* Never Used
 fn success_paragraph() -> Paragraph<'static> {
     Paragraph::new("Command successfully saved\n")
         .block(
@@ -410,7 +498,6 @@ fn success_paragraph() -> Paragraph<'static> {
         .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center)
 }
- */
 
 fn api_key_paragraph() -> Paragraph<'static> {
     Paragraph::new(
