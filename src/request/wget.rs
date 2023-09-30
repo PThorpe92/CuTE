@@ -154,9 +154,6 @@ impl Wget {
     }
 }
 
-pub mod tests {
-    use crate::request::wget::Wget;
-
     #[cfg(target_os = "windows")]
     pub fn execute(&mut self) -> Result<(), String> {
         let commands = self.cmd.split(" ").collect::<Vec<&str>>();
