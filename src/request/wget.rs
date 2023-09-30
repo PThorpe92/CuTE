@@ -137,7 +137,8 @@ impl Wget {
         }
     }
 }
-mod tests {
+
+pub mod tests {
     use crate::request::wget::Wget;
 
     #[test]

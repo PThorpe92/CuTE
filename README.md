@@ -5,15 +5,17 @@
 # Rust TUI HTTP Client with API Key Management
 
 
-Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by cURL), recursive downloading of files (powered by WGET), and storage management of your API keys.
+Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of files (powered by WGET), and storage + management of your API keys.
 
-Have you ever wanted to just grab some data from an API, or demonstrate that your REST endpoint is working, and had to craft some 2 paragraph long curl CLI command, just to forget every flag and option you used the next time you need to do it? 
+Have you ever wanted to just grab some data from an API, or demonstrate that your REST endpoint is working, and had to craft some 2 paragraph long curl CLI command, just to forget every flag and option you used the next time you need to do send the same command? 
 
-Now, not only can you execute these commands from a simple TUI and either view the response or write it to a file, but _CuTE_ will build the actual curl command string you need to run it again, should you wish to share it with someone else, use it on a server, or just keep it for later.
+Now, not only can you execute these commands from a simple TUI and either view the response or write it to a file, but on top of executing the command with libcurl, _CuTE_ will build the actual curl command string you need to run it again, should you wish to share it with someone else, use it on a server, or just keep it stashed for later.
 
 ## Features
 
 - **Interactive TUI Interface**: The application offers an intuitive TUI interface that makes it easy to construct and execute HTTP requests without leaving the terminal.
+
+- **Intuitive VIM keybindings:**  Navigate the TUI using the familiar Vim keybindings you know and love.
 
 - **Multiple Request Types**: With this tool, you can effortlessly create and send all the standard HTTP request types, and even use multiple forms of Authentication, without knowing an entire sub-language known as `curl-cli-flags`. This ensures flexibility in your interaction with different APIs.
 
@@ -30,7 +32,7 @@ Now, not only can you execute these commands from a simple TUI and either view t
 
 ## Why don't you support `X`?
 
-- See above `why`: Supporting every available action in libcurl would be a monumental task. If there are enough requests for a specific feature, it will be considered. Otherwise, PR's are welcome.
+- See above `why`: Supporting every available action or authentication type in libcurl would be a monumental task. If there are enough requests for a specific feature, it will be considered. Otherwise, PR's are welcome.
 
 
 ## Installation

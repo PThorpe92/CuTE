@@ -61,34 +61,34 @@ impl ShareableCommand {
         }
 
         // Whitespace
-        command_str.push_str(" ");
+        command_str.push(' ');
         // URL
         command_str.push_str(&self.url);
 
         // Next We Check For Headers
-        if self.headers.len() > 0 {
+        if !self.headers.is_empty() {
             for (key, value) in &self.headers {
                 // Whitespace
                 command_str.push_str("");
                 // Header Flag
                 command_str.push_str("-H ");
                 // Open Quote
-                command_str.push_str("\"");
+                command_str.push('\"');
                 // Header Key
-                command_str.push_str(&key);
+                command_str.push_str(key);
                 // Delimiter
-                command_str.push_str(":");
+                command_str.push(':');
                 // Header Value
-                command_str.push_str(&value);
+                command_str.push_str(value);
                 // Close Quote
-                command_str.push_str("\"");
+                command_str.push('\"');
             }
         }
 
         // Check For Outfile
         if !self.outfile.is_empty() {
             // Whitespace
-            command_str.push_str(" ");
+            command_str.push(' ');
             // Outfile Flag
             command_str.push_str(" -o ");
             // Outfile Name
