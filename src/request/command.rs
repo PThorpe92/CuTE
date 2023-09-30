@@ -1,6 +1,8 @@
 use crate::request::curl::{Curl, CurlFlag};
 use crate::request::wget::Wget;
 
+use super::curl::AuthKind;
+
 #[derive(Debug)]
 pub enum Command<'a> {
     Curl(Curl<'a>),
@@ -15,23 +17,24 @@ impl<'a> Command<'a> {
     pub fn set_method(&mut self, method: String) {
         match method.as_str() {
             "GET" => match self {
-                Command::Curl(curl) => curl.set_get_method(true),
+                Command::Curl(curl) => curl.set_get_method(),
                 _ => {}
             },
             "POST" => match self {
-                Command::Curl(curl) => curl.set_post_method(true),
+                Command::Curl(curl) => curl.set_post_method(),
                 _ => {}
             },
             "PUT" => match self {
-                Command::Curl(curl) => curl.set_put_method(true),
+                Command::Curl(curl) => curl.set_put_method(),
                 _ => {}
             },
             "PATCH" => match self {
-                Command::Curl(curl) => curl.set_patch_method(true),
+                Command::Curl(curl) => curl.set_patch_method(),
                 _ => {}
             },
             "DELETE" => match self {
-                Command::Curl(curl) => curl.set_delete_method(true),
+                Command::Curl(curl) => curl.set_delete_method(),
+
                 _ => {}
             },
             _ => {}
@@ -48,18 +51,18 @@ impl<'a> Command<'a> {
     pub fn set_url(&mut self, url: String) {
         match self {
             Command::Curl(curl) => {
-                curl.set_url(url.clone());
+                curl.set_url(&url);
             }
             Command::Wget(wget) => {
-                wget.set_url(url);
+           wget.set_url(&url);
             }
         }
     }
 
-    pub fn set_outfile(&mut self, file: String) {
+    pub fn set_outfile(&mut self, file: &str) {
         match self {
             Command::Curl(curl) => {
-                curl.add_flag(CurlFlag::Output(""), Some(file));
+                curl.add_flag(CurlFlag::Output(""), Some(String::from(file)));
             }
             Command::Wget(wget) => {
                 wget.set_output(file);
@@ -76,6 +79,30 @@ impl<'a> Command<'a> {
         }
     }
 
+    pub fn set_auth(&mut self, auth: AuthKind) {
+        match self {
+            Command::Curl(curl) => match auth {
+                AuthKind::Basic(login) => curl.set_basic_auth(login),
+                AuthKind::Bearer(token) => curl.set_bearer_auth(token),
+                AuthKind::Digest(login) => curl.set_digest_auth(&login),
+                AuthKind::AwsSigv4(login) => curl.set_aws_sigv4_auth(login),
+                AuthKind::Ntlm(login) => curl.set_ntlm_auth(&login),
+                AuthKind::Kerberos(login) => curl.set_kerberos_auth(&login),
+                AuthKind::Spnego(login) => curl.set_spnego_auth(login),
+                AuthKind::NtlmWb(login) => curl.set_ntlm_wb_auth(&login),
+                AuthKind::None => {}
+            },
+            Command::Wget(_) => {}
+        }
+    }
+
+    pub fn get_response(&self) -> Option<String> {
+        match self {
+            Command::Curl(curl) => curl.get_response(),
+            Command::Wget(wget) => wget.get_response(),
+        }
+    }
+
     pub fn set_verbose(&mut self, verbose: bool) {
         match self {
             Command::Curl(curl) => curl.set_verbose(verbose),
@@ -83,10 +110,12 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn execute(&mut self) -> Result<String, std::io::Error> {
+
+    pub fn execute(&mut self) -> Result<(), std::io::Error> {
         match self {
-            Command::Curl(curl) => Ok(curl.execute().unwrap_or("".to_string())),
-            Command::Wget(wget) => Ok(wget.execute().unwrap_or("".to_string())),
+            Command::Curl(curl) => Ok(curl.execute().unwrap()),
+            Command::Wget(wget) => Ok(wget.execute().unwrap()),
+
         }
     }
 
@@ -107,10 +136,10 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn set_response(&mut self, response: String) {
+    pub fn set_response(&mut self, response: &str) {
         match self {
             Command::Curl(curl) => {
-                curl.set_response(response.clone());
+                curl.set_response(response);
             }
             _ => {}
         }
