@@ -3,10 +3,11 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, ListState, Paragraph},
     Frame,
 };
-
+use crate::request::curl::Curl;
+use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::app::{App, InputMode};
 use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
