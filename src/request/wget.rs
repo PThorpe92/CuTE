@@ -176,7 +176,7 @@ impl Wget {
             Err(String::from_utf8(output.stderr).unwrap())
         }
     }
-}
+
 
 mod tests {
     use crate::request::wget::Wget;
