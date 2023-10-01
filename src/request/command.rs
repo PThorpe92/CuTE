@@ -54,6 +54,11 @@ impl<'a> Command<'a> {
             }
         }
     }
+    pub fn save_command(&mut self, save: bool) {
+        if let Command::Curl(curl) = self {
+            curl.save_command(save);
+        }
+    }
 
     pub fn set_outfile(&mut self, file: &str) {
         match self {
@@ -102,19 +107,6 @@ impl<'a> Command<'a> {
     pub fn set_verbose(&mut self, verbose: bool) {
         if let Command::Curl(curl) = self {
             curl.set_verbose(verbose);
-        }
-    }
-
-    pub fn execute(&mut self) -> Result<(), std::io::Error> {
-        match self {
-            Command::Curl(curl) => {
-                curl.execute().unwrap();
-                Ok(())
-            }
-            Command::Wget(wget) => {
-                wget.execute().unwrap();
-                Ok(())
-            }
         }
     }
 

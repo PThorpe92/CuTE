@@ -32,8 +32,8 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
             2 => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
             // Verbose
             3 => {
-                if app.opts.contains(&DisplayOpts::Verbose) {
-                    app.opts.retain(|x| x != &DisplayOpts::Verbose);
+                if app.opts.contains(&&DisplayOpts::Verbose) {
+                    app.opts.retain(|x| *x != DisplayOpts::Verbose);
                     app.command.as_mut().unwrap().set_verbose(false);
                 } else {
                     app.add_display_option(DisplayOpts::Verbose);
@@ -53,11 +53,20 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
             }
             // Save this command
             6 => {
-                app.goto_screen(Screen::Commands);
+                // we want to lazy load the db connection. so we
+                // dont actually establish the connection until we know
+                // we are actually goign to store the command or look something up.
+                if app.has_display_option(&DisplayOpts::SaveCommand) {
+                    app.remove_display_option(&DisplayOpts::SaveCommand);
+                    app.command.as_mut().unwrap().save_command(false);
+                } else {
+                    app.command.as_mut().unwrap().save_command(true);
+                    app.add_display_option(DisplayOpts::SaveCommand);
+                }
                 app.selected = None;
             }
             // Execute command
-            7 => match app.command.as_mut().unwrap().execute() {
+            7 => match app.execute_command() {
                 Ok(()) => {
                     if app.command.as_ref().unwrap().get_response().is_some() {
                         app.response = app.command.as_ref().unwrap().get_response().clone();

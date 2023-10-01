@@ -37,7 +37,7 @@ pub fn handle_downloads_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, 
                 app.selected = None;
                 // Execute command
             }
-            3 => match app.command.as_mut().unwrap().execute() {
+            3 => match app.execute_command() {
                 Ok(_) => {
                     if let Some(response) = app.command.as_ref().unwrap().get_response() {
                         app.response = Some(response.clone());

@@ -1,19 +1,11 @@
-use tui::{
-    backend::Backend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, ListState, Paragraph},
-    Frame,
-};
-use crate::request::wget::Wget;
-use crate::request::curl::Curl;
-use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::app::{App, InputMode};
 use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
+use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::request::command::Command;
 use crate::request::curl::AuthKind;
+use crate::request::curl::Curl;
+use crate::request::wget::Wget;
 use crate::screens::auth::handle_authentication_screen;
 use crate::screens::debug::handle_debug_screen;
 use crate::screens::downloads::handle_downloads_screen;
@@ -26,6 +18,14 @@ use crate::screens::response::handle_response_screen;
 use crate::screens::screen::Screen;
 use crate::screens::success::handle_success_screen;
 use crate::screens::viewbody::handle_view_body_screen;
+use tui::{
+    backend::Backend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, BorderType, Borders, ListState, Paragraph},
+    Frame,
+};
 
 pub static CURL: &str = "curl";
 pub static WGET: &str = "wget";
@@ -37,8 +37,15 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // See the following resources:
     // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
     // - https://github.com/ratatui-org/ratatui/tree/master/examples
+    //
+    // If we already have a response, we render that instead of the opts
     if app.response.is_none() {
+        //
         // Render Display Options *******************************************
+        // This is the box of options the user has selected so far in their current
+        // command. This is rendered on the bottom of the screen. Each time we change
+        // app.current_screen, this function is called so we check for any display options
+        // that were added to app.opts in the previous screen and add them here.
         let mut display_opts = String::new();
         app.opts.iter().for_each(|opt| match opt {
             DisplayOpts::Verbose => {
@@ -51,6 +58,9 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             DisplayOpts::RecDownload(num) => {
                 let rec_str = format!("- Recursive Download depth: {}\n", num);
                 display_opts.push_str(rec_str.as_str());
+            }
+            DisplayOpts::SaveCommand => {
+                display_opts.push_str("- Command will be saved");
             }
             _ => {}
         });
@@ -106,12 +116,11 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 }
             }
         }
-
         // METHOD SCREEN ****************************************************
         Screen::Method => {
             handle_method_select_screen(app, frame);
         }
-
+        // DOWNLOAD SCREEN **************************************************
         Screen::Downloads => {
             handle_downloads_screen(app, frame);
             let area = default_rect(frame.size());
@@ -167,7 +176,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     app.selected = None;
                     // Execute command
                 }
-                Some(3) => match app.command.as_mut().unwrap().execute() {
+                Some(3) => match app.execute_command() {
                     Ok(_) => {
                         if let Some(response) = app.command.as_ref().unwrap().get_response() {
                             app.response = Some(response.clone());
@@ -175,23 +184,20 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         }
                     }
                     Err(e) => {
-                        app.goto_screen(Screen::Error(e.to_string()));
+                        app.goto_screen(Screen::Error(e));
                     }
                 },
                 _ => {}
             };
         }
-
         // KEYS SCREEN **********************************************
         Screen::Keys => {
             handle_api_key_screen(app, frame);
         }
-
         // REQUEST MENU SCREEN **********************************************
         Screen::RequestMenu(_) => {
             handle_request_menu_screen(app, frame);
         }
-
         // AUTHENTICATION SCREEN *************************************************
         Screen::Authentication => {
             handle_authentication_screen(app, frame);
@@ -200,27 +206,22 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         Screen::Success => {
             handle_success_screen(app, frame);
         }
-
         // INPUT MENU SCREEN *****************************************************
         Screen::InputMenu(opt) => {
             render_input_screen(app, frame, opt.clone());
         }
-
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
             handle_response_screen(app, frame, resp.to_string());
         }
-
         // VIEW BODY ********************************************************************
         Screen::ViewBody => {
             handle_view_body_screen(app, frame);
         }
-
         // DEBUG MENU *************************************************************
         Screen::Debug => {
             handle_debug_screen(app, frame);
         }
-
         // URL INPUT SCREEN ******************************************************
         Screen::URLInput => {
             handle_url_input_screen(app, frame);
