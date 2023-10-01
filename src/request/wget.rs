@@ -152,7 +152,6 @@ impl Wget {
             Err(String::from_utf8(output.stderr).unwrap())
         }
     }
-}
 
     #[cfg(target_os = "windows")]
     pub fn execute(&mut self) -> Result<(), String> {
@@ -176,7 +175,7 @@ impl Wget {
             Err(String::from_utf8(output.stderr).unwrap())
         }
     }
-
+}
 
 mod tests {
     use crate::request::wget::Wget;
