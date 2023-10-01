@@ -6,7 +6,6 @@ use std::{
 };
 
 use curl::easy::{Auth, Easy, List};
-use rusqlite::Connection;
 
 #[derive(Debug)]
 pub struct Curl<'a> {
@@ -598,7 +597,7 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_url(server.url().as_str());
         curl.set_get_method();
-        assert!(curl.execute().is_ok());
+        assert!(curl.execute(&mut None).is_ok());
         assert_eq!(curl.url, server.deref_mut().url());
         assert!(curl.resp.is_some());
     }
@@ -698,7 +697,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("GET"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -716,7 +715,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("POST"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -735,7 +734,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("PUT"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -755,7 +754,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("PATCH"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -775,7 +774,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("DELETE"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 }
