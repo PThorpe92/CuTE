@@ -3,6 +3,12 @@ use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
+#[cfg(not(target_os = "windows"))]
+pub const USER_DB_PATH: &str = "/home/$USER/.local/share/CuTE/CuTE.sqlite";
+
+#[cfg(target_os = "windows")]
+pub const USER_DB_PATH: &str = "C:\\Users\\$USER\\AppData\\Local\\CuTE\\CuTE.sqlite";
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCommand {
     pub id: i64,
@@ -17,6 +23,7 @@ pub struct SavedKey {
     pub timestamp: String,
 }
 
+#[derive(Debug)]
 pub struct DB {
     pub conn: Connection,
 }

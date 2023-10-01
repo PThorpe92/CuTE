@@ -1,13 +1,12 @@
 use std::{error, mem};
 
-use tui::widgets::{ListItem, ListState};
-use tui_input::Input;
-
+use crate::database::db::{DB, USER_DB_PATH};
 use crate::display::displayopts::DisplayOpts;
 use crate::display::shareablecmd::ShareableCommand;
 use crate::request::command::Command;
 use crate::screens::screen::Screen;
-
+use tui::widgets::{ListItem, ListState};
+use tui_input::Input;
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -35,6 +34,7 @@ pub struct App<'a> {
     pub state: Option<ListState>,
     pub response: Option<String>,
     pub shareable_command: ShareableCommand,
+    pub db: Option<Box<DB>>,
 }
 
 impl<'a> Default for App<'a> {
@@ -54,6 +54,7 @@ impl<'a> Default for App<'a> {
             current_screen: Screen::Home,
             response: None,
             shareable_command: ShareableCommand::new(),
+            db: None,
         }
     }
 }
@@ -134,63 +135,78 @@ impl<'a> App<'_> {
         }
     }
 
+    pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
+        self.opts.retain(|x| x != opt);
+    }
+
+    pub fn execute_command(&mut self) -> Result<(), String> {
+        match self.command.as_mut().unwrap() {
+            Command::Curl(curl) => {
+                // continue lazy loading by only opening connection if we need to
+                if curl.will_store_command() && self.db.is_none() {
+                    self.db = Some(Box::new(DB::new(USER_DB_PATH).unwrap()));
+                }
+                match curl.execute(&mut self.db) {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(e.to_string()),
+                }
+            }
+            Command::Wget(wget) => wget.execute(),
+        }
+    }
+
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
     // Lorenzo - Changing this because I dont think its doing what I want it to do.
-    pub fn has_display_option(&self, opt: DisplayOpts) -> bool {
-        // this is what we were doing before - self.opts.iter().any(|x| &x == &&opt)
-        // I think this is what we want to do instead
-        // We want to check if the option is in the vector
-        // If it is, we want to return true
-        // If it is not, we want to return false
-        // We can do this by iterating over the vector and checking if the option is in the vector
+    pub fn has_display_option(&self, opt: &DisplayOpts) -> bool {
+        // I refactored this to take a reference, since it was being referenced anyway.
         for element in self.opts.iter() {
             // I only care if its the same KIND of option, not the same value
             // This is annoying, I tried to do this an easier way
 
             match *element {
                 DisplayOpts::URL(_) => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::Headers(_) => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::Outfile(_) => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::Response(_) => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::SaveCommand => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::ShareableCmd(_) => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::Verbose => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::RecDownload(_) => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
                 DisplayOpts::Auth(_) => {
-                    if mem::discriminant(&opt) == mem::discriminant(element) {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
                 }
@@ -202,20 +218,20 @@ impl<'a> App<'_> {
 
     // Lorenzo - Im adding this function as a slightly more
     // robust version of has_display_option, to test if we should be replacing a value or adding a new one
-    fn should_replace_or_add(&self, opt: DisplayOpts) -> bool {
+    fn should_replace_or_add(&self, opt: &DisplayOpts) -> bool {
         // Lets match the type of display option
         // We know that only 1 URL should ever be added,
         // So if we're adding a URL we should replace it if it already exists
         match opt {
-            DisplayOpts::URL(_) => !self.has_display_option(opt.clone()), // URL should be replaced if exists
+            DisplayOpts::URL(_) => !self.has_display_option(opt), // URL should be replaced if exists
             DisplayOpts::Headers(_) => true, // Headers should be "pushed" or added
-            DisplayOpts::Outfile(_) => !self.has_display_option(opt.clone()), // Outfile should be replaced
-            DisplayOpts::Verbose => !self.has_display_option(opt.clone()), // Verbose should be toggled
-            DisplayOpts::SaveCommand => !self.has_display_option(opt.clone()), // Save command should be toggled
-            DisplayOpts::Response(_) => !self.has_display_option(opt.clone()), // Response should be replaced
-            DisplayOpts::ShareableCmd(_) => !self.has_display_option(opt.clone()), // Shareable command should be replaced with the new version
-            DisplayOpts::RecDownload(_) => !self.has_display_option(opt.clone()), // Recursive download depth should be replaced
-            DisplayOpts::Auth(_) => !self.has_display_option(opt.clone()), // Auth should be replaced
+            DisplayOpts::Outfile(_) => !self.has_display_option(opt), // Outfile should be replaced
+            DisplayOpts::Verbose => !self.has_display_option(opt), // Verbose should be toggled
+            DisplayOpts::SaveCommand => !self.has_display_option(opt), // Save command should be toggled
+            DisplayOpts::Response(_) => !self.has_display_option(opt), // Response should be replaced
+            DisplayOpts::ShareableCmd(_) => !self.has_display_option(opt), // Shareable command should be replaced with the new version
+            DisplayOpts::RecDownload(_) => !self.has_display_option(opt), // Recursive download depth should be replaced
+            DisplayOpts::Auth(_) => !self.has_display_option(opt),        // Auth should be replaced
         }
     }
 
@@ -232,17 +248,16 @@ impl<'a> App<'_> {
     // user selects once, we add. twice we remove.
     // Lorenzo - When a display option is added, we should also add it to the sharable command
     pub fn add_display_option(&mut self, opt: DisplayOpts) {
-        if self.should_replace_or_add(opt.clone()) {
+        if self.should_replace_or_add(&opt) {
             // TRUE = We Should Add An Option
             // Adding The New Test Here. should_replace_or_add
             // The user has not yet added this command option yet, and so therefore, we push it to the opts vector.
             // I need a copy of the option before we move it
-            let match_opt = opt.clone(); // Lets refactor all this later.
-            self.opts.push(opt);
+            self.opts.push(opt.clone());
             // We also need to add it to the sharable command
             // but we need to know what kind of option it is
             // the best way I can think of right now is to match it but I'm sure there's a better way
-            match match_opt {
+            match opt {
                 // Im cloning this to shut the borrow checker up, there is probably a better way
                 DisplayOpts::Verbose => {
                     // Just add the verbose flag to the command
@@ -279,7 +294,7 @@ impl<'a> App<'_> {
 
                 // We Want To Just Replace A URL
                 if let DisplayOpts::URL(_) = element {
-                    *element = opt.clone(); // Copy The New URL Into The Old One
+                    *element = opt; // Copy The New URL Into The Old One
                     return;
                 }
 

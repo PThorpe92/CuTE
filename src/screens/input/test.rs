@@ -77,7 +77,7 @@ fn create_input_block<'a>(app: &'a mut App) -> Paragraph<'a> {
 
 pub fn TextInput<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // Create Render Objects & Layout
-    let (parent_chunks, right_col_chunks, left_col_chunks) = create_layout(frame);
+    let (parent_chunks, right_col_chunks, _left_col_chunks) = create_layout(frame);
     let title = create_screen_title("Test Title");
     let input = create_input_block(app);
     // Render Widgets

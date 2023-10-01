@@ -1,3 +1,4 @@
+use crate::database::{self, db::DB};
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},
@@ -24,6 +25,8 @@ pub struct Curl<'a> {
     upload_file: Option<String>,
     // Filepath of the response output file or download
     outfile: Option<String>,
+    // Whether to save the command to DB after execution
+    save: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +69,7 @@ impl<'a> Default for Curl<'a> {
             resp: None,
             upload_file: None,
             outfile: None,
+            save: false,
         }
     }
 }
@@ -151,6 +155,9 @@ impl<'a> Curl<'a> {
         ));
         self.auth = AuthKind::Spnego(login);
     }
+    pub fn will_store_command(&self) -> bool {
+        self.save
+    }
 
     pub fn set_get_method(&mut self) {
         self.add_flag(CurlFlag::Method(
@@ -217,6 +224,10 @@ impl<'a> Curl<'a> {
         self.curl.progress(on).unwrap();
     }
 
+    pub fn save_command(&mut self, save: bool) {
+        self.save = save;
+    }
+
     pub fn set_output(&mut self, output: String) {
         self.add_flag(CurlFlag::Output(CurlFlagType::Output.get_value(), None));
         self.outfile = Some(output.clone());
@@ -279,7 +290,11 @@ impl<'a> Curl<'a> {
         self.opts.push(flag.clone());
     }
 
-    pub fn execute(&mut self) -> Result<(), curl::Error> {
+    pub fn execute(&mut self, db: &mut Option<Box<DB>>) -> Result<(), curl::Error> {
+        if self.save {
+            let _ = self.build_command_str();
+            db.as_mut().unwrap().add_command(&self.cmd.clone()).unwrap();
+        }
         match &self.auth {
             AuthKind::Basic(login) => {
                 self.curl
@@ -582,7 +597,7 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_url(server.url().as_str());
         curl.set_get_method();
-        assert!(curl.execute().is_ok());
+        assert!(curl.execute(&mut None).is_ok());
         assert_eq!(curl.url, server.deref_mut().url());
         assert!(curl.resp.is_some());
     }
@@ -682,7 +697,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("GET"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -700,7 +715,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("POST"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -719,7 +734,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("PUT"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -739,7 +754,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("PATCH"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -759,7 +774,7 @@ mod tests {
             CurlFlagType::Method.get_value(),
             Some(String::from("DELETE"))
         )));
-        curl.execute().unwrap();
+        curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
 }

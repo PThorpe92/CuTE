@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 use std::io;
 
+use dirs::data_local_dir;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
-
 use CuTE::app::{App, AppResult};
 use CuTE::events::event::{Event, EventHandler};
 use CuTE::events::handler::handle_key_events;
@@ -11,20 +11,22 @@ use CuTE::ui::tui::Tui;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();
-    /*
-    if !is_command_available("curl") {
-        eprintln!("Error: 'curl' is not installed on your system.");
-        eprintln!("Please install 'curl' and try again.");
-        std::process::exit(1);
-    }
 
-    // Check if 'wget' is installed
-    if !is_command_available("wget") {
-        eprintln!("Error: 'wget' is not installed on your system.");
-        eprintln!("Please install 'wget' and try again.");
-        std::process::exit(1);
+    let cutepath = data_local_dir().expect("Failed to get data local directory");
+    let cutepath = cutepath.join("CuTE");
+    let dbpath = cutepath.join("CuTE.sqlite");
+    // Check if the directory exists
+    if !cutepath.exists() {
+        // If it doesn't exist, create it
+        if let Err(err) = std::fs::create_dir_all(&cutepath) {
+            std::fs::File::create(&dbpath).expect("failed to create database");
+            eprintln!("Failed to create CuTE directory: {}", err);
+        } else {
+            println!("CuTE directory created at {:?}", cutepath);
+        }
+    } else {
+        println!("CuTE directory already exists at {:?}", cutepath);
     }
-    */
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
     let events = EventHandler::new(250);
