@@ -2,6 +2,8 @@
     Screen Enum And Implementation
 */
 
+use std::fmt::{Display, Formatter};
+
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
 
@@ -29,6 +31,29 @@ pub enum Screen {
     ViewBody,
     Debug,
     URLInput,
+}
+
+impl Display for Screen {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let screen = match self {
+            Screen::Home => "Home",
+            Screen::Method => "Method",
+            Screen::Downloads => "Downloads",
+            Screen::HeaderAddRemove => "HeaderAddRemove",
+            Screen::RequestMenu(_) => "RequestMenu",
+            Screen::InputMenu(_) => "InputMenu",
+            Screen::Response(_) => "Response",
+            Screen::Authentication => "Authentication",
+            Screen::Success => "Success",
+            Screen::Keys => "Keys",
+            Screen::Commands => "Commands",
+            Screen::Error(_) => "Error",
+            Screen::ViewBody => "ViewBody",
+            Screen::Debug => "Debug",
+            Screen::URLInput => "URLInput",
+        };
+        write!(f, "{}", screen)
+    }
 }
 
 impl<'a> Screen {
@@ -130,26 +155,5 @@ impl<'a> Screen {
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol("->")
-    }
-
-    pub fn to_string(&self) -> String {
-        match self {
-            Screen::Home => "Main Menu",
-            Screen::Method => "Choose an HTTP Method",
-            Screen::Authentication => "Choose an authentication method",
-            Screen::HeaderAddRemove => "Add or Remove Headers",
-            Screen::Keys => "My Saved API Keys",
-            Screen::RequestMenu(_) => "Command Request Options",
-            Screen::Commands => "My Saved Commands",
-            Screen::InputMenu(_) => "User input",
-            Screen::Response(_) => "Response",
-            Screen::Success => "Success",
-            Screen::Error(_) => "Error",
-            Screen::ViewBody => "View response body",
-            Screen::Downloads => "Downloads",
-            Screen::Debug => "Debug Menu",
-            Screen::URLInput => "URL Input",
-        }
-        .to_string()
     }
 }

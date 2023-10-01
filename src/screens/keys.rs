@@ -25,8 +25,7 @@ pub fn handle_api_key_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>
 
 pub fn api_key_paragraph() -> Paragraph<'static> {
     Paragraph::new(
-        "Create / Edit / Delete API Keys and tokens.\n
-                    Press q to exit \n Press Enter to select \n Please select a Menu item\n",
+        "Create / Edit / Delete API Keys and tokens.\n      Press q to exit      \n Press Enter to select \n Please select a Menu item\n",
     )
     .block(
         Block::default()

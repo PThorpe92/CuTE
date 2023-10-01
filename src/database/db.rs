@@ -1,26 +1,21 @@
-use chrono::Utc;
-use rusqlite::{params, Connection, Result};
+use std::fmt::{Display, Formatter};
+
+use dirs::data_local_dir;
+use rusqlite::{params, Connection, OpenFlags, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-#[cfg(not(target_os = "windows"))]
-pub const USER_DB_PATH: &str = "/home/$USER/.local/share/CuTE/CuTE.sqlite";
-
-#[cfg(target_os = "windows")]
-pub const USER_DB_PATH: &str = "C:\\Users\\$USER\\AppData\\Local\\CuTE\\CuTE.sqlite";
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCommand {
-    pub id: i64,
-    pub command: String,
-    pub timestamp: String,
+    id: i64,
+    command: String,
+    curl_json: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedKey {
-    pub id: i64,
-    pub key: String,
-    pub timestamp: String,
+    id: i64,
+    key: String,
 }
 
 #[derive(Debug)]
@@ -29,32 +24,41 @@ pub struct DB {
 }
 
 impl DB {
-    pub fn new(path: &str) -> Result<Self, rusqlite::Error> {
-        let conn = Connection::open(path)?;
+    pub fn new() -> Result<Self, rusqlite::Error> {
+        let dir = data_local_dir().expect("Failed to get data local directory");
+        let dir = dir.join("CuTE");
+        let dbpath = dir.join("CuTE.db");
+
+        let conn = Connection::open_with_flags(
+            &dbpath,
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+                | OpenFlags::SQLITE_OPEN_CREATE
+                | OpenFlags::SQLITE_OPEN_URI
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+
+        // Begin a transaction
+        conn.execute("BEGIN;", params![])?;
+
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS commands (
-            id INTEGER PRIMARY KEY,
-            command TEXT NOT NULL,
-            created_at TEXT NOT NULL
-            )",
+            "CREATE TABLE IF NOT EXISTS commands (id INTEGER PRIMARY KEY, command TEXT, curl_json TEXT);",
             params![],
         )?;
+
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS keys (
-            id INTEGER PRIMARY KEY,
-            key TEXT NOT NULL,
-            created_at TEXT NOT NULL
-                )",
+            "CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, key TEXT);",
             params![],
         )?;
+
+        conn.execute("COMMIT;", params![])?;
+
         Ok(DB { conn })
     }
 
-    pub fn add_command(&self, command: &str) -> Result<(), rusqlite::Error> {
-        let timestamp = Utc::now().to_rfc3339();
+    pub fn add_command(&self, command: &str, json_str: String) -> Result<(), rusqlite::Error> {
         self.conn.execute(
-            "INSERT INTO commands (command, timestamp) VALUES (?1, ?2)",
-            params![command, timestamp],
+            "INSERT INTO commands (command, curl_json) VALUES (?1, ?2)",
+            params![command, json_str],
         )?;
         Ok(())
     }
@@ -62,12 +66,12 @@ impl DB {
     pub fn get_commands(&self) -> Result<Vec<SavedCommand>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, command, timestamp FROM commands")?;
+            .prepare("SELECT id, command, curl_json FROM commands")?;
         let rows = stmt.query_map(params![], |row| {
             Ok(SavedCommand {
                 id: row.get(0)?,
                 command: row.get(1)?,
-                timestamp: row.get(2)?,
+                curl_json: row.get(2)?,
             })
         })?;
         let mut commands = Vec::new();
@@ -85,12 +89,10 @@ impl DB {
 
     pub fn get_keys(&self) -> Result<Vec<SavedKey>> {
         let mut stmt = self.conn.prepare("SELECT id, key FROM keys")?;
-        let timestamp = Utc::now().to_rfc3339();
         let rows = stmt.query_map(params![], |row| {
             Ok(SavedKey {
                 id: row.get(0)?,
                 key: row.get(1)?,
-                timestamp: timestamp.clone(),
             })
         })?;
         let mut keys = Vec::new();
@@ -101,6 +103,21 @@ impl DB {
     }
 }
 
+impl Display for SavedCommand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.command)
+    }
+}
+
+impl Display for SavedKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.key)
+    }
+}
+
+// TODO: we need to be getting the api key from the command and offering
+// to store it separately + link the two. (also encrypt the key?)
+// do we use OS keyring or maybe an ENV VAR?
 impl SavedCommand {
     // We nned to allow the user to write out the response to a file,
     // so at some point we may need to read it back in
@@ -111,6 +128,10 @@ impl SavedCommand {
     pub fn from_json(json: &str) -> Result<Self> {
         Ok(serde_json::from_str(json).expect("Failed to deserialize"))
     }
+
+    pub fn get_curl_json(&self) -> String {
+        self.curl_json.clone()
+    }
 }
 
 impl SavedKey {
@@ -118,7 +139,6 @@ impl SavedKey {
         SavedKey {
             id: 0,
             key: key.to_string(),
-            timestamp: Utc::now().to_rfc3339(),
         }
     }
     pub fn to_json(&self) -> Result<String> {

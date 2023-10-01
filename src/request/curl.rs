@@ -1,4 +1,7 @@
-use crate::database::{self, db::DB};
+use crate::database::db::{SavedCommand, DB};
+use serde::de::{MapAccess, Visitor};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},
@@ -6,6 +9,7 @@ use std::{
 };
 
 use curl::easy::{Auth, Easy, List};
+pub static DEFAULT_CMD: &str = "curl ";
 
 #[derive(Debug)]
 pub struct Curl<'a> {
@@ -28,8 +32,151 @@ pub struct Curl<'a> {
     // Whether to save the command to DB after execution
     save: bool,
 }
+impl<'a> Eq for Curl<'a> {}
 
-#[derive(Debug, Clone, PartialEq)]
+impl<'a> Serialize for Curl<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Serialize all fields except 'curl::Easy'
+        let mut state = serializer.serialize_struct("Curl", 8)?;
+        state.serialize_field("auth", &self.auth)?;
+        state.serialize_field("cmd", &self.cmd)?;
+        state.serialize_field("url", &self.url)?;
+        state.serialize_field("opts", &self.opts)?;
+        state.serialize_field("resp", &self.resp)?;
+        state.serialize_field("upload_file", &self.upload_file)?;
+        state.serialize_field("outfile", &self.outfile)?;
+        state.serialize_field("save", &self.save)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Curl<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Deserialize all fields except 'curl::Easy'
+        struct CurlVisitor;
+
+        impl<'de> Visitor<'de> for CurlVisitor {
+            type Value = Curl<'de>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Curl")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut auth = None;
+                let mut cmd = None;
+                let mut url = None;
+                let mut opts = None;
+                let mut resp = None;
+                let mut upload_file = None;
+                let mut outfile = None;
+                let mut save = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "auth" => auth = Some(map.next_value()?),
+                        "cmd" => cmd = Some(map.next_value()?),
+                        "url" => url = Some(map.next_value()?),
+                        "opts" => opts = Some(map.next_value()?),
+                        "resp" => resp = Some(map.next_value()?),
+                        "upload_file" => upload_file = Some(map.next_value()?),
+                        "outfile" => outfile = Some(map.next_value()?),
+                        "save" => save = Some(map.next_value()?),
+                        _ => {
+                            // Ignore unknown fields
+                            let _: serde_json::Value = map.next_value()?;
+                        }
+                    }
+                }
+
+                let curl = Easy::new(); // You can create the 'curl::Easy' instance here
+                Ok(Curl {
+                    curl,
+                    auth: auth.ok_or_else(|| serde::de::Error::missing_field("auth"))?,
+                    cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
+                    url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
+                    opts: opts.ok_or_else(|| serde::de::Error::missing_field("opts"))?,
+                    resp,
+                    upload_file,
+                    outfile,
+                    save: save.unwrap_or(false),
+                })
+            }
+        }
+        deserializer.deserialize_struct(
+            "Curl",
+            &[
+                "auth",
+                "cmd",
+                "url",
+                "opts",
+                "resp",
+                "upload_file",
+                "outfile",
+                "save",
+            ],
+            CurlVisitor,
+        )
+    }
+}
+
+impl<'a> Clone for Curl<'a> {
+    fn clone(&self) -> Self {
+        let mut curl = Curl::new();
+        let _ = self.opts.iter().map(|x| curl.add_flag(x.clone()));
+
+        curl.set_url(self.url.as_str());
+        if let Some(ref res) = self.resp {
+            curl.set_response(res.as_str());
+        }
+        if let Some(ref upload_file) = self.upload_file {
+            curl.set_upload_file(upload_file.as_str());
+        }
+        if let Some(ref outfile) = self.outfile {
+            curl.set_output(outfile.clone());
+        }
+        if self.cmd != DEFAULT_CMD {
+            // our cmd string has been built
+            curl.cmd = self.cmd.clone();
+        }
+        curl.build_command_str();
+        Self {
+            curl: Easy::new(),
+            auth: self.auth.clone(),
+            cmd: self.cmd.clone(),
+            url: self.url.clone(),
+            opts: self.opts.clone(),
+            resp: self.resp.clone(),
+            upload_file: self.upload_file.clone(),
+            outfile: self.outfile.clone(),
+            save: self.save.clone(),
+        }
+    }
+}
+
+impl<'a> PartialEq for Curl<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.auth == other.auth
+            && self.cmd == other.cmd
+            && self.url == other.url
+            && self.opts == other.opts
+            && self.resp == other.resp
+            && self.upload_file == other.upload_file
+            && self.outfile == other.outfile
+            && self.save == other.save
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
 pub enum AuthKind {
     None,
     Ntlm(String),
@@ -82,6 +229,106 @@ impl<'a> Curl<'a> {
     pub fn set_url(&mut self, url: &str) {
         self.url = String::from(url);
         self.curl.url(url).unwrap();
+    }
+
+    // This is a hack because when we deseialize from the DB, we get a curl struct with no curl::Easy
+    // field, so we have to manually add, then set the options one at a time from the opts vector.
+    // ANY time we get a command from the database to run, we have to call this method first.
+    pub fn easy_from_opts(&mut self) {
+        let opts = self.opts.clone();
+        for opt in opts {
+            match opt {
+                CurlFlag::Verbose(..) => self.set_verbose(true),
+                CurlFlag::Method(_, val) => match val {
+                    Some(val) => match val.as_str() {
+                        "GET" => self.set_get_method(),
+                        "POST" => self.set_post_method(),
+                        "PUT" => self.set_put_method(),
+                        "PATCH" => self.set_patch_method(),
+                        "DELETE" => self.set_delete_method(),
+                        _ => {}
+                    },
+                    None => {}
+                },
+                CurlFlag::Output(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_output(val);
+                    }
+                }
+                CurlFlag::User(..) => {}
+                CurlFlag::Bearer(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_bearer_auth(val);
+                    }
+                }
+                CurlFlag::Digest(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_digest_auth(val.as_str());
+                    }
+                }
+                CurlFlag::Basic(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_basic_auth(val);
+                    }
+                }
+                CurlFlag::AnyAuth(..) => self.set_any_auth(),
+                CurlFlag::Ntlm(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_ntlm_auth(val.as_str());
+                    }
+                }
+                CurlFlag::NtlmWb(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_ntlm_wb_auth(val.as_str());
+                    }
+                }
+                CurlFlag::AwsSigv4(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_aws_sigv4_auth(val);
+                    }
+                }
+                CurlFlag::UnixSocket(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_unix_socket(val.as_str());
+                    }
+                }
+                CurlFlag::UploadFile(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_upload_file(val.as_str());
+                    }
+                }
+                CurlFlag::SpnegoAuth(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_spnego_auth(val);
+                    }
+                }
+                CurlFlag::Kerberos(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_kerberos_auth(val.as_str());
+                    }
+                }
+                CurlFlag::DumpHeaders(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.show_headers(val.as_str());
+                    }
+                }
+                CurlFlag::Proxy(..) => {}
+                CurlFlag::ProxyTunnel(..) => {}
+                CurlFlag::Socks5(..) => {}
+                CurlFlag::File(..) => {}
+                CurlFlag::FtpAccount(..) => {}
+                CurlFlag::FtpSsl(..) => {}
+                CurlFlag::Trace(..) => {}
+                CurlFlag::DataUrlEncode(..) => {}
+                CurlFlag::Referrer(..) => {}
+                CurlFlag::Insecure(..) => {}
+                CurlFlag::PreventDefaultConfig(..) => {}
+                CurlFlag::CaCert(..) => {}
+                CurlFlag::CaNative(..) => {}
+                CurlFlag::CaPath(..) => {}
+                CurlFlag::Progress(..) => {}
+            }
+        }
     }
 
     pub fn set_response(&mut self, response: &str) {
@@ -293,7 +540,14 @@ impl<'a> Curl<'a> {
     pub fn execute(&mut self, db: &mut Option<Box<DB>>) -> Result<(), curl::Error> {
         if self.save {
             let _ = self.build_command_str();
-            db.as_mut().unwrap().add_command(&self.cmd.clone()).unwrap();
+            db.as_mut()
+                .unwrap()
+                .add_command(
+                    &self.cmd.clone(),
+                    serde_json::to_string_pretty(&self)
+                        .unwrap_or(String::from("Error serializing command")),
+                )
+                .unwrap();
         }
         match &self.auth {
             AuthKind::Basic(login) => {
@@ -355,7 +609,12 @@ impl<'a> Curl<'a> {
                 .unwrap();
             transfer.perform().unwrap();
             let res = String::from_utf8(data.take()).unwrap();
-            self.resp = Some(res.clone());
+            // if its json, pretty-print format it
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&res) {
+                let pretty = serde_json::to_string_pretty(&json).unwrap();
+                self.resp = Some(pretty);
+            }
+            self.resp = Some(res);
             Ok(())
         }
     }
@@ -371,7 +630,7 @@ macro_rules! define_curl_flags {
     (
         $( $variant:ident($default:expr), )*
     ) => {
-        #[derive(Debug, Clone, PartialEq)]
+        #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
         pub enum CurlFlag<'a> {
             $( $variant(&'a str, Option<String>), )*
         }
@@ -396,7 +655,7 @@ macro_rules! define_curl_flags {
             }
         }
 
-        #[derive(Debug, Copy, Clone, PartialEq)]
+        #[derive(Debug, Eq, Copy, Clone, PartialEq)]
         pub enum CurlFlagType {
             $( $variant, )*
         }
@@ -450,6 +709,7 @@ mod tests {
     use std::ops::DerefMut;
 
     use mockito::ServerGuard;
+    use serde_json::json;
 
     use super::*;
 
@@ -538,6 +798,33 @@ mod tests {
             CurlFlagType::UnixSocket.get_value(),
             None
         )));
+    }
+
+    #[test]
+    fn test_parse_from_json() {
+        let method_flag =
+            CurlFlag::Method(CurlFlagType::Method.get_value(), Some("GET".to_string()));
+        let verbose_flag = CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None);
+        let json = json!(
+        {
+                "auth": {"Basic": "username:password"},
+                "cmd": "curl -X GET https://example.com",
+                "url": "https://example.com",
+                "opts": [
+                        method_flag, verbose_flag
+                ],
+                "resp": "This is a response",
+                "upload_file": "file.txt",
+                "outfile": "output.txt",
+                "save": true
+        }
+        );
+        let binding = json.to_string();
+        let curl: Curl = serde_json::from_str(&binding).unwrap();
+        assert_eq!(curl.auth, AuthKind::Basic("username:password".to_string()));
+        assert_eq!(curl.cmd, "curl -X GET https://example.com");
+        assert_eq!(curl.url, "https://example.com");
+        assert_eq!(curl.opts.len(), 2);
     }
 
     #[test]
