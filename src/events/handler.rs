@@ -21,6 +21,12 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                                 app.quit();
                             }
                         }
+                        KeyCode::Esc => {
+                            app.go_back_screen(); // Escape Should Bring You Back
+                            if app.input.value().len() > 0 {
+                                app.input.reset(); // If we leave the page, we should clear the input buffer
+                            }
+                        }
                         // Other handlers you could add here.
                         KeyCode::Up => {
                             app.move_cursor_up();

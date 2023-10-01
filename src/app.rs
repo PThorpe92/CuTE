@@ -108,7 +108,8 @@ impl<'a> App<'_> {
     }
 
     pub fn move_cursor_down(&mut self) {
-        if self.items.is_empty() || self.cursor >= self.items.len() {
+        // Lorenzo: I fixed a bug here with -1, where the cursor would roll off the screen.
+        if self.items.is_empty() || self.cursor >= self.items.len() - 1 {
             return;
         }
         if let Some(res) = self.cursor.checked_add(1) {
