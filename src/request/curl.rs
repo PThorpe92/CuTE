@@ -826,6 +826,55 @@ mod tests {
         assert_eq!(curl.url, "https://example.com");
         assert_eq!(curl.opts.len(), 2);
     }
+    #[test]
+    fn test_parse_from_json_no_opts() {
+        let json = json!(
+        {
+                "auth": {"Basic": "username:password"},
+                "cmd": "curl -X GET https://example.com",
+                "url": "https://example.com",
+                "opts": [],
+                "resp": "This is a response",
+                "upload_file": "file.txt",
+                "outfile": "output.txt",
+                "save": true
+        }
+        );
+        let binding = json.to_string();
+        let curl: Curl = serde_json::from_str(&binding).unwrap();
+        assert_eq!(curl.auth, AuthKind::Basic("username:password".to_string()));
+        assert_eq!(curl.cmd, "curl -X GET https://example.com");
+        assert_eq!(curl.url, "https://example.com");
+        assert_eq!(curl.opts.len(), 0);
+    }
+    #[test]
+    fn test_parse_from_json_execute() {
+        let mut server = setup("GET");
+        let url = server.deref_mut().url();
+        // it doesn't seem to like whatever url format we are getting from
+        // mockito at this point. I think we can hardcode this test for now
+        // and see if we get a response
+        let json = json!({
+        "auth": {"Basic": "username:password"},
+        "cmd": "curl",
+        "url": format!("{}", url.as_str()),
+        "opts":[],
+        "resp": "None",
+        "outfile": "output.txt",
+        "save": false,
+        });
+        let binding = json.to_string();
+        let mut curl: Curl = serde_json::from_str(&binding).unwrap();
+        curl.set_url(url.as_str());
+        curl.easy_from_opts();
+        curl.execute(&mut None).unwrap();
+        assert_eq!(curl.url, url.as_str());
+        assert_eq!(curl.opts.len(), 1);
+        assert!(curl.opts.contains(&CurlFlag::Basic(
+            CurlFlagType::Basic.get_value(),
+            Some(String::from("username:password"))
+        )));
+    }
 
     #[test]
     fn test_set_upload_file() {
