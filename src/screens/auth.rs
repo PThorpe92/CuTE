@@ -6,9 +6,10 @@ use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::request::curl::AuthKind;
 use crate::screens::screen::Screen;
+use crate::ui::render::{render_header_paragraph, HOME_MENU_PARAGRAPH};
 use crate::ui::widgets::boxes::default_rect;
-use crate::ui::widgets::menu::menu_widget;
 
+const AUTH_MENU_TITLE: &'static str = "Authentication Menu";
 pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
     let new_list = app.current_screen.get_list();
@@ -18,7 +19,10 @@ pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame
     app.state.as_mut().unwrap().select(Some(app.cursor));
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(menu_widget(), frame.size());
+    frame.render_widget(
+        render_header_paragraph(HOME_MENU_PARAGRAPH, AUTH_MENU_TITLE),
+        frame.size(),
+    );
     if let Some(num) = app.selected {
         match num {
             0 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthKind::Basic(

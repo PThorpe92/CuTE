@@ -89,7 +89,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             app.state.as_mut().unwrap().select(Some(app.cursor));
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
-            frame.render_widget(menu_paragraph(), frame.size());
+            frame.render_widget(
+                render_header_paragraph(HOME_MENU_PARAGRAPH, HOME_MENU_TITLE),
+                frame.size(),
+            );
             if let Some(num) = app.selected {
                 match num {
                     0 => {
@@ -121,7 +124,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             app.state.as_mut().unwrap().select(Some(app.cursor));
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(new_list, area, &mut state);
-            frame.render_widget(menu_paragraph(), frame.size());
+            frame.render_widget(
+                render_header_paragraph(HOME_MENU_PARAGRAPH, DOWNLOAD_MENU_TITLE),
+                frame.size(),
+            );
             match app.selected {
                 Some(num) => {
                     app.command
@@ -147,7 +153,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             app.state.as_mut().unwrap().select(Some(app.cursor));
             frame.set_cursor(0, app.cursor as u16);
             frame.render_stateful_widget(list, area, &mut state);
-            frame.render_widget(menu_paragraph(), frame.size());
+            frame.render_widget(
+                render_header_paragraph(HOME_MENU_PARAGRAPH, HOME_MENU_TITLE),
+                frame.size(),
+            );
 
             match app.selected {
                 // Setting Recursion level
@@ -468,47 +477,23 @@ fn render_input_with_prompt<B: Backend>(
     let message = Paragraph::new(prompt);
     frame.render_widget(message, chunks[0]);
 }
+pub const HOME_MENU_PARAGRAPH: &'static str =
+    "\nPress q to exit \n Press Enter to select \n Please select a Menu item\n";
+pub const HOME_MENU_TITLE: &'static str = "* CuTE *";
+pub const DOWNLOAD_MENU_TITLE: &'static str = "* CuTE *\n* Downloads *";
+pub const SUCCESS_MESSAGE: &'static str = "Command saved successfully";
 
-fn menu_paragraph() -> Paragraph<'static> {
-    Paragraph::new("\nPress q to exit \n Press Enter to select \n Please select a Menu item\n")
+pub fn render_header_paragraph(para: &'static str, title: &'static str) -> Paragraph<'static> {
+    Paragraph::new(para)
         .block(
             Block::default()
-                .title("cURL-TUI")
+                .title(title)
                 .title_alignment(Alignment::Center)
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded),
         )
         .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center)
-}
-
-fn success_paragraph() -> Paragraph<'static> {
-    Paragraph::new("Command successfully saved\n")
-        .block(
-            Block::default()
-                .title("cURL-TUI")
-                .title_alignment(Alignment::Center)
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded),
-        )
-        .style(Style::default().fg(Color::Cyan).bg(Color::Black))
-        .alignment(Alignment::Center)
-}
-
-fn api_key_paragraph() -> Paragraph<'static> {
-    Paragraph::new(
-        "Create / Edit / Delete API Keys and tokens.\n
-                    Press q to exit \n Press Enter to select \n Please select a Menu item\n",
-    )
-    .block(
-        Block::default()
-            .title("API Key Manager")
-            .title_alignment(Alignment::Center)
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded),
-    )
-    .style(Style::default().fg(Color::Cyan).bg(Color::Black))
-    .alignment(Alignment::Center)
 }
 
 fn small_rect(r: Rect) -> Rect {
@@ -547,10 +532,6 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             .as_ref(),
         )
         .split(popup_layout[1])[1]
-}
-
-fn small_alert_box(r: Rect) -> Rect {
-    centered_rect(70, 60, r)
 }
 
 fn default_rect(r: Rect) -> Rect {

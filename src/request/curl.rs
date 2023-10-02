@@ -1,5 +1,5 @@
 
-use crate::database::db::{SavedCommand, DB};
+use crate::database::db::{DB};
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

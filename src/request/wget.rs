@@ -178,7 +178,7 @@ impl Wget {
 }
 
 mod tests {
-    use crate::request::wget::Wget;
+    
 
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]

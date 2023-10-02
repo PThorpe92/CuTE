@@ -1,10 +1,11 @@
 use tui::backend::Backend;
-use tui::layout::Alignment;
-use tui::style::{Color, Style};
-use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph};
+
+
+use tui::widgets::{List, ListItem, ListState};
 use tui::Frame;
 
 use crate::app::App;
+use crate::ui::render::render_header_paragraph;
 use crate::ui::widgets::boxes::default_rect;
 
 pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -28,7 +29,10 @@ pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame
 
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(saved_commands_paragraph(), frame.size());
+    frame.render_widget(
+        render_header_paragraph(SAVED_COMMANDS_PARAGRAPH, SAVED_COMMANDS_TITLE),
+        frame.size(),
+    );
 
     match app.selected {
         // for now, use the app.response to display the command
@@ -40,18 +44,5 @@ pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame
         None => {}
     }
 }
-
-fn saved_commands_paragraph() -> Paragraph<'static> {
-    Paragraph::new(
-        "View / Delete my saved cURL commands.\nPress q to exit\nPress Enter to select\nPress h to go back\n Please select a Menu item\n",
-    )
-    .block(
-        Block::default()
-            .title("My Saved cURL Commands")
-            .title_alignment(Alignment::Center)
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded),
-    )
-    .style(Style::default().fg(Color::Cyan).bg(Color::Black))
-    .alignment(Alignment::Center)
-}
+const SAVED_COMMANDS_PARAGRAPH: &'static str = "View / Delete my saved cURL commands.\nPress q to exit\nPress Enter to select\nPress h to go back\n Please select a Menu item\n";
+const SAVED_COMMANDS_TITLE: &'static str = "My Saved cURL Commands";
