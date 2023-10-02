@@ -7,6 +7,7 @@ use crate::request::curl::AuthKind;
 use crate::request::curl::Curl;
 use crate::request::wget::Wget;
 use crate::screens::*;
+
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},

@@ -1,5 +1,6 @@
 use std::{error, mem};
 
+
 use crate::database::db::DB;
 use crate::display::displayopts::DisplayOpts;
 use crate::display::shareablecmd::ShareableCommand;
@@ -145,6 +146,7 @@ impl<'a> App<'_> {
                 // continue lazy loading by only opening connection if we need to
                 if curl.will_store_command() && self.db.is_none() {
                     self.db = Some(Box::new(DB::new().unwrap()));
+
                 }
                 match curl.execute(&mut self.db) {
                     Ok(_) => Ok(()),
@@ -167,6 +169,7 @@ impl<'a> App<'_> {
         }
         Ok(saved_commands)
     }
+
 
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
