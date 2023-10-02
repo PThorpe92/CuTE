@@ -869,6 +869,7 @@ mod tests {
         let mut curl: Curl = serde_json::from_str(&binding).unwrap();
         curl.set_url(url.as_str());
         curl.easy_from_opts();
+        curl.set_basic_auth(String::from("username:password"));
         curl.execute(&mut None).unwrap();
         assert_eq!(curl.url, url.as_str());
         assert_eq!(curl.opts.len(), 1);
@@ -876,6 +877,7 @@ mod tests {
             CurlFlagType::Basic.get_value(),
             Some(String::from("username:password"))
         )));
+        assert!(curl.resp.is_some());
     }
 
     #[test]
