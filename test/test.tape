@@ -30,59 +30,93 @@ Set FontSize 32
 Set Width 1800
 Set Height 1200
 
-Show Type "/home/dvektor/Projects/cURLtui-rs/target/debug/cURLtui-rs"
-Sleep 900ms
+Show Type "/home/dvektor/Projects/CuTE/target/debug/CuTE"
+Sleep 1200ms
 Enter
 Down
-Sleep 900ms
+Sleep 1200ms
 Down
-Sleep 900ms
-Up
-Sleep 900ms
-Up
-Sleep 900ms
-Enter
-Sleep 900ms
+Sleep 1200ms
 Down
-Sleep 900ms
+Sleep 1200ms
 Enter
-Sleep 900ms
-Down
-Sleep 700ms
-Down
-Sleep 700ms
-Up
-Sleep 500ms
-Up
-Sleep 700ms
-Enter
-Type "i"
-Sleep 800ms
-Show Type "https://github.com/eza-community/eza"
-Sleep 900ms
-Enter
-Sleep 900ms
-Down
-Sleep 300ms
-Down 
-Sleep 300ms
-Down
-Sleep 300ms
-Enter
-Sleep 900ms
-Down
-Sleep 400ms
-Down 
-Sleep 400ms
-Up
-Sleep 400ms
-Up 
-Sleep 400ms
-Enter
-Sleep 4000ms
-Enter
-Sleep 4000ms
+Sleep 1200ms
 Type "h"
-Sleep 2000ms 
+Sleep 1200ms
+Down
+Sleep 1200ms
+Up
+Sleep 1200ms
+Enter
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Up
+Sleep 1200ms
+Up
+Sleep 1200ms
+Enter
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Enter
+Sleep 1200ms
+Up
+Sleep 1200ms
+Up
+Sleep 1200ms
+Up
+Sleep 1200ms
+Enter
+Sleep 4000ms
+Type "i"
+Sleep 4000ms
+Type "https://ifconfig.me"
+Sleep 4000ms
+Enter
+Sleep 1500ms
+Down
+Sleep 1500ms
+Down
+Sleep 1200ms 
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Enter
+Sleep 1200ms
+Up
+Sleep 1200ms
+Up
+Sleep 1200ms
+Up
+Sleep 1200ms
+Enter
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Down
+Sleep 1200ms
+Enter
+Down
+Sleep 1500ms
+Down
+Sleep 1500ms
+Enter
+Sleep 2000ms
 Type "q"
 

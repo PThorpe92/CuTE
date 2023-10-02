@@ -1,5 +1,4 @@
-
-use crate::database::db::{DB};
+use crate::database::db::DB;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -789,6 +788,7 @@ mod tests {
         curl.set_response(response);
         curl.set_output("output.txt".to_string());
         curl.write_output().unwrap();
+        std::fs::remove_file("output.txt").unwrap();
     }
 
     #[test]
