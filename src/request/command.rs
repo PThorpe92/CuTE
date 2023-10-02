@@ -3,15 +3,13 @@ use crate::request::wget::Wget;
 
 use super::curl::{AuthKind, CurlFlagType};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Command<'a> {
     Curl(Curl<'a>),
     Wget(Wget),
 }
 
 impl<'a> Command<'a> {
-    // Im gonna fix this. We should be implmenting the default trait for Command
-
     pub fn set_method(&mut self, method: String) {
         match method.as_str() {
             "GET" => match self {

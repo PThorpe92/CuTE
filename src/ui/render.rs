@@ -6,18 +6,8 @@ use crate::request::command::Command;
 use crate::request::curl::AuthKind;
 use crate::request::curl::Curl;
 use crate::request::wget::Wget;
-use crate::screens::auth::handle_authentication_screen;
-use crate::screens::debug::handle_debug_screen;
-use crate::screens::downloads::handle_downloads_screen;
-use crate::screens::home::handle_home_screen;
-use crate::screens::input::url::handle_url_input_screen;
-use crate::screens::keys::handle_api_key_screen;
-use crate::screens::method::handle_method_select_screen;
-use crate::screens::request::handle_request_menu_screen;
-use crate::screens::response::handle_response_screen;
-use crate::screens::screen::Screen;
-use crate::screens::success::handle_success_screen;
-use crate::screens::viewbody::handle_view_body_screen;
+use crate::screens::*;
+
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -91,7 +81,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     match &app.current_screen.clone() {
         // HOME SCREEN ******************************************************
         Screen::Home => {
-            handle_home_screen(app, frame);
+            home::handle_home_screen(app, frame);
             let new_list = app.current_screen.get_list();
             let area = centered_rect(70, 60, frame.size());
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -118,11 +108,11 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
         // METHOD SCREEN ****************************************************
         Screen::Method => {
-            handle_method_select_screen(app, frame);
+            method::handle_method_select_screen(app, frame);
         }
         // DOWNLOAD SCREEN **************************************************
         Screen::Downloads => {
-            handle_downloads_screen(app, frame);
+            downloads::handle_downloads_screen(app, frame);
             let area = default_rect(frame.size());
             let new_list = app.current_screen.get_list();
             let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -138,7 +128,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         .as_mut()
                         .unwrap()
                         .set_method(String::from(METHOD_MENU_OPTIONS[num])); // safe index
-                    app.goto_screen(Screen::RequestMenu(String::from(
+                    app.goto_screen(screen::Screen::RequestMenu(String::from(
                         *METHOD_MENU_OPTIONS
                             .get(num)
                             .unwrap_or(&"Please select an HTTP method\n \n"),
@@ -192,19 +182,19 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
         // KEYS SCREEN **********************************************
         Screen::Keys => {
-            handle_api_key_screen(app, frame);
+            keys::handle_api_key_screen(app, frame);
         }
         // REQUEST MENU SCREEN **********************************************
         Screen::RequestMenu(_) => {
-            handle_request_menu_screen(app, frame);
+            request::handle_request_menu_screen(app, frame);
         }
         // AUTHENTICATION SCREEN *************************************************
         Screen::Authentication => {
-            handle_authentication_screen(app, frame);
+            auth::handle_authentication_screen(app, frame);
         }
         // SUCESSS SCREEN *********************************************************
         Screen::Success => {
-            handle_success_screen(app, frame);
+            success::handle_success_screen(app, frame);
         }
         // INPUT MENU SCREEN *****************************************************
         Screen::InputMenu(opt) => {
@@ -212,19 +202,22 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         }
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
-            handle_response_screen(app, frame, resp.to_string());
+            response::handle_response_screen(app, frame, resp.to_string());
         }
         // VIEW BODY ********************************************************************
         Screen::ViewBody => {
-            handle_view_body_screen(app, frame);
+            viewbody::handle_view_body_screen(app, frame);
         }
         // DEBUG MENU *************************************************************
         Screen::Debug => {
-            handle_debug_screen(app, frame);
+            debug::handle_debug_screen(app, frame);
         }
         // URL INPUT SCREEN ******************************************************
         Screen::URLInput => {
-            handle_url_input_screen(app, frame);
+            input::url::handle_url_input_screen(app, frame);
+        }
+        Screen::Commands => {
+            saved_commands::handle_saved_commands_screen(app, frame);
         }
 
         _ => {}

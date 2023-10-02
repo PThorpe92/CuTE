@@ -1,6 +1,7 @@
 use std::{error, mem};
 
-use crate::database::db::{DB, USER_DB_PATH};
+
+use crate::database::db::DB;
 use crate::display::displayopts::DisplayOpts;
 use crate::display::shareablecmd::ShareableCommand;
 use crate::request::command::Command;
@@ -144,7 +145,8 @@ impl<'a> App<'_> {
             Command::Curl(curl) => {
                 // continue lazy loading by only opening connection if we need to
                 if curl.will_store_command() && self.db.is_none() {
-                    self.db = Some(Box::new(DB::new(USER_DB_PATH).unwrap()));
+                    self.db = Some(Box::new(DB::new().unwrap()));
+
                 }
                 match curl.execute(&mut self.db) {
                     Ok(_) => Ok(()),
@@ -154,6 +156,20 @@ impl<'a> App<'_> {
             Command::Wget(wget) => wget.execute(),
         }
     }
+
+    pub fn get_saved_commands(&mut self) -> Result<Vec<String>, String> {
+        if self.db.is_none() {
+            self.db = Some(Box::new(DB::new().unwrap()));
+        }
+        let db = self.db.as_ref().unwrap();
+        let commands = db.get_commands().unwrap();
+        let mut saved_commands = Vec::new();
+        for command in commands {
+            saved_commands.push(format!("{}", command));
+        }
+        Ok(saved_commands)
+    }
+
 
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
@@ -237,11 +253,8 @@ impl<'a> App<'_> {
 
     pub fn set_response(&mut self, response: String) {
         self.response = Some(response.clone());
-        match self.command {
-            Some(ref mut cmd) => {
-                cmd.set_response(&response);
-            }
-            None => {}
+        if let Some(cmd) = &mut self.command {
+            cmd.set_response(&response);
         }
     }
 

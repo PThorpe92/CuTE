@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Eq, Clone, PartialEq)]
 pub struct Wget {
     cmd: String,
     rec_level: usize,
