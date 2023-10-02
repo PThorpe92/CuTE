@@ -1,6 +1,5 @@
 use std::{error, mem};
 
-
 use crate::database::db::DB;
 use crate::display::displayopts::DisplayOpts;
 use crate::display::shareablecmd::ShareableCommand;
@@ -97,6 +96,7 @@ impl<'a> App<'_> {
                 Some(screen) => {
                     self.cursor = 0;
                     self.selected = None;
+                    self.items = screen.get_opts();
                     self.current_screen = screen.clone();
                 }
                 _ => {}
@@ -146,7 +146,6 @@ impl<'a> App<'_> {
                 // continue lazy loading by only opening connection if we need to
                 if curl.will_store_command() && self.db.is_none() {
                     self.db = Some(Box::new(DB::new().unwrap()));
-
                 }
                 match curl.execute(&mut self.db) {
                     Ok(_) => Ok(()),
@@ -169,7 +168,6 @@ impl<'a> App<'_> {
         }
         Ok(saved_commands)
     }
-
 
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
@@ -271,7 +269,6 @@ impl<'a> App<'_> {
             // but we need to know what kind of option it is
             // the best way I can think of right now is to match it but I'm sure there's a better way
             match opt {
-                // Im cloning this to shut the borrow checker up, there is probably a better way
                 DisplayOpts::Verbose => {
                     // Just add the verbose flag to the command
                     self.shareable_command.set_verbose(true);

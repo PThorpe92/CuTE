@@ -1,11 +1,10 @@
-use tui::backend::Backend;
-use tui::layout::Alignment;
-use tui::style::{Color, Style};
-use tui::widgets::{Block, BorderType, Borders, ListState, Paragraph};
-use tui::Frame;
-
 use crate::app::App;
+use crate::ui::render::render_header_paragraph;
 use crate::ui::widgets::boxes::default_rect;
+use tui::backend::Backend;
+
+use tui::widgets::{ListState};
+use tui::Frame;
 
 pub fn handle_api_key_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
@@ -20,20 +19,11 @@ pub fn handle_api_key_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>
 
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(api_key_paragraph(), frame.size());
+    frame.render_widget(
+        render_header_paragraph(API_KEY_PARAGRAPH, API_KEY_TITLE),
+        frame.size(),
+    );
 }
 
-pub fn api_key_paragraph() -> Paragraph<'static> {
-    Paragraph::new(
-        "Create / Edit / Delete API Keys and tokens.\n      Press q to exit      \n Press Enter to select \n Please select a Menu item\n",
-    )
-    .block(
-        Block::default()
-            .title("API Key Manager")
-            .title_alignment(Alignment::Center)
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded),
-    )
-    .style(Style::default().fg(Color::Cyan).bg(Color::Black))
-    .alignment(Alignment::Center)
-}
+const API_KEY_PARAGRAPH: &'static str = "Create / Edit / Delete API Keys and tokens.\n      Press q to exit      \n Press Enter to select \n Please select a Menu item\n";
+const API_KEY_TITLE: &'static str = "My API Keys";

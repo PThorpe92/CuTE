@@ -5,8 +5,8 @@ use tui::Frame;
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::screens::screen::Screen;
+use crate::ui::render::{render_header_paragraph, DOWNLOAD_MENU_TITLE, HOME_MENU_PARAGRAPH};
 use crate::ui::widgets::boxes::default_rect;
-use crate::ui::widgets::menu::menu_widget;
 
 pub fn handle_downloads_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
@@ -17,7 +17,10 @@ pub fn handle_downloads_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, 
     app.state.as_mut().unwrap().select(Some(app.cursor));
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(list, area, &mut state);
-    frame.render_widget(menu_widget(), frame.size());
+    frame.render_widget(
+        render_header_paragraph(HOME_MENU_PARAGRAPH, DOWNLOAD_MENU_TITLE),
+        frame.size(),
+    );
 
     if let Some(num) = app.selected {
         match num {

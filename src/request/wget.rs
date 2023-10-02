@@ -178,6 +178,7 @@ impl Wget {
 }
 
 mod tests {
+
     use crate::request::wget::Wget;
 
     #[test]
