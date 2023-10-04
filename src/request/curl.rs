@@ -788,7 +788,7 @@ mod tests {
         curl.set_response(response);
         curl.set_output("output.txt".to_string());
         curl.write_output().unwrap();
-        std::fs::remove_file("output.txt").unwrap();
+        let _ = std::fs::remove_file("output.txt");
     }
 
     #[test]

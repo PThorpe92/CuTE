@@ -52,6 +52,7 @@ impl<'a> Command<'a> {
             }
         }
     }
+
     pub fn save_command(&mut self, save: bool) {
         if let Command::Curl(curl) = self {
             curl.save_command(save);

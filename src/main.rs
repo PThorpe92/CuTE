@@ -4,10 +4,10 @@ use std::io;
 use dirs::data_local_dir;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
-use CuTE::app::{App, AppResult};
-use CuTE::events::event::{Event, EventHandler};
-use CuTE::events::handler::handle_key_events;
-use CuTE::ui::tui::Tui;
+use CuTE_tui::app::{App, AppResult};
+use CuTE_tui::events::event::{Event, EventHandler};
+use CuTE_tui::events::handler::handle_key_events;
+use CuTE_tui::ui::tui::Tui;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();

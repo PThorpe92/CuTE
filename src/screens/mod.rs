@@ -21,9 +21,6 @@ pub mod success;
 // Response Screen
 pub mod response;
 
-// View Body Screen
-pub mod viewbody;
-
 // Debug Menu Screen
 pub mod debug;
 
@@ -36,3 +33,6 @@ pub mod auth;
 pub use screen::Screen;
 
 pub mod saved_commands;
+
+// This is the main screen handler/match
+pub mod handle_screens;

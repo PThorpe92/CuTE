@@ -1,5 +1,5 @@
 [package]
-name = "CuTE"
+name = "CuTE-tui" # crates.io/crates/CuTE is taken :(
 version = "0.1.0"
 authors = ["PThorpe92 <preston@unlockedlabs.org>"]
 license = "GPL-3.0"
@@ -14,7 +14,6 @@ lazy_static = "1.4.0"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 serde_json = {version = "1.0.107", features = ["std"] }
 serde = { version = "1.0.188", features = ["derive"] }
-chrono = "0.4.31"
 curl = "0.4.44"
 mockito = "1.2.0"
 regex = "1.9.5"

@@ -1,10 +1,11 @@
 use std::{error, mem};
 
-use crate::database::db::DB;
 use crate::display::displayopts::DisplayOpts;
 use crate::display::shareablecmd::ShareableCommand;
 use crate::request::command::Command;
+use crate::request::curl::Curl;
 use crate::screens::screen::Screen;
+use crate::{database::db::DB, request::wget::Wget};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
 /// Application result type.
@@ -59,10 +60,19 @@ impl<'a> Default for App<'a> {
     }
 }
 
-impl<'a> App<'_> {
+impl<'a> App<'a> {
     /// Constructs a new instance of [`App`].
     pub fn new() -> Self {
         Self::default()
+    }
+    pub fn set_command(&mut self, command: Command<'a>) {
+        self.command = Some(command);
+    }
+
+    pub fn set_url(&mut self, url: String) {
+        if let Some(cmd) = &mut self.command {
+            cmd.set_url(url);
+        }
     }
 
     pub fn tick(&self) {}

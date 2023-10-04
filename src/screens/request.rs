@@ -5,6 +5,7 @@ use tui::Frame;
 use crate::app::App;
 use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
+use crate::request::cmdtype::CmdType;
 use crate::screens::screen::Screen;
 use crate::ui::render::{render_header_paragraph, HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
 use crate::ui::widgets::boxes::default_rect;
@@ -28,7 +29,7 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
     match app.selected {
         Some(num) => match num {
             // Add a URL,
-            0 => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
+            0 => app.goto_screen(Screen::InputMenu(InputOpt::URL(CmdType::Curl))),
             // Auth
             1 => app.goto_screen(Screen::Authentication),
             // Headers
