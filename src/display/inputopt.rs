@@ -1,8 +1,9 @@
+use crate::request::cmdtype::CmdType;
 use crate::request::curl::AuthKind;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputOpt {
-    URL,
+    URL(CmdType),
     Headers,
     Output,
     Verbose,
@@ -15,7 +16,7 @@ pub enum InputOpt {
 impl InputOpt {
     pub fn to_string(&self) -> String {
         match self {
-            InputOpt::URL => "URL",
+            InputOpt::URL(_) => "URL",
             InputOpt::Headers => "Header",
             InputOpt::Output => "Output",
             InputOpt::RequestBody => "Request Body",

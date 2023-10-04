@@ -4,9 +4,12 @@ use tui::Frame;
 
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
+use crate::request::cmdtype::CmdType;
 use crate::screens::screen::Screen;
 use crate::ui::render::{render_header_paragraph, DOWNLOAD_MENU_TITLE, HOME_MENU_PARAGRAPH};
 use crate::ui::widgets::boxes::default_rect;
+pub const DOWNLOAD: &str = "Download";
+pub const HTTP_REQUEST: &str = "HTTP Request";
 
 pub fn handle_downloads_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
@@ -31,7 +34,7 @@ pub fn handle_downloads_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, 
             }
             // Add URL of download
             1 => {
-                app.goto_screen(Screen::InputMenu(InputOpt::URL));
+                app.goto_screen(Screen::InputMenu(InputOpt::URL(CmdType::Wget)));
                 app.selected = None;
             }
             // Add file name for output/download
