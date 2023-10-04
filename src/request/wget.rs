@@ -139,8 +139,9 @@ impl Wget {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn build_string(&self) -> String {
         let mut cmdstr = vec![String::from("wget")];
-
-        cmdstr.push(self.url.clone());
+        if self.has_url() {
+            cmdstr.push(self.url.clone());
+        }
 
         if self.has_rec() {
             cmdstr.push(format!("-r {}", self.rec_level));
@@ -158,10 +159,9 @@ impl Wget {
     // Added Windows Specific Function
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn execute(&mut self) -> Result<(), String> {
-        self.build_command();
         let command = std::process::Command::new("sh")
             .arg("-c")
-            .args(self.cmd.as_slice())
+            .arg(self.build_string())
             .output()
             .expect("failed to execute process");
         if command.status.success() {
@@ -223,8 +223,7 @@ mod tests {
     fn test_set_url_win() {
         let mut wget = Wget::new();
         wget.set_url("http://www.google.com");
-        wget.build_string();
-        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com", wget.build_string());
     }
 
     #[test]
@@ -240,8 +239,7 @@ mod tests {
     fn test_set_output() {
         let mut wget = Wget::new();
         wget.set_output("output");
-        wget.build_string();
-        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -outputfile output", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -outputfile output", wget.build_string());
     }
 
     #[test]
@@ -257,8 +255,7 @@ mod tests {
     fn test_add_auth() {
         let mut wget = Wget::new();
         wget.add_auth("usr", "pwd");
-        wget.build_string();
-        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -username usr -password pwd", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -username usr -password pwd", wget.build_string());
     }
 
     #[test]
@@ -283,7 +280,7 @@ mod tests {
         wget.set_output("output");
         assert_eq!(
             "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com -username usr -password pwd -outputfile output",
-            wget.cmd
+            wget.build_string()
         );
     }
 
@@ -292,7 +289,7 @@ mod tests {
     fn test_increase_rec_level() {
         let mut wget = Wget::new();
         wget.set_rec_download_level(2);
-        assert_eq!("wget", wget.build_string());
+        assert_eq!("wget -r 2", wget.build_string());
         assert_eq!(2, wget.rec_level);
     }
 
@@ -314,7 +311,7 @@ mod tests {
     fn test_increase_rec_level() {
         let mut wget = Wget::new();
         wget.set_rec_download_level(2);
-        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1", wget.build_string());
         assert_eq!(2, wget.rec_level);
     }
 
@@ -324,8 +321,7 @@ mod tests {
         let mut wget = Wget::new();
         wget.set_url("http://www.google.com");
         wget.set_output("output");
-        wget.build_string();
-        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com -outputfile output", wget.cmd);
+        assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1 -url http://www.google.com -outputfile output", wget.build_string());
         let result = wget.execute();
         assert_eq!(true, result.is_ok());
         assert!(std::fs::metadata("output.txt").is_ok());
