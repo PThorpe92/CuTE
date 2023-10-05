@@ -34,7 +34,6 @@ pub struct App<'a> {
     pub items: Vec<ListItem<'a>>,
     pub state: Option<ListState>,
     pub response: Option<String>,
-    pub shareable_command: ShareableCommand,
     pub db: Option<Box<DB>>,
 }
 
@@ -54,7 +53,6 @@ impl<'a> Default for App<'a> {
             state: None,
             current_screen: Screen::Home,
             response: None,
-            shareable_command: ShareableCommand::new(),
             db: None,
         }
     }
@@ -70,7 +68,7 @@ impl<'a> App<'a> {
     }
 
     pub fn set_url(&mut self, url: String) {
-        if let Some(cmd) = &mut self.command {
+        if let Some(ref mut cmd) = self.command {
             cmd.set_url(url);
         }
     }
@@ -81,17 +79,28 @@ impl<'a> App<'a> {
         self.screen_stack.push(screen.clone());
         self.current_screen = screen.clone();
 
-        // If We Are Going Into A Screen Where There Would Be A Sharable Command
-        // Lets Init That
-        match self.current_screen {
-            Screen::RequestMenu(_) => {
-                self.shareable_command = ShareableCommand::new();
-            }
-            _ => {} // Lets Add Cases As We Add Features
-        }
-
         self.cursor = 0;
-        self.items = screen.get_opts();
+        match screen {
+            Screen::SavedKeys => {
+                self.items = self
+                    .get_saved_keys()
+                    .unwrap_or(vec![])
+                    .iter()
+                    .map(|key| ListItem::new(key.clone()))
+                    .collect();
+            }
+            Screen::SavedCommands => {
+                self.items = self
+                    .get_saved_commands()
+                    .unwrap_or(vec![])
+                    .iter()
+                    .map(|cmd| ListItem::new(cmd.clone()))
+                    .collect();
+            }
+            _ => {
+                self.items = screen.get_opts();
+            }
+        }
         self.selected = None;
     }
 
@@ -179,6 +188,27 @@ impl<'a> App<'a> {
         Ok(saved_commands)
     }
 
+    pub fn get_saved_keys(&mut self) -> Result<Vec<String>, String> {
+        if self.db.is_none() {
+            self.db = Some(Box::new(DB::new().unwrap()));
+        }
+        let db = self.db.as_ref().unwrap();
+        let keys = db.get_keys().unwrap();
+        let mut saved_keys = Vec::new();
+        for key in keys {
+            saved_keys.push(format!("{}", key));
+        }
+        Ok(saved_keys)
+    }
+
+    pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
+        if self.db.is_none() {
+            self.db = Some(Box::new(DB::new().unwrap()));
+        }
+        let db = self.db.as_ref().unwrap();
+        db.add_key(&key)
+    }
+
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
     // Lorenzo - Changing this because I dont think its doing what I want it to do.
@@ -210,11 +240,6 @@ impl<'a> App<'a> {
                     }
                 }
                 DisplayOpts::SaveCommand => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::ShareableCmd(_) => {
                     if mem::discriminant(opt) == mem::discriminant(element) {
                         return true;
                     }
@@ -253,7 +278,6 @@ impl<'a> App<'a> {
             DisplayOpts::Verbose => !self.has_display_option(opt), // Verbose should be toggled
             DisplayOpts::SaveCommand => !self.has_display_option(opt), // Save command should be toggled
             DisplayOpts::Response(_) => !self.has_display_option(opt), // Response should be replaced
-            DisplayOpts::ShareableCmd(_) => !self.has_display_option(opt), // Shareable command should be replaced with the new version
             DisplayOpts::RecDownload(_) => !self.has_display_option(opt), // Recursive download depth should be replaced
             DisplayOpts::Auth(_) => !self.has_display_option(opt),        // Auth should be replaced
         }
@@ -281,19 +305,22 @@ impl<'a> App<'a> {
             match opt {
                 DisplayOpts::Verbose => {
                     // Just add the verbose flag to the command
-                    self.shareable_command.set_verbose(true);
+                    self.command.as_mut().unwrap().set_verbose(true);
                 }
                 DisplayOpts::Headers((key, value)) => {
                     // Push Header To Shareable Command
-                    self.shareable_command.push_header((key, value));
+                    self.command
+                        .as_mut()
+                        .unwrap()
+                        .add_headers(vec![format!("{}:{}", key, value)]);
                 }
                 DisplayOpts::URL(url) => {
                     // Set URL To Sharable Command
-                    self.shareable_command.set_url(url);
+                    self.command.as_mut().unwrap().set_url(url);
                 }
                 DisplayOpts::Outfile(outfile) => {
                     // Set Outfile To Shareable Command
-                    self.shareable_command.set_outfile(outfile);
+                    self.command.as_mut().unwrap().set_outfile(&outfile);
                 }
                 _ => {
                     // Nothing

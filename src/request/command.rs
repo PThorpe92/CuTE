@@ -109,6 +109,12 @@ impl<'a> Command<'a> {
         }
     }
 
+    pub fn add_headers(&mut self, headers: Vec<String>) {
+        if let Command::Curl(curl) = self {
+            curl.add_headers(headers);
+        }
+    }
+
     pub fn set_rec_download_level(&mut self, level: usize) {
         if let Command::Wget(wget) = self {
             wget.set_rec_download_level(level);

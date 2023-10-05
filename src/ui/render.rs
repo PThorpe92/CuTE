@@ -1,7 +1,6 @@
 use crate::app::App;
 use crate::display::displayopts::DisplayOpts;
 use crate::screens::handle_screens::handle_screen;
-use crate::ui::widgets::boxes::small_rect;
 
 use tui::{
     backend::Backend,
@@ -12,14 +11,7 @@ use tui::{
     Frame,
 };
 
-pub const CURL: &'static str = "curl";
-pub const WGET: &'static str = "wget";
-pub const CUSTOM: &'static str = "custom";
-pub const HOME_MENU_PARAGRAPH: &'static str =
-    "\nPress q to exit \n Press Enter to select \n Please select a Menu item\n";
-pub const HOME_MENU_TITLE: &'static str = "* CuTE *";
-pub const DOWNLOAD_MENU_TITLE: &'static str = "* CuTE ** Downloads *";
-pub const SUCCESS_MESSAGE: &'static str = "Command saved successfully";
+use super::small_rect;
 
 /// Renders the user interface widgets.
 pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -50,7 +42,11 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 display_opts.push_str(rec_str.as_str());
             }
             DisplayOpts::SaveCommand => {
-                display_opts.push_str("- Command will be saved");
+                display_opts.push_str("- Command will be saved\n");
+            }
+            DisplayOpts::Auth(auth) => {
+                let auth_str = format!("- Auth: {}\n", auth);
+                display_opts.push_str(auth_str.as_str());
             }
             _ => {}
         });

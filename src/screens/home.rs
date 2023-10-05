@@ -3,9 +3,13 @@ use tui::widgets::ListState;
 use tui::Frame;
 
 use crate::app::App;
+use crate::display::menuopts::{HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
+use crate::request::command::Command;
+use crate::request::curl::Curl;
+use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
-use crate::ui::render::{render_header_paragraph, HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
-use crate::ui::widgets::boxes::centered_rect;
+use crate::ui::centered_rect;
+use crate::ui::render::render_header_paragraph;
 
 pub fn handle_home_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let new_list = app.current_screen.get_list();
@@ -16,26 +20,22 @@ pub fn handle_home_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
     frame.render_widget(
-        render_header_paragraph(HOME_MENU_PARAGRAPH, HOME_MENU_TITLE),
+        render_header_paragraph(&HOME_MENU_PARAGRAPH, &HOME_MENU_TITLE),
         frame.size(),
     );
-    match app.selected {
-        Some(0) => {
-            app.goto_screen(Screen::Method);
+    if let Some(num) = app.selected {
+        match num {
+            0 => {
+                app.set_command(Command::Curl(Curl::new()));
+                app.goto_screen(Screen::Method);
+            }
+            1 => {
+                app.set_command(Command::Wget(Wget::new()));
+                app.goto_screen(Screen::Downloads);
+            }
+            2 => app.goto_screen(Screen::KeysMenu),
+            3 => app.goto_screen(Screen::SavedCommands),
+            _ => {}
         }
-        Some(1) => {
-            app.goto_screen(Screen::Downloads);
-        }
-        Some(2) => {
-            app.goto_screen(Screen::Keys);
-        }
-        Some(3) => {
-            app.goto_screen(Screen::Commands);
-        }
-        Some(4) => {
-            app.goto_screen(Screen::Debug);
-        }
-        Some(_) => {}
-        None => {}
     }
 }

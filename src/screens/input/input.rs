@@ -28,6 +28,11 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
         InputOpt::RecursiveDownload => {
             Text::from("Enter the recursion level and press Enter \n Example: 2")
         }
+        InputOpt::Auth(auth) => match auth {
+            AuthKind::Basic(_) => Text::from("Enter username:password and press Enter"),
+            AuthKind::Bearer(_) => Text::from("Enter a token and press Enter"),
+            _ => Text::from("Enter a username and press Enter"),
+        },
         _ => Text::from("Enter a value and press Enter"),
     };
 }
@@ -93,9 +98,10 @@ pub fn handle_default_input_screen<B: Backend>(
             chunks[1].y + 1,
         ),
     }
-
+    // once we have a message (someone has typed and pressed Enter)
     if !app.messages.is_empty() {
         app.input_mode = InputMode::Normal;
+        // parse the input message with the opt to find out what to do with it
         parse_input(app.messages[0].clone(), opt, app);
         app.messages.remove(0);
     }
@@ -116,12 +122,9 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 }
             };
         }
-        InputOpt::RequestBody => {
-            // This means they should be pasting in a large request body...
-            //  not sure how to handle this yet.
-        }
-        InputOpt::Verbose => {
-            // This shouldn't have sent them to this screen...
+        InputOpt::ApiKey => {
+            app.add_saved_key(message.clone());
+            app.goto_screen(Screen::KeysMenu);
         }
         InputOpt::Headers => {
             let headers = message.split(':').collect::<Vec<&str>>();
@@ -136,16 +139,14 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.add_display_option(DisplayOpts::Headers(cpy));
             app.current_screen = Screen::RequestMenu(String::new());
         }
-
+        // Only downloads let you specify the output file prior to execution of the command
         InputOpt::Output => {
-            app.input_mode = InputMode::Normal;
             app.command.as_mut().unwrap().set_outfile(&message);
             app.add_display_option(DisplayOpts::Outfile(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(Screen::Downloads);
         }
         InputOpt::Execute => {
-            // This means they have executed the command, and want to write to a file
-            app.input_mode = InputMode::Normal;
+            // This means they have executed the HTTP Request, and want to write to a file
             app.command.as_mut().unwrap().set_outfile(&message);
             match app.command.as_mut().unwrap().write_output() {
                 Ok(_) => {
@@ -166,8 +167,9 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.goto_screen(Screen::Downloads);
         }
         InputOpt::Auth(auth) => {
-            parse_auth(auth, app, message);
+            parse_auth(auth, app, &message);
         }
+        _ => {}
     }
 }
 
@@ -190,65 +192,58 @@ fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) 
     frame.render_widget(message, chunks[0]);
 }
 
-fn parse_auth(auth: AuthKind, app: &mut App, message: String) {
+fn parse_auth(auth: AuthKind, app: &mut App, message: &str) {
     match auth {
         AuthKind::Basic(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::Basic(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::Basic(String::from(message)));
         }
-
         AuthKind::Bearer(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::Bearer(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::Bearer(String::from(message)));
         }
         AuthKind::Digest(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::Digest(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::Digest(String::from(message)));
         }
         AuthKind::AwsSigv4(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::AwsSigv4(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::AwsSigv4(String::from(message)));
         }
         AuthKind::Spnego(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::Spnego(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::Spnego(String::from(message)));
         }
         AuthKind::Kerberos(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::Kerberos(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::Kerberos(String::from(message)));
         }
         AuthKind::Ntlm(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::Ntlm(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::Ntlm(String::from(message)));
         }
         AuthKind::NtlmWb(_) => {
             app.command
                 .as_mut()
                 .unwrap()
-                .set_auth(AuthKind::NtlmWb(message.clone()));
-            app.add_display_option(DisplayOpts::Auth(message));
+                .set_auth(AuthKind::NtlmWb(String::from(message)));
         }
         AuthKind::None => {}
     };
+    app.add_display_option(DisplayOpts::Auth(String::from(message)));
+    app.goto_screen(Screen::RequestMenu(String::new()));
 }

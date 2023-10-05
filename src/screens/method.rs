@@ -3,13 +3,12 @@ use tui::widgets::ListState;
 use tui::Frame;
 
 use crate::app::App;
-use crate::display::menuopts::METHOD_MENU_OPTIONS;
+use crate::display::menuopts::{HOME_MENU_PARAGRAPH, METHOD_MENU_OPTIONS, METHOD_MENU_TITLE};
 use crate::request::command::Command;
 use crate::screens::screen::Screen;
-use crate::ui::render::{render_header_paragraph, HOME_MENU_PARAGRAPH};
-use crate::ui::widgets::boxes::default_rect;
+use crate::ui::default_rect;
+use crate::ui::render::render_header_paragraph;
 
-const METHOD_MENU_TITLE: &'static str = "Choose a Method";
 pub fn handle_method_select_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     // Added this command init here because it was causing a panic because it wasnt initialized.
     app.command = Some(Command::default());
@@ -23,7 +22,7 @@ pub fn handle_method_select_screen<B: Backend>(app: &mut App, frame: &mut Frame<
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
     frame.render_widget(
-        render_header_paragraph(HOME_MENU_PARAGRAPH, METHOD_MENU_TITLE),
+        render_header_paragraph(&HOME_MENU_PARAGRAPH, &METHOD_MENU_TITLE),
         frame.size(),
     );
     match app.selected {
