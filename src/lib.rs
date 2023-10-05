@@ -20,5 +20,4 @@ pub mod request;
 // Events & Event Handler
 pub mod events;
 
-// User Interface, Wigets, And Rendering
-pub mod ui;
+pub mod tui;

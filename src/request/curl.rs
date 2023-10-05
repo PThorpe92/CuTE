@@ -3,6 +3,7 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use std::io::Read;
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},
@@ -350,11 +351,26 @@ impl<'a> Curl<'a> {
     }
 
     pub fn write_output(&mut self) -> Result<(), std::io::Error> {
+        println!("{}", self.outfile.as_ref().unwrap().clone());
         match self.outfile {
             Some(ref mut outfile) => {
-                let mut file = std::fs::File::create(outfile)?;
+                let mut file = match std::fs::File::create(outfile) {
+                    Ok(f) => f,
+                    Err(e) => {
+                        eprintln!("Error creating file: {:?}", e);
+                        return Err(e);
+                    }
+                };
+
                 let mut writer = std::io::BufWriter::new(&mut file);
-                let _ = writer.write_all(self.resp.clone().unwrap().as_bytes());
+
+                if let Some(resp) = &self.resp {
+                    if let Err(e) = writer.write_all(resp.as_bytes()) {
+                        eprintln!("Error writing to file: {:?}", e);
+                        return Err(e);
+                    }
+                }
+
                 Ok(())
             }
             None => Ok(()),
@@ -503,7 +519,7 @@ impl<'a> Curl<'a> {
     pub fn set_bearer_auth(&mut self, token: String) {
         self.add_flag(CurlFlag::Bearer(
             CurlFlagType::Bearer.get_value(),
-            Some(token.to_string()),
+            Some(format!("Authorization: Bearer {}", token.to_string())),
         ));
         self.auth = AuthKind::Bearer(token);
     }
@@ -557,15 +573,16 @@ impl<'a> Curl<'a> {
     }
 
     pub fn execute(&mut self, db: &mut Option<Box<DB>>) -> Result<(), curl::Error> {
+        let mut list = List::new();
+        let mut has_headers = false;
         if self.headers.is_some() {
-            let mut list = List::new();
+            has_headers = true;
             let _ = self
                 .headers
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|h| list.append(h.as_str()).unwrap());
-            self.curl.http_headers(list).unwrap();
         }
         if self.save {
             let _ = self.build_command_str();
@@ -588,11 +605,9 @@ impl<'a> Curl<'a> {
                     .unwrap();
                 let _ = self.curl.http_auth(Auth::new().basic(true));
             }
-            // for some reason, libcurl doesn't support bearer: token, so we have to do it manually
             AuthKind::Bearer(token) => {
-                let mut list = List::new();
+                has_headers = true;
                 let _ = list.append(&format!("Authorization: Bearer {}", token.clone()));
-                self.curl.http_headers(list).unwrap();
             }
             AuthKind::Digest(login) => {
                 self.curl
@@ -626,6 +641,18 @@ impl<'a> Curl<'a> {
             }
             _ => {}
         };
+        // If we are uploading a file...
+        if let Some(ref upload_file) = self.upload_file {
+            let mut file = std::fs::File::open(upload_file).unwrap();
+            self.curl.upload(true).unwrap();
+            self.curl
+                .read_function(move |buf| Ok(file.read(buf).unwrap_or(0)))
+                .unwrap();
+        }
+        // We have to append the list of headers all at once
+        if has_headers {
+            self.curl.http_headers(list).unwrap();
+        }
         let data = RefCell::new(Vec::new());
         let mut transfer = self.curl.transfer();
         {
@@ -642,8 +669,9 @@ impl<'a> Curl<'a> {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&res) {
                 let pretty = serde_json::to_string_pretty(&json).unwrap();
                 self.resp = Some(pretty);
+            } else {
+                self.resp = Some(res);
             }
-            self.resp = Some(res);
             Ok(())
         }
     }

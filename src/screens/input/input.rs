@@ -1,7 +1,12 @@
 use crate::app::App;
-use crate::display::displayopts::DisplayOpts;
+use crate::display::menuopts::{
+    INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER, INPUT_OPT_BASIC,
+    INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD, INPUT_OPT_URL,
+};
+use crate::display::DisplayOpts;
 use crate::request::cmdtype::CmdType;
 use crate::request::curl::AuthKind;
+use crate::screens::auth::AuthType;
 use crate::screens::Screen;
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use tui::prelude::Line;
@@ -15,25 +20,21 @@ use tui::{
     Frame,
 };
 
-/// Renders a screen we can grab input from, pass in the appropriate designation for the input
+// Takes the current option and returns a prompt for that screen
 pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
     return match opt {
         InputOpt::URL(opt) => {
             let fmtstr = format!("Enter a URL for your {}\n and press Enter", opt);
             Text::from(Line::from(fmtstr))
         }
-        InputOpt::Headers => Text::from(Line::from(
-            "MUST be \"Key:Value\" pair and press Enter \n Example: Content-Type: application/json",
-        )),
-        InputOpt::RecursiveDownload => {
-            Text::from("Enter the recursion level and press Enter \n Example: 2")
-        }
+        InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
+        InputOpt::RecursiveDownload => Text::from(INPUT_OPT_REC_DOWNLOAD),
         InputOpt::Auth(auth) => match auth {
-            AuthKind::Basic(_) => Text::from("Enter username:password and press Enter"),
-            AuthKind::Bearer(_) => Text::from("Enter a token and press Enter"),
-            _ => Text::from("Enter a username and press Enter"),
+            AuthType::Basic => Text::from(INPUT_OPT_AUTH_BASIC),
+            AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
+            _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
-        _ => Text::from("Enter a value and press Enter"),
+        _ => Text::from(INPUT_OPT_BASIC),
     };
 }
 
@@ -98,7 +99,7 @@ pub fn handle_default_input_screen<B: Backend>(
             chunks[1].y + 1,
         ),
     }
-    // once we have a message (someone has typed and pressed Enter)
+    // we have input (the user has typed something and pressed Enter while in insert mode)
     if !app.messages.is_empty() {
         app.input_mode = InputMode::Normal;
         // parse the input message with the opt to find out what to do with it
@@ -123,7 +124,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             };
         }
         InputOpt::ApiKey => {
-            app.add_saved_key(message.clone());
+            let _ = app.add_saved_key(message.clone());
             app.goto_screen(Screen::KeysMenu);
         }
         InputOpt::Headers => {
@@ -148,7 +149,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
             app.command.as_mut().unwrap().set_outfile(&message);
-            match app.command.as_mut().unwrap().write_output() {
+            match app.write_response() {
                 Ok(_) => {
                     app.goto_screen(Screen::Success);
                 }
@@ -192,57 +193,56 @@ fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) 
     frame.render_widget(message, chunks[0]);
 }
 
-fn parse_auth(auth: AuthKind, app: &mut App, message: &str) {
+fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
     match auth {
-        AuthKind::Basic(_) => {
+        AuthType::Basic => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::Basic(String::from(message)));
         }
-        AuthKind::Bearer(_) => {
+        AuthType::Bearer => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::Bearer(String::from(message)));
         }
-        AuthKind::Digest(_) => {
+        AuthType::Digest => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::Digest(String::from(message)));
         }
-        AuthKind::AwsSigv4(_) => {
+        AuthType::AWSSignatureV4 => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::AwsSigv4(String::from(message)));
         }
-        AuthKind::Spnego(_) => {
+        AuthType::SPNEGO => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::Spnego(String::from(message)));
         }
-        AuthKind::Kerberos(_) => {
+        AuthType::Kerberos => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::Kerberos(String::from(message)));
         }
-        AuthKind::Ntlm(_) => {
+        AuthType::NTLM => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::Ntlm(String::from(message)));
         }
-        AuthKind::NtlmWb(_) => {
+        AuthType::NTLMWB => {
             app.command
                 .as_mut()
                 .unwrap()
                 .set_auth(AuthKind::NtlmWb(String::from(message)));
         }
-        AuthKind::None => {}
     };
     app.add_display_option(DisplayOpts::Auth(String::from(message)));
     app.goto_screen(Screen::RequestMenu(String::new()));

@@ -2,10 +2,11 @@ use tui::backend::Backend;
 
 use crate::app::App;
 use crate::display::menuopts::{SAVED_COMMANDS_PARAGRAPH, SAVED_COMMANDS_TITLE};
-use crate::ui::default_rect;
-use crate::ui::render::render_header_paragraph;
 use tui::widgets::{List, ListItem, ListState};
 use tui::Frame;
+
+use super::default_rect;
+use super::render::render_header_paragraph;
 
 pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let saved_commands = app.get_saved_commands().unwrap_or(vec![]);

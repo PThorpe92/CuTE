@@ -3,10 +3,11 @@ use tui::widgets::ListState;
 use tui::Frame;
 
 use crate::app::App;
-use crate::display::menuopts::{HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
+use crate::display::menuopts::{DEFAULT_MENU_PARAGRAPH, DEFAULT_MENU_TITLE};
 use crate::screens::screen::Screen;
-use crate::ui::centered_rect;
-use crate::ui::render::render_header_paragraph;
+
+use super::centered_rect;
+use super::render::render_header_paragraph;
 
 pub fn handle_debug_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let menu_options = app.current_screen.get_list();
@@ -20,7 +21,7 @@ pub fn handle_debug_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) 
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(menu_options, area, &mut state);
     frame.render_widget(
-        render_header_paragraph(&HOME_MENU_PARAGRAPH, &HOME_MENU_TITLE),
+        render_header_paragraph(&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
         frame.size(),
     );
 
@@ -31,7 +32,7 @@ pub fn handle_debug_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) 
         }
         Some(1) => {
             // Test Single Line Input Screen
-            app.goto_screen(Screen::URLInput);
+            todo!()
         }
         _ => {}
     }

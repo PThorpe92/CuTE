@@ -1,13 +1,12 @@
 use std::{error, mem};
 
-use crate::display::displayopts::DisplayOpts;
-use crate::display::shareablecmd::ShareableCommand;
+use crate::display::DisplayOpts;
 use crate::request::command::Command;
-use crate::request::curl::Curl;
 use crate::screens::screen::Screen;
-use crate::{database::db::DB, request::wget::Wget};
+use crate::{database::db::DB, request::response::Response};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
+
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -158,6 +157,31 @@ impl<'a> App<'a> {
     pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
         self.opts.retain(|x| x != opt);
     }
+    pub fn remove_all_display_options(&mut self) {
+        self.opts.clear();
+    }
+
+    pub fn write_response(&mut self) -> Result<(), String> {
+        if let Some(ref mut cmd) = self.command {
+            match cmd {
+                Command::Curl(ref mut curl) => match curl.write_output() {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(e.to_string()),
+                },
+                _ => Err(String::from("downloads output is written by default")),
+            }
+        } else {
+            Err(String::from("No command to write output for"))
+        }
+    }
+
+    pub fn get_response_headers(&mut self) -> String {
+        if let Ok(response) = Response::from_raw_string(&self.response.as_ref().unwrap().clone()) {
+            response.get_headers().to_string()
+        } else {
+            return String::from("No headers found");
+        }
+    }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
         match self.command.as_mut().unwrap() {
@@ -167,7 +191,10 @@ impl<'a> App<'a> {
                     self.db = Some(Box::new(DB::new().unwrap()));
                 }
                 match curl.execute(&mut self.db) {
-                    Ok(_) => Ok(()),
+                    Ok(_) => {
+                        self.response = curl.get_response();
+                        Ok(())
+                    }
                     Err(e) => Err(e.to_string()),
                 }
             }

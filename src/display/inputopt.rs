@@ -1,5 +1,7 @@
+use std::fmt::Display;
+
 use crate::request::cmdtype::CmdType;
-use crate::request::curl::AuthKind;
+use crate::screens::auth::AuthType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputOpt {
@@ -9,27 +11,23 @@ pub enum InputOpt {
     Verbose,
     RequestBody,
     RecursiveDownload,
-    Auth(AuthKind),
+    Auth(AuthType),
     Execute,
     ApiKey,
 }
 
-impl InputOpt {
-    pub fn to_string(&self) -> String {
+impl Display for InputOpt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InputOpt::URL(_) => "URL",
-            InputOpt::Headers => "Header",
-            InputOpt::Output => "Output",
-            InputOpt::RequestBody => "Request Body",
-            InputOpt::RecursiveDownload => "Recursive Download",
-            InputOpt::Auth(val) => {
-                let auth = val.clone();
-                return format!("Authentication: {}", auth.to_string());
-            }
-            InputOpt::Execute => "Execute",
-            InputOpt::Verbose => "Verbose",
-            InputOpt::ApiKey => "API Key",
+            InputOpt::URL(url) => write!(f, "|- URL - {}", url),
+            InputOpt::Headers => write!(f, "| Headers"),
+            InputOpt::Output => write!(f, "| Output"),
+            InputOpt::Verbose => write!(f, "| Verbose"),
+            InputOpt::RequestBody => write!(f, "| Request Body"),
+            InputOpt::RecursiveDownload => write!(f, "Recursive Download"),
+            InputOpt::Auth(auth) => write!(f, "|- Authentication: {}", auth),
+            InputOpt::Execute => write!(f, "| Execute"),
+            InputOpt::ApiKey => write!(f, "| API Key"),
         }
-        .to_string()
     }
 }
