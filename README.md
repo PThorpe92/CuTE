@@ -1,4 +1,4 @@
-![logo](https://github.com/PThorpe92/CuTE/blob/tree/main/tests/logo.gif?raw=true)
+![logo](https://github.com/PThorpe92/CuTE/tree/main/test/logo.gif?raw=true)
 ![demo](https://github.com/PThorpe92/curl-tui-rs/assets/121899304/e50b009d-e766-48c8-9c6b-c1bbe07d00d2)
 
 
