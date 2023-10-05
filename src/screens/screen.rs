@@ -10,8 +10,7 @@ use tui::widgets::{Block, Borders, List, ListItem};
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     API_KEY_MENU_OPTIONS, AUTHENTICATION_MENU_OPTIONS, DEBUG_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS,
-    INPUT_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS,
-    RESPONSE_MENU_OPTIONS, SAVED_COMMAND_OPTIONS,
+    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -25,8 +24,9 @@ pub enum Screen {
     Response(String),
     Authentication,
     Success,
-    Keys,
-    Commands,
+    KeysMenu,
+    SavedKeys,
+    SavedCommands,
     Error(String),
     ViewBody,
     Debug,
@@ -45,8 +45,9 @@ impl Display for Screen {
             Screen::Response(_) => "Response",
             Screen::Authentication => "Authentication",
             Screen::Success => "Success",
-            Screen::Keys => "Keys",
-            Screen::Commands => "Commands",
+            Screen::KeysMenu => "My Saved Keys",
+            Screen::SavedKeys => "Saved Keys",
+            Screen::SavedCommands => "My Saved Commands",
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
             Screen::Debug => "Debug",
@@ -81,7 +82,7 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Keys => {
+            Screen::KeysMenu => {
                 return API_KEY_MENU_OPTIONS
                     .iter()
                     .map(|i| ListItem::new(*i))
@@ -93,11 +94,8 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::Commands => {
-                return SAVED_COMMAND_OPTIONS
-                    .iter()
-                    .map(|i| ListItem::new(*i))
-                    .collect();
+            Screen::SavedCommands => {
+                vec![ListItem::new("Saved Commands").style(Style::default().fg(Color::Green))]
             }
             Screen::Response(_) => {
                 return RESPONSE_MENU_OPTIONS
@@ -106,10 +104,7 @@ impl<'a> Screen {
                     .collect();
             }
             Screen::InputMenu(_) => {
-                return INPUT_MENU_OPTIONS
-                    .iter()
-                    .map(|x| ListItem::new(*x))
-                    .collect();
+                vec![ListItem::new("Input Menu").style(Style::default().fg(Color::Green))]
             }
             Screen::Authentication => {
                 return AUTHENTICATION_MENU_OPTIONS
@@ -141,6 +136,9 @@ impl<'a> Screen {
             }
             Screen::URLInput => {
                 vec![ListItem::new("URL Input").style(Style::default().fg(Color::Green))]
+            }
+            Screen::SavedKeys => {
+                vec![ListItem::new("Saved Keys").style(Style::default().fg(Color::Green))]
             }
         }
     }

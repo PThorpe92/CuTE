@@ -11,6 +11,7 @@ pub enum InputOpt {
     RecursiveDownload,
     Auth(AuthKind),
     Execute,
+    ApiKey,
 }
 
 impl InputOpt {
@@ -23,10 +24,11 @@ impl InputOpt {
             InputOpt::RecursiveDownload => "Recursive Download",
             InputOpt::Auth(val) => {
                 let auth = val.clone();
-                return format!("Authentication: {}", auth);
+                return format!("Authentication: {}", auth.to_string());
             }
             InputOpt::Execute => "Execute",
             InputOpt::Verbose => "Verbose",
+            InputOpt::ApiKey => "API Key",
         }
         .to_string()
     }

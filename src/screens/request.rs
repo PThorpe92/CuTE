@@ -5,10 +5,11 @@ use tui::Frame;
 use crate::app::App;
 use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
+use crate::display::menuopts::{HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
 use crate::request::cmdtype::CmdType;
 use crate::screens::screen::Screen;
-use crate::ui::render::{render_header_paragraph, HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
-use crate::ui::widgets::boxes::default_rect;
+use crate::ui::default_rect;
+use crate::ui::render::render_header_paragraph;
 
 pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let area = default_rect(frame.size());
@@ -23,7 +24,7 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
     frame.render_widget(
-        render_header_paragraph(HOME_MENU_PARAGRAPH, HOME_MENU_TITLE),
+        render_header_paragraph(&HOME_MENU_PARAGRAPH, &HOME_MENU_TITLE),
         frame.size(),
     );
     match app.selected {
@@ -45,18 +46,13 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
                 }
                 app.selected = None;
             }
-            // Output file,
-            4 => {
-                app.goto_screen(Screen::InputMenu(InputOpt::Output));
-                app.selected = None;
-            }
             // Request Body
-            5 => {
+            4 => {
                 app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
                 app.selected = None;
             }
             // Save this command
-            6 => {
+            5 => {
                 // we want to lazy load the db connection. so we
                 // dont actually establish the connection until we know
                 // we are actually goign to store the command or look something up.
@@ -70,7 +66,7 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
                 app.selected = None;
             }
             // Execute command
-            7 => match app.execute_command() {
+            6 => match app.execute_command() {
                 Ok(()) => {
                     if app.command.as_ref().unwrap().get_response().is_some() {
                         app.response = app.command.as_ref().unwrap().get_response().clone();

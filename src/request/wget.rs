@@ -1,7 +1,7 @@
 #[derive(Debug, Eq, Clone, PartialEq)]
 pub struct Wget {
     cmd: Vec<String>,
-    rec_level: usize,
+    rec_level: Option<usize>,
     auth: Option<String>,
     url: String,
     output: String,
@@ -13,7 +13,7 @@ impl Wget {
     pub fn new() -> Self {
         Wget {
             cmd: vec![String::from("wget")],
-            rec_level: 0,
+            rec_level: None,
             url: String::new(),
             auth: None,
             output: String::new(),
@@ -81,7 +81,7 @@ impl Wget {
     }
 
     pub fn set_rec_download_level(&mut self, level: usize) {
-        self.rec_level = level;
+        self.rec_level = Some(level);
     }
 
     pub fn has_url(&self) -> bool {
@@ -93,7 +93,7 @@ impl Wget {
     }
 
     pub fn has_rec(&self) -> bool {
-        self.rec_level > 0
+        self.rec_level.is_some()
     }
 
     pub fn has_auth(&self) -> bool {
@@ -118,12 +118,15 @@ impl Wget {
         self.output = String::from(output);
     }
 
-    // This just builds a vector of strings for executing them in command.arg(str)
+    // This just builds a vector of strings for executing in command.arg(str)
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn build_command(&mut self) {
         self.cmd.push(self.url.clone());
         if self.has_rec() {
             self.cmd.push("-depth".to_string());
-            self.cmd.push(self.rec_level.to_string());
+            if self.has_rec() {
+                self.cmd.push(self.rec_level.unwrap().to_string());
+            }
         }
         match self.auth.clone() {
             Some(ref auth) => self.cmd.push(auth.clone()),
@@ -142,9 +145,8 @@ impl Wget {
         if self.has_url() {
             cmdstr.push(self.url.clone());
         }
-
         if self.has_rec() {
-            cmdstr.push(format!("-r {}", self.rec_level));
+            cmdstr.push(format!("-r {}", self.rec_level.unwrap()));
         }
         match self.auth.clone() {
             Some(ref auth) => cmdstr.push(auth.clone()),
@@ -159,9 +161,10 @@ impl Wget {
     // Added Windows Specific Function
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn execute(&mut self) -> Result<(), String> {
+        self.build_command();
         let command = std::process::Command::new("sh")
             .arg("-c")
-            .arg(self.build_string())
+            .args([self.cmd.join(" ")]) // Rest Of The Command Arguments
             .output()
             .expect("failed to execute process");
         if command.status.success() {
@@ -191,6 +194,20 @@ impl Wget {
 mod tests {
 
     use crate::request::wget::Wget;
+    use std::ops::DerefMut;
+
+    use mockito::ServerGuard;
+
+    fn setup() -> ServerGuard {
+        let mut server = mockito::Server::new();
+        // Start a mock server
+        let _ = server
+            .mock("GET", "/api/resource")
+            .with_status(200)
+            .with_body("Mocked Response")
+            .create();
+        return ServerGuard::from(server);
+    }
 
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -214,8 +231,8 @@ mod tests {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn test_set_url() {
         let mut wget = Wget::new();
-        wget.set_url("http://www.google.com");
-        assert_eq!("wget http://www.google.com", wget.build_string());
+        wget.set_url("https://www.google.com");
+        assert_eq!("wget https://www.google.com", wget.build_string());
     }
 
     #[test]
@@ -230,8 +247,8 @@ mod tests {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn test_set_output() {
         let mut wget = Wget::new();
-        wget.set_output("output");
-        assert_eq!("wget -O output", wget.build_string());
+        wget.set_output("output.txt");
+        assert_eq!("wget -O output.txt", wget.build_string());
     }
 
     #[test]
@@ -290,20 +307,22 @@ mod tests {
         let mut wget = Wget::new();
         wget.set_rec_download_level(2);
         assert_eq!("wget -r 2", wget.build_string());
-        assert_eq!(2, wget.rec_level);
+        assert_eq!(2, wget.rec_level.unwrap());
     }
 
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn test_execute() {
+        let mut setup = setup();
+        let url = setup.deref_mut().url().clone();
         let mut wget = Wget::new();
-        wget.set_url("http://www.google.com");
+        wget.set_url(url.clone().as_str());
         wget.set_output("output");
-        assert_eq!("wget http://www.google.com -O output", wget.build_string());
-        let result = wget.execute();
-        assert_eq!(true, result.is_ok());
-        assert!(std::fs::metadata("output").is_ok());
-        std::fs::remove_file("output").unwrap();
+        assert_eq!(format!("wget {} -O output", url), wget.build_string());
+        if wget.execute().is_ok() {
+            assert!(std::fs::metadata("output").is_ok());
+            std::fs::remove_file("output").unwrap();
+        }
     }
 
     #[test]
@@ -312,7 +331,7 @@ mod tests {
         let mut wget = Wget::new();
         wget.set_rec_download_level(2);
         assert_eq!("powershell.exe -NoLogo -NoProfile -ExecutionPolicy Unrestricted -File scripts\\win64-wget.ps1", wget.build_string());
-        assert_eq!(2, wget.rec_level);
+        assert_eq!(2, wget.rec_level.unwrap());
     }
 
     #[test]

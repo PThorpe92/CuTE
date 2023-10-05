@@ -1,12 +1,11 @@
 use tui::backend::Backend;
 
-
+use crate::app::App;
+use crate::display::menuopts::{SAVED_COMMANDS_PARAGRAPH, SAVED_COMMANDS_TITLE};
+use crate::ui::default_rect;
+use crate::ui::render::render_header_paragraph;
 use tui::widgets::{List, ListItem, ListState};
 use tui::Frame;
-
-use crate::app::App;
-use crate::ui::render::render_header_paragraph;
-use crate::ui::widgets::boxes::default_rect;
 
 pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let saved_commands = app.get_saved_commands().unwrap_or(vec![]);
@@ -21,16 +20,13 @@ pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame
     let new_list = List::new(new_list);
     let area = default_rect(frame.size());
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-    if !app.items.is_empty() {
-        app.items.clear();
-    }
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
 
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
     frame.render_widget(
-        render_header_paragraph(SAVED_COMMANDS_PARAGRAPH, SAVED_COMMANDS_TITLE),
+        render_header_paragraph(&SAVED_COMMANDS_PARAGRAPH, &SAVED_COMMANDS_TITLE),
         frame.size(),
     );
 
@@ -44,5 +40,3 @@ pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame
         None => {}
     }
 }
-const SAVED_COMMANDS_PARAGRAPH: &'static str = "View / Delete my saved cURL commands.\nPress q to exit\nPress Enter to select\nPress h to go back\n Please select a Menu item\n";
-const SAVED_COMMANDS_TITLE: &'static str = "My Saved cURL Commands";

@@ -3,9 +3,10 @@ use tui::widgets::ListState;
 use tui::Frame;
 
 use crate::app::App;
+use crate::display::menuopts::{HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
 use crate::screens::screen::Screen;
-use crate::ui::render::{render_header_paragraph, HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
-use crate::ui::widgets::boxes::centered_rect;
+use crate::ui::centered_rect;
+use crate::ui::render::render_header_paragraph;
 
 pub fn handle_debug_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     let menu_options = app.current_screen.get_list();
@@ -19,7 +20,7 @@ pub fn handle_debug_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) 
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(menu_options, area, &mut state);
     frame.render_widget(
-        render_header_paragraph(HOME_MENU_PARAGRAPH, HOME_MENU_TITLE),
+        render_header_paragraph(&HOME_MENU_PARAGRAPH, &HOME_MENU_TITLE),
         frame.size(),
     );
 

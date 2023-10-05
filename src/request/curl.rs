@@ -20,6 +20,8 @@ pub struct Curl<'a> {
     auth: AuthKind,
     // The final command string we will run
     cmd: String,
+    // The strings of headers
+    headers: Option<Vec<String>>,
     // The url we will send the request to
     url: String,
     // The opts we will build incrementally and store
@@ -77,6 +79,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                 let mut cmd = None;
                 let mut url = None;
                 let mut opts = None;
+                let mut headers = None;
                 let mut resp = None;
                 let mut upload_file = None;
                 let mut outfile = None;
@@ -89,6 +92,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                         "url" => url = Some(map.next_value()?),
                         "opts" => opts = Some(map.next_value()?),
                         "resp" => resp = Some(map.next_value()?),
+                        "headers" => headers = Some(map.next_value()?),
                         "upload_file" => upload_file = Some(map.next_value()?),
                         "outfile" => outfile = Some(map.next_value()?),
                         "save" => save = Some(map.next_value()?),
@@ -105,6 +109,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                     auth: auth.ok_or_else(|| serde::de::Error::missing_field("auth"))?,
                     cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
                     url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
+                    headers,
                     opts: opts.ok_or_else(|| serde::de::Error::missing_field("opts"))?,
                     resp,
                     upload_file,
@@ -157,6 +162,7 @@ impl<'a> Clone for Curl<'a> {
             url: self.url.clone(),
             opts: self.opts.clone(),
             resp: self.resp.clone(),
+            headers: self.headers.clone(),
             upload_file: self.upload_file.clone(),
             outfile: self.outfile.clone(),
             save: self.save.clone(),
@@ -171,6 +177,7 @@ impl<'a> PartialEq for Curl<'a> {
             && self.url == other.url
             && self.opts == other.opts
             && self.resp == other.resp
+            && self.headers == other.headers
             && self.upload_file == other.upload_file
             && self.outfile == other.outfile
             && self.save == other.save
@@ -214,6 +221,7 @@ impl<'a> Default for Curl<'a> {
             cmd: String::from("curl "),
             url: String::new(),
             opts: Vec::new(),
+            headers: None,
             resp: None,
             upload_file: None,
             outfile: None,
@@ -240,6 +248,7 @@ impl<'a> Curl<'a> {
         for opt in opts {
             match opt {
                 CurlFlag::Verbose(..) => self.set_verbose(true),
+                CurlFlag::Headers(_, val) => self.add_headers(vec![val.unwrap_or(String::new())]),
                 CurlFlag::Method(_, val) => match val {
                     Some(val) => match val.as_str() {
                         "GET" => self.set_get_method(),
@@ -357,9 +366,11 @@ impl<'a> Curl<'a> {
     }
 
     pub fn add_headers(&mut self, headers: Vec<String>) {
-        let mut list = List::new();
-        let _ = headers.iter().map(|h| list.append(h.as_str()).unwrap());
-        self.curl.http_headers(list).unwrap();
+        if self.headers.is_some() {
+            self.headers.as_mut().unwrap().extend(headers);
+        } else {
+            self.headers = Some(headers.clone());
+        }
     }
 
     pub fn set_verbose(&mut self, verbose: bool) {
@@ -530,6 +541,13 @@ impl<'a> Curl<'a> {
                 self.cmd.push(' ');
             }
         }
+        if self.headers.is_some() {
+            self.headers.as_ref().unwrap().iter().for_each(|h| {
+                self.cmd.push_str("-H ");
+                self.cmd.push_str(h.as_str());
+                self.cmd.push(' ');
+            });
+        }
         self.cmd.push_str(self.url.as_str());
         self.cmd = self.cmd.trim().to_string();
     }
@@ -539,6 +557,16 @@ impl<'a> Curl<'a> {
     }
 
     pub fn execute(&mut self, db: &mut Option<Box<DB>>) -> Result<(), curl::Error> {
+        if self.headers.is_some() {
+            let mut list = List::new();
+            let _ = self
+                .headers
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|h| list.append(h.as_str()).unwrap());
+            self.curl.http_headers(list).unwrap();
+        }
         if self.save {
             let _ = self.build_command_str();
             db.as_mut()
@@ -677,6 +705,7 @@ define_curl_flags! {
     Output("-o"),
     User("-u"),
     Bearer("-H"),
+    Headers("-H"),
     Digest("--digest"),
     Basic("-H"),
     AnyAuth("--any-auth"),
