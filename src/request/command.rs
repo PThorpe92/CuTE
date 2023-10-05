@@ -62,6 +62,7 @@ impl<'a> Command<'a> {
     pub fn set_outfile(&mut self, file: &str) {
         match self {
             Command::Curl(curl) => {
+                curl.set_output(String::from(file));
                 curl.add_flag(CurlFlag::Output(
                     CurlFlagType::Output.get_value(),
                     Some(String::from(file)),
@@ -118,16 +119,6 @@ impl<'a> Command<'a> {
     pub fn set_rec_download_level(&mut self, level: usize) {
         if let Command::Wget(wget) = self {
             wget.set_rec_download_level(level);
-        }
-    }
-
-    pub fn write_output(&mut self) -> Result<(), std::io::Error> {
-        match self {
-            Command::Curl(curl) => {
-                curl.write_output()?;
-                Ok(())
-            }
-            _ => Ok(()),
         }
     }
 

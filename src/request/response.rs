@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Response {
     pub status: u16,
     pub headers: HashMap<String, String>,
@@ -51,5 +52,9 @@ impl Response {
             headers,
             body,
         })
+    }
+
+    pub fn get_headers(&self) -> serde_json::Value {
+        serde_json::to_value(&self.headers).unwrap()
     }
 }

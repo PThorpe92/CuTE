@@ -30,7 +30,6 @@ pub enum Screen {
     Error(String),
     ViewBody,
     Debug,
-    URLInput,
 }
 
 impl Display for Screen {
@@ -51,7 +50,6 @@ impl Display for Screen {
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
             Screen::Debug => "Debug",
-            Screen::URLInput => "URLInput",
         };
         write!(f, "{}", screen)
     }
@@ -134,9 +132,6 @@ impl<'a> Screen {
                     .map(|i| ListItem::new(*i))
                     .collect();
             }
-            Screen::URLInput => {
-                vec![ListItem::new("URL Input").style(Style::default().fg(Color::Green))]
-            }
             Screen::SavedKeys => {
                 vec![ListItem::new("Saved Keys").style(Style::default().fg(Color::Green))]
             }
@@ -152,6 +147,6 @@ impl<'a> Screen {
             )
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-            .highlight_symbol("->")
+            .highlight_symbol("󱋰 ")
     }
 }

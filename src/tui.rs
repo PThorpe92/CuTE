@@ -8,7 +8,7 @@ use tui::Terminal;
 
 use crate::app::{App, AppResult};
 use crate::events::event::EventHandler;
-use crate::ui::render::render;
+use crate::screens::render::render;
 
 /// Representation of a terminal user interface.
 ///

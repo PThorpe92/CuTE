@@ -1,32 +1,16 @@
 use tui::backend::Backend;
-use tui::widgets::ListState;
 use tui::Frame;
 
 use crate::app::App;
-use crate::display::displayopts::DisplayOpts;
 use crate::display::inputopt::InputOpt;
-use crate::display::menuopts::{HOME_MENU_PARAGRAPH, HOME_MENU_TITLE};
+use crate::display::DisplayOpts;
 use crate::request::cmdtype::CmdType;
 use crate::screens::screen::Screen;
-use crate::ui::default_rect;
-use crate::ui::render::render_header_paragraph;
+
+use super::render::handle_screen_defaults;
 
 pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    let area = default_rect(frame.size());
-    let new_list = app.current_screen.get_list();
-    let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-    if !app.items.is_empty() {
-        app.items.clear();
-    }
-    app.items = app.current_screen.get_opts();
-    app.state = Some(state.clone());
-    app.state.as_mut().unwrap().select(Some(app.cursor));
-    frame.set_cursor(0, app.cursor as u16);
-    frame.render_stateful_widget(new_list, area, &mut state);
-    frame.render_widget(
-        render_header_paragraph(&HOME_MENU_PARAGRAPH, &HOME_MENU_TITLE),
-        frame.size(),
-    );
+    handle_screen_defaults(app, frame);
     match app.selected {
         Some(num) => match num {
             // Add a URL,
