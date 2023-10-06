@@ -1,3 +1,12 @@
+use super::{default_rect, small_alert_box};
+use crate::app::App;
+use crate::database::db::DB;
+use crate::display::inputopt::InputOpt;
+use crate::display::DisplayOpts;
+use crate::request::command::Command;
+use crate::screens::screen::Screen;
+use clipboard::{ClipboardContext, ClipboardProvider};
+use std::error::Error;
 use tui::backend::Backend;
 use tui::layout::Alignment;
 use tui::style::{Color, Style};
@@ -5,11 +14,11 @@ use tui::text::Text;
 use tui::widgets::{ListState, Paragraph};
 use tui::Frame;
 
-use crate::app::App;
-use crate::display::inputopt::InputOpt;
-use crate::screens::screen::Screen;
-
-use super::{default_rect, small_alert_box};
+fn copy_to_clipboard(command: &str) -> Result<(), Box<dyn Error>> {
+    let mut ctx: ClipboardContext = ClipboardProvider::new()?;
+    ctx.set_contents(command.to_owned())?;
+    Ok(())
+}
 
 pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, resp: String) {
     let area = default_rect(small_alert_box(frame.size()));
@@ -20,6 +29,16 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
         .alignment(Alignment::Center);
     if !app.items.is_empty() {
         app.items.clear();
+    }
+    // now we can check for whether or not we needed to store the key
+    if app.has_display_option(&DisplayOpts::SaveToken) {
+        if app.db.is_none() {
+            app.db = Some(Box::new(DB::new().unwrap()));
+        }
+        app.command
+            .as_ref()
+            .unwrap()
+            .save_key(app.db.as_ref().unwrap());
     }
     app.items = app.current_screen.get_opts();
     app.state = Some(state.clone());
@@ -33,11 +52,22 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
             0 => {
                 app.goto_screen(Screen::InputMenu(InputOpt::Execute));
             }
+            // View response headers
             1 => {
                 app.goto_screen(Screen::SavedCommands);
             }
+            // View response body
             2 => {
                 app.goto_screen(Screen::ViewBody);
+            }
+            // Copy to clipboard
+            3 => {
+                if let Command::Curl(ref mut curl) = app.command.as_mut().unwrap() {
+                    match copy_to_clipboard(curl.get_command_str().as_str()) {
+                        Ok(_) => app.goto_screen(Screen::Success),
+                        Err(e) => app.goto_screen(Screen::Error(e.to_string())),
+                    }
+                }
             }
             _ => {}
         },

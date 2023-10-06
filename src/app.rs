@@ -185,7 +185,7 @@ impl<'a> App<'a> {
 
     pub fn execute_command(&mut self) -> Result<(), String> {
         match self.command.as_mut().unwrap() {
-            Command::Curl(curl) => {
+            Command::Curl(ref mut curl) => {
                 // continue lazy loading by only opening connection if we need to
                 if curl.will_store_command() && self.db.is_none() {
                     self.db = Some(Box::new(DB::new().unwrap()));
@@ -240,7 +240,6 @@ impl<'a> App<'a> {
     // current selection on the screen so they know what they have selected
     // Lorenzo - Changing this because I dont think its doing what I want it to do.
     pub fn has_display_option(&self, opt: &DisplayOpts) -> bool {
-        // I refactored this to take a reference, since it was being referenced anyway.
         for element in self.opts.iter() {
             // I only care if its the same KIND of option, not the same value
             // This is annoying, I tried to do this an easier way
@@ -286,6 +285,11 @@ impl<'a> App<'a> {
                         return true;
                     }
                 }
+                DisplayOpts::SaveToken => {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
             }
         }
         // Otherwise, its not there.
@@ -307,6 +311,7 @@ impl<'a> App<'a> {
             DisplayOpts::Response(_) => !self.has_display_option(opt), // Response should be replaced
             DisplayOpts::RecDownload(_) => !self.has_display_option(opt), // Recursive download depth should be replaced
             DisplayOpts::Auth(_) => !self.has_display_option(opt),        // Auth should be replaced
+            DisplayOpts::SaveToken => !self.has_display_option(opt), // Save token should be toggled
         }
     }
 

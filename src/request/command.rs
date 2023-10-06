@@ -1,3 +1,4 @@
+use crate::database::db::DB;
 use crate::request::curl::{Curl, CurlFlag};
 use crate::request::wget::Wget;
 
@@ -107,6 +108,12 @@ impl<'a> Command<'a> {
     pub fn set_verbose(&mut self, verbose: bool) {
         if let Command::Curl(curl) = self {
             curl.set_verbose(verbose);
+        }
+    }
+
+    pub fn save_key(&self, db: &Box<DB>) {
+        if let Command::Curl(curl) = self {
+            db.add_key(curl.get_token().unwrap().as_str());
         }
     }
 

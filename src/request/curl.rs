@@ -198,6 +198,15 @@ pub enum AuthKind {
     Kerberos(String),
 }
 
+impl AuthKind {
+    pub fn get_token(&self) -> Option<String> {
+        match self {
+            AuthKind::Bearer(token) => Some(token.clone()),
+            _ => None,
+        }
+    }
+}
+
 impl Display for AuthKind {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
@@ -348,6 +357,10 @@ impl<'a> Curl<'a> {
 
     pub fn get_response(&self) -> Option<String> {
         self.resp.clone()
+    }
+
+    pub fn get_token(&self) -> Option<String> {
+        self.auth.get_token()
     }
 
     pub fn write_output(&mut self) -> Result<(), std::io::Error> {
@@ -568,6 +581,15 @@ impl<'a> Curl<'a> {
         self.cmd = self.cmd.trim().to_string();
     }
 
+    // this is only called after execution, we need to
+    // find out if its been built already
+    pub fn get_command_str(&mut self) -> String {
+        if !self.will_store_command() {
+            self.build_command_str();
+        }
+        self.cmd.clone()
+    }
+
     pub fn add_flag(&mut self, flag: CurlFlag<'a>) {
         self.opts.push(flag.clone());
     }
@@ -584,7 +606,7 @@ impl<'a> Curl<'a> {
                 .iter()
                 .map(|h| list.append(h.as_str()).unwrap());
         }
-        if self.save {
+        if self.will_store_command() {
             let _ = self.build_command_str();
             db.as_mut()
                 .unwrap()

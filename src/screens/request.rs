@@ -49,8 +49,14 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
                 }
                 app.selected = None;
             }
+            // Save your token or login
+            6 => {
+                app.add_display_option(DisplayOpts::SaveToken);
+                app.selected = None;
+            }
+            //
             // Execute command
-            6 => match app.execute_command() {
+            7 => match app.execute_command() {
                 Ok(()) => {
                     if app.command.as_ref().unwrap().get_response().is_some() {
                         app.response = app.command.as_ref().unwrap().get_response().clone();

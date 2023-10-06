@@ -39,13 +39,14 @@ lazy_static! {
         "View my stored API keys\n\n\n\n",
         "View or execute my saved commands\n\n\n\n",
     ];
-    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 7] = [
+    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 8] = [
         "Add a URL\n\n\n\n",
         "Add Authentication\n\n\n\n",
         "Add Headers\n\n\n\n",
         "Enable verbose output\n\n\n\n",
         "Add Request Body\n\n\n\n",
         "Save this command\n\n\n\n",
+        "Save your token or login\n\n\n\n",
         "Execute command\n\n\n\n",
     ];
     pub static ref DOWNLOAD_MENU_OPTIONS: [&'static str; 4] = [
@@ -71,10 +72,11 @@ lazy_static! {
         "Kerberos\n\n\n\n",
         "SPNEGO\n\n\n\n",
     ];
-    pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 3] = [
+    pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 4] = [
         "Write to file?\n\n\n\n",
         "View response headers\n\n\n\n",
         "View response body\n\n\n\n",
+        "Copy command to clipboard\n\n\n\n"
     ];
     pub static ref API_KEY_MENU_OPTIONS: [&'static str; 3] = [
         "Add a new key\n\n\n\n",

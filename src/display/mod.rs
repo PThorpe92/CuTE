@@ -25,4 +25,5 @@ pub enum DisplayOpts {
     Response(String),
     RecDownload(usize),
     Auth(String),
+    SaveToken,
 }

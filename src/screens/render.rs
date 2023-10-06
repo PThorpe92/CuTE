@@ -4,6 +4,7 @@ use crate::display::menuopts::{
     SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
 };
 use crate::display::DisplayOpts;
+use crate::request::command::Command;
 use crate::screens::input::input::handle_default_input_screen;
 
 use super::auth::handle_authentication_screen;
@@ -62,6 +63,10 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             }
             DisplayOpts::Auth(auth) => {
                 let auth_str = format!("- Auth: {}\n", auth);
+                display_opts.push_str(auth_str.as_str());
+            }
+            DisplayOpts::SaveToken => {
+                let auth_str = format!("- API Token will be saved\n");
                 display_opts.push_str(auth_str.as_str());
             }
             _ => {}
@@ -150,6 +155,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
             app.set_response(resp.clone());
+
             handle_response_screen(app, frame, resp.to_string());
         }
         // DEBUG MENU ***********************************************************
