@@ -111,9 +111,9 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn save_key(&self, db: &Box<DB>) {
+    pub fn save_token(&mut self) {
         if let Command::Curl(curl) = self {
-            db.add_key(curl.get_token().unwrap().as_str());
+            curl.save_token(!curl.will_save_token());
         }
     }
 

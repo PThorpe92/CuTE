@@ -35,6 +35,8 @@ pub struct Curl<'a> {
     outfile: Option<String>,
     // Whether to save the command to DB after execution
     save: bool,
+    // Whether we are goign to store the key/login in the DB
+    save_auth: bool,
 }
 impl<'a> Eq for Curl<'a> {}
 
@@ -53,6 +55,7 @@ impl<'a> Serialize for Curl<'a> {
         state.serialize_field("upload_file", &self.upload_file)?;
         state.serialize_field("outfile", &self.outfile)?;
         state.serialize_field("save", &self.save)?;
+        state.serialize_field("save_auth", &self.save_auth)?;
         state.end()
     }
 }
@@ -84,7 +87,8 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                 let mut resp = None;
                 let mut upload_file = None;
                 let mut outfile = None;
-                let mut save = None;
+                let mut _save = None;
+                let mut _save_auth = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -96,26 +100,26 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                         "headers" => headers = Some(map.next_value()?),
                         "upload_file" => upload_file = Some(map.next_value()?),
                         "outfile" => outfile = Some(map.next_value()?),
-                        "save" => save = Some(map.next_value()?),
-                        _ => {
-                            // Ignore unknown fields
-                            let _: serde_json::Value = map.next_value()?;
-                        }
+                        "save" => _save = Some(map.next_value()?),
+                        "save_auth" => _save_auth = Some(map.next_value()?),
+                        &_ => {}
                     }
                 }
-
                 let curl = Easy::new(); // You can create the 'curl::Easy' instance here
                 Ok(Curl {
                     curl,
                     auth: auth.ok_or_else(|| serde::de::Error::missing_field("auth"))?,
                     cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
                     url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
-                    headers,
+                    headers: headers.ok_or_else(|| serde::de::Error::missing_field("headers"))?,
                     opts: opts.ok_or_else(|| serde::de::Error::missing_field("opts"))?,
-                    resp,
-                    upload_file,
-                    outfile,
-                    save: save.unwrap_or(false),
+                    resp: resp.ok_or_else(|| serde::de::Error::missing_field("resp"))?,
+                    upload_file: upload_file
+                        .ok_or_else(|| serde::de::Error::missing_field("upload_file"))?,
+                    outfile: outfile.ok_or_else(|| serde::de::Error::missing_field("outfile"))?,
+                    save: false, // the only reason we would be deserialzing these if they are
+                    // already saved in the DB, so no need to do it again.
+                    save_auth: false,
                 })
             }
         }
@@ -130,6 +134,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                 "upload_file",
                 "outfile",
                 "save",
+                "save_auth",
             ],
             CurlVisitor,
         )
@@ -142,12 +147,15 @@ impl<'a> Clone for Curl<'a> {
         let _ = self.opts.iter().map(|x| curl.add_flag(x.clone()));
 
         curl.set_url(self.url.as_str());
+
         if let Some(ref res) = self.resp {
             curl.set_response(res.as_str());
         }
+
         if let Some(ref upload_file) = self.upload_file {
             curl.set_upload_file(upload_file.as_str());
         }
+
         if let Some(ref outfile) = self.outfile {
             curl.set_output(outfile.clone());
         }
@@ -167,6 +175,7 @@ impl<'a> Clone for Curl<'a> {
             upload_file: self.upload_file.clone(),
             outfile: self.outfile.clone(),
             save: self.save.clone(),
+            save_auth: self.save_auth.clone(),
         }
     }
 }
@@ -202,6 +211,13 @@ impl AuthKind {
     pub fn get_token(&self) -> Option<String> {
         match self {
             AuthKind::Bearer(token) => Some(token.clone()),
+            AuthKind::Basic(login) => Some(login.clone()),
+            AuthKind::Digest(login) => Some(login.clone()),
+            AuthKind::AwsSigv4(login) => Some(login.clone()),
+            AuthKind::Spnego(login) => Some(login.clone()),
+            AuthKind::Ntlm(login) => Some(login.clone()),
+            AuthKind::NtlmWb(login) => Some(login.clone()),
+            AuthKind::Kerberos(login) => Some(login.clone()),
             _ => None,
         }
     }
@@ -236,6 +252,7 @@ impl<'a> Default for Curl<'a> {
             upload_file: None,
             outfile: None,
             save: false,
+            save_auth: false,
         }
     }
 }
@@ -248,6 +265,18 @@ impl<'a> Curl<'a> {
     pub fn set_url(&mut self, url: &str) {
         self.url = String::from(url);
         self.curl.url(url).unwrap();
+    }
+
+    pub fn has_auth(&self) -> bool {
+        self.auth != AuthKind::None
+    }
+
+    pub fn will_save_token(&self) -> bool {
+        self.save_auth
+    }
+
+    pub fn save_token(&mut self, save: bool) {
+        self.save_auth = save;
     }
 
     // This is a hack because when we deseialize from the DB, we get a curl struct with no curl::Easy
@@ -616,6 +645,12 @@ impl<'a> Curl<'a> {
                         .unwrap_or(String::from("Error serializing command")),
                 )
                 .unwrap();
+        }
+        if self.will_save_token() {
+            let _ = db
+                .as_mut()
+                .unwrap()
+                .add_key(&self.auth.get_token().unwrap());
         }
         match &self.auth {
             AuthKind::Basic(login) => {

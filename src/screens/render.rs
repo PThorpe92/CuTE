@@ -28,7 +28,7 @@ use tui::{
     Frame,
 };
 
-use super::{centered_rect, small_rect, Screen};
+use super::{centered_rect, default_rect, small_rect, Screen};
 
 /// Renders the user interface widgets.
 pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -129,7 +129,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         Screen::Home => handle_home_screen(app, frame),
         Screen::Method => handle_method_select_screen(app, frame),
         Screen::ViewBody => {
-            let area = small_rect(frame.size());
+            let area = default_rect(frame.size());
             let response = app.response.clone().unwrap();
             let paragraph = Paragraph::new(Text::from(response.as_str()))
                 .style(Style::default().fg(Color::Yellow).bg(Color::Black))
@@ -137,6 +137,8 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             frame.render_widget(paragraph, area);
         }
         Screen::Downloads => handle_downloads_screen(app, frame),
+        //
+        // REQUEST MENU *********************************************************
         Screen::RequestMenu(_) => handle_request_menu_screen(app, frame),
         // KEYS SCREEN **********************************************************
         Screen::KeysMenu => {
@@ -155,7 +157,6 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
             app.set_response(resp.clone());
-
             handle_response_screen(app, frame, resp.to_string());
         }
         // DEBUG MENU ***********************************************************

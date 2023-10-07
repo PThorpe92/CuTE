@@ -4,14 +4,15 @@
 
 use std::fmt::{Display, Formatter};
 
-use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, List, ListItem};
-
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     API_KEY_MENU_OPTIONS, AUTHENTICATION_MENU_OPTIONS, DEBUG_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS,
-    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
+    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, OPTION_PADDING_MAX, OPTION_PADDING_MID,
+    OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
 };
+use crossterm::terminal::window_size;
+use tui::style::{Color, Modifier, Style};
+use tui::widgets::{Block, Borders, List, ListItem};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Screen {
@@ -55,6 +56,21 @@ impl Display for Screen {
     }
 }
 
+pub fn determine_line_size() -> &'static str {
+    match window_size() {
+        Ok(size) => {
+            // if we have the size, we can make the options look better
+            if size.width >= 1020 && size.height >= 680 {
+                return OPTION_PADDING_MAX;
+            } else if size.width >= 800 && size.height >= 600 {
+                return OPTION_PADDING_MID;
+            }
+            return OPTION_PADDING_MIN;
+        }
+        Err(_) => return OPTION_PADDING_MID,
+    }
+}
+
 impl<'a> Screen {
     pub fn default() -> Self {
         Screen::Home
@@ -65,31 +81,36 @@ impl<'a> Screen {
             Screen::Home => {
                 return MAIN_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::Method => {
                 return METHOD_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::HeaderAddRemove => {
                 return METHOD_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::KeysMenu => {
                 return API_KEY_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::RequestMenu(_) => {
                 return REQUEST_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::SavedCommands => {
@@ -98,7 +119,8 @@ impl<'a> Screen {
             Screen::Response(_) => {
                 return RESPONSE_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::InputMenu(_) => {
@@ -107,7 +129,8 @@ impl<'a> Screen {
             Screen::Authentication => {
                 return AUTHENTICATION_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::Success => {
@@ -122,14 +145,16 @@ impl<'a> Screen {
             Screen::Downloads => {
                 return DOWNLOAD_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::Debug => {
                 // Menu For Debug Screens
                 return DEBUG_MENU_OPTIONS
                     .iter()
-                    .map(|i| ListItem::new(*i))
+                    .map(|x| String::from(format!("{}{}", x, determine_line_size())))
+                    .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
             Screen::SavedKeys => {

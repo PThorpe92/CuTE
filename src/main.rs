@@ -11,7 +11,6 @@ use CuTE_tui::events::handler::handle_key_events;
 use CuTE_tui::tui::Tui;
 fn main() -> AppResult<()> {
     let mut app = App::new();
-
     let cutepath = data_local_dir().expect("Failed to get data local directory");
     let cutepath = cutepath.join("CuTE");
 

@@ -72,6 +72,14 @@ impl<'a> App<'a> {
         }
     }
 
+    pub fn has_auth(&self) -> bool {
+        match self.command.as_ref().unwrap() {
+            Command::Curl(curl) => curl.has_auth(),
+            _ => false,
+        };
+        false
+    }
+
     pub fn tick(&self) {}
 
     pub fn goto_screen(&mut self, screen: Screen) {
@@ -298,7 +306,7 @@ impl<'a> App<'a> {
 
     // Lorenzo - Im adding this function as a slightly more
     // robust version of has_display_option, to test if we should be replacing a value or adding a new one
-    fn should_replace_or_add(&self, opt: &DisplayOpts) -> bool {
+    fn should_add_option(&self, opt: &DisplayOpts) -> bool {
         // Lets match the type of display option
         // We know that only 1 URL should ever be added,
         // So if we're adding a URL we should replace it if it already exists
@@ -322,23 +330,48 @@ impl<'a> App<'a> {
         }
     }
 
-    // user selects once, we add. twice we remove.
-    // Lorenzo - When a display option is added, we should also add it to the sharable command
-    pub fn add_display_option(&mut self, opt: DisplayOpts) {
-        if self.should_replace_or_add(&opt) {
-            // TRUE = We Should Add An Option
-            // Adding The New Test Here. should_replace_or_add
-            // The user has not yet added this command option yet, and so therefore, we push it to the opts vector.
-            // I need a copy of the option before we move it
-            self.opts.push(opt.clone());
-            // We also need to add it to the sharable command
-            // but we need to know what kind of option it is
-            // the best way I can think of right now is to match it but I'm sure there's a better way
-            match opt {
-                DisplayOpts::Verbose => {
-                    // Just add the verbose flag to the command
-                    self.command.as_mut().unwrap().set_verbose(true);
+    fn should_toggle(&self, opt: &DisplayOpts) -> bool {
+        match opt {
+            DisplayOpts::Verbose => true,
+            DisplayOpts::SaveCommand => true,
+            DisplayOpts::SaveToken => true,
+            _ => false,
+        }
+    }
+
+    pub fn toggle_display_option(&mut self, opt: DisplayOpts) {
+        match opt.clone() {
+            DisplayOpts::Verbose => self
+                .command
+                .as_mut()
+                .unwrap()
+                .set_verbose(!self.opts.contains(&opt)),
+            DisplayOpts::SaveCommand => self
+                .command
+                .as_mut()
+                .unwrap()
+                .save_command(!self.opts.contains(&opt)),
+            DisplayOpts::SaveToken => {
+                if self.command.is_some() && self.has_auth() {
+                    self.command.as_mut().unwrap().save_token();
                 }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn add_display_option(&mut self, opt: DisplayOpts) {
+        // We either add the option or we replace the existing one
+
+        // first we look and see if its an option we can just toggle..
+        if self.should_toggle(&opt) {
+            self.toggle_display_option(opt);
+            return;
+        }
+
+        if self.should_add_option(&opt) {
+            self.opts.push(opt.clone());
+            match opt {
                 DisplayOpts::Headers((key, value)) => {
                     // Push Header To Shareable Command
                     self.command
@@ -347,11 +380,9 @@ impl<'a> App<'a> {
                         .add_headers(vec![format!("{}:{}", key, value)]);
                 }
                 DisplayOpts::URL(url) => {
-                    // Set URL To Sharable Command
                     self.command.as_mut().unwrap().set_url(url);
                 }
                 DisplayOpts::Outfile(outfile) => {
-                    // Set Outfile To Shareable Command
                     self.command.as_mut().unwrap().set_outfile(&outfile);
                 }
                 _ => {
@@ -360,7 +391,7 @@ impl<'a> App<'a> {
                 }
             }
         } else {
-            // FALSE = We Should Replace An Option
+            // We Should Replace An Option
             // The user has already added this command option, and so therefore, we should replace the old value with the new value.
             //self.opts.retain(|x| x != &opt);
             // Sorry, this is my way to do this idk if its the right way, but this is what makes sense to me in my head

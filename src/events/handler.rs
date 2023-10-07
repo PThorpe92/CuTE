@@ -72,9 +72,6 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                     app.messages.push(app.input.value().into());
                     app.input.reset();
                 }
-                // Fixed A Few Clippy Warnings Here.
-                // Nothing Was Happening If None, So,
-                // Might As Well Check Check is_some()
                 KeyCode::Char(c) => if app.input.handle(InputRequest::InsertChar(c)).is_some() {},
                 KeyCode::Backspace => {
                     if app.input.handle(InputRequest::DeletePrevChar).is_some() {}

@@ -7,15 +7,21 @@ use serde_json;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCommand {
-    id: i64,
+    id: i32,
     command: String,
     curl_json: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedKey {
-    id: i64,
+    id: i32,
     key: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SavedUrl {
+    id: i32,
+    url: String,
 }
 
 #[derive(Debug)]
@@ -55,11 +61,29 @@ impl DB {
         Ok(DB { conn })
     }
 
+    pub fn add_url(&self, url: &str) -> Result<(), rusqlite::Error> {
+        self.conn
+            .execute("INSERT INTO urls (url) VALUES (?1)", params![url])?;
+        Ok(())
+    }
+
+    pub fn delete_url(&self, url: &str) -> Result<(), rusqlite::Error> {
+        self.conn
+            .execute("DELETE FROM urls WHERE url = ?1", params![url])?;
+        Ok(())
+    }
+
     pub fn add_command(&self, command: &str, json_str: String) -> Result<(), rusqlite::Error> {
         self.conn.execute(
             "INSERT INTO commands (command, curl_json) VALUES (?1, ?2)",
             params![command, json_str],
         )?;
+        Ok(())
+    }
+
+    pub fn delete_command(&self, command: &str) -> Result<(), rusqlite::Error> {
+        self.conn
+            .execute("DELETE FROM commands WHERE command = ?1", params![command])?;
         Ok(())
     }
 
@@ -100,6 +124,12 @@ impl DB {
             keys.push(key?);
         }
         Ok(keys)
+    }
+}
+
+impl Display for SavedUrl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.url)
     }
 }
 

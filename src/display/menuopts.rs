@@ -32,57 +32,55 @@ pub const INPUT_OPT_AUTH_BASIC: &'static str = "Enter username:password and pres
 pub const INPUT_OPT_AUTH_ANY: &'static str = "Enter your username and press Enter";
 pub const INPUT_OPT_AUTH_BEARER: &'static str = "Enter your API token and press Enter";
 pub const INPUT_OPT_BASIC: &'static str = "Enter a value and press Enter";
+
+// This padds the choices in the menu. This is the least hideous way to do this.(I think)
+pub const OPTION_PADDING_MAX: &'static str = "\n\n\n\n";
+pub const OPTION_PADDING_MID: &'static str = "\n\n\n";
+pub const OPTION_PADDING_MIN: &'static str = "\n\n";
+
 lazy_static! {
     pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
-        "Build and send an HTTP request\n\n\n\n",
-        "Download a remote file or directory\n\n\n\n",
-        "View my stored API keys\n\n\n\n",
-        "View or execute my saved commands\n\n\n\n",
+        "Build and send an HTTP request",
+        "Download a remote file or directory",
+        "View my stored API keys",
+        "View or execute my saved commands",
     ];
     pub static ref REQUEST_MENU_OPTIONS: [&'static str; 8] = [
-        "Add a URL\n\n\n\n",
-        "Add Authentication\n\n\n\n",
-        "Add Headers\n\n\n\n",
-        "Enable verbose output\n\n\n\n",
-        "Add Request Body\n\n\n\n",
-        "Save this command\n\n\n\n",
-        "Save your token or login\n\n\n\n",
-        "Execute command\n\n\n\n",
+        "Add a URL",
+        "Add Authentication",
+        "Add Headers",
+        "Enable verbose output",
+        "Add Request Body",
+        "Save this Command",
+        "Save your API token or login information",
+        "Execute command",
     ];
     pub static ref DOWNLOAD_MENU_OPTIONS: [&'static str; 4] = [
-        "Specify recursive depth\n\n\n\n",
-        "Add a URL\n\n\n\n",
-        "Specify output filepath\n\n\n\n",
-        "Begin Download\n\n\n\n",
+        "Specify recursive depth",
+        "Add a URL",
+        "Specify output filepath",
+        "Begin Download",
     ];
-    pub static ref METHOD_MENU_OPTIONS: [&'static str; 5] = [
-        "GET\n\n\n\n",
-        "POST\n\n\n\n",
-        "PUT\n\n\n\n",
-        "DELETE\n\n\n\n",
-        "PATCH\n\n\n\n",
-    ];
+    pub static ref METHOD_MENU_OPTIONS: [&'static str; 5] =
+        ["GET", "POST", "PUT", "DELETE", "PATCH",];
     pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 8] = [
-        "Basic\n\n\n\n",
-        "Bearer\n\n\n\n",
-        "Digest\n\n\n\n",
-        "AWS SignatureV4\n\n\n\n",
-        "Ntlm\n\n\n\n",
-        "NtlmWb\n\n\n\n",
-        "Kerberos\n\n\n\n",
-        "SPNEGO\n\n\n\n",
+        "Basic",
+        "Bearer",
+        "Digest",
+        "AWS SignatureV4",
+        "Ntlm",
+        "NtlmWb",
+        "Kerberos",
+        "SPNEGO",
     ];
     pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 4] = [
-        "Write to file?\n\n\n\n",
-        "View response headers\n\n\n\n",
-        "View response body\n\n\n\n",
-        "Copy command to clipboard\n\n\n\n"
+        "Write to file?",
+        "View response headers",
+        "View response body",
+        "Copy command to clipboard"
     ];
-    pub static ref API_KEY_MENU_OPTIONS: [&'static str; 3] = [
-        "Add a new key\n\n\n\n",
-        "View my saved keys\n\n\n\n",
-        "Delete a key\n\n\n\n",
-    ];
+    pub static ref API_KEY_MENU_OPTIONS: [&'static str; 3] =
+        ["Add a new key", "View my saved keys", "Delete a key",];
     pub static ref DEBUG_MENU_OPTIONS: [&'static str; 2] =
         ["Back...\n \n", "URL Input Screen Debug \n \n"];
 }
