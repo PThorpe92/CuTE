@@ -46,9 +46,10 @@ impl<'a> Serialize for Curl<'a> {
         S: Serializer,
     {
         // Serialize all fields except 'curl::Easy'
-        let mut state = serializer.serialize_struct("Curl", 8)?;
+        let mut state = serializer.serialize_struct("Curl", 10)?;
         state.serialize_field("auth", &self.auth)?;
         state.serialize_field("cmd", &self.cmd)?;
+        state.serialize_field("headers", &self.headers)?;
         state.serialize_field("url", &self.url)?;
         state.serialize_field("opts", &self.opts)?;
         state.serialize_field("resp", &self.resp)?;
@@ -81,27 +82,23 @@ impl<'de> Deserialize<'de> for Curl<'de> {
             {
                 let mut auth = None;
                 let mut cmd = None;
+                let mut headers = None;
                 let mut url = None;
                 let mut opts = None;
-                let mut headers = None;
                 let mut resp = None;
                 let mut upload_file = None;
                 let mut outfile = None;
-                let mut _save = None;
-                let mut _save_auth = None;
 
                 while let Some(key) = map.next_key()? {
                     match key {
                         "auth" => auth = Some(map.next_value()?),
                         "cmd" => cmd = Some(map.next_value()?),
+                        "headers" => headers = Some(map.next_value()?),
                         "url" => url = Some(map.next_value()?),
                         "opts" => opts = Some(map.next_value()?),
                         "resp" => resp = Some(map.next_value()?),
-                        "headers" => headers = Some(map.next_value()?),
                         "upload_file" => upload_file = Some(map.next_value()?),
                         "outfile" => outfile = Some(map.next_value()?),
-                        "save" => _save = Some(map.next_value()?),
-                        "save_auth" => _save_auth = Some(map.next_value()?),
                         &_ => {}
                     }
                 }
@@ -110,15 +107,14 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                     curl,
                     auth: auth.ok_or_else(|| serde::de::Error::missing_field("auth"))?,
                     cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
-                    url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
                     headers: headers.ok_or_else(|| serde::de::Error::missing_field("headers"))?,
+                    url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
                     opts: opts.ok_or_else(|| serde::de::Error::missing_field("opts"))?,
                     resp: resp.ok_or_else(|| serde::de::Error::missing_field("resp"))?,
                     upload_file: upload_file
                         .ok_or_else(|| serde::de::Error::missing_field("upload_file"))?,
                     outfile: outfile.ok_or_else(|| serde::de::Error::missing_field("outfile"))?,
-                    save: false, // the only reason we would be deserialzing these if they are
-                    // already saved in the DB, so no need to do it again.
+                    save: false,
                     save_auth: false,
                 })
             }
@@ -128,6 +124,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
             &[
                 "auth",
                 "cmd",
+                "headers",
                 "url",
                 "opts",
                 "resp",
@@ -157,7 +154,7 @@ impl<'a> Clone for Curl<'a> {
         }
 
         if let Some(ref outfile) = self.outfile {
-            curl.set_output(outfile.clone());
+            curl.set_outfile(outfile.clone());
         }
         if self.cmd != DEFAULT_CMD {
             // our cmd string has been built
@@ -267,6 +264,10 @@ impl<'a> Curl<'a> {
         self.curl.url(url).unwrap();
     }
 
+    pub fn get_url(&self) -> String {
+        self.url.clone()
+    }
+
     pub fn has_auth(&self) -> bool {
         self.auth != AuthKind::None
     }
@@ -286,7 +287,7 @@ impl<'a> Curl<'a> {
         let opts = self.opts.clone();
         for opt in opts {
             match opt {
-                CurlFlag::Verbose(..) => self.set_verbose(true),
+                CurlFlag::Verbose(..) => self.set_verbose(),
                 CurlFlag::Headers(_, val) => self.add_headers(vec![val.unwrap_or(String::new())]),
                 CurlFlag::Method(_, val) => match val {
                     Some(val) => match val.as_str() {
@@ -301,7 +302,7 @@ impl<'a> Curl<'a> {
                 },
                 CurlFlag::Output(..) => {
                     if let Some(val) = opt.get_arg() {
-                        self.set_output(val);
+                        self.set_outfile(val);
                     }
                 }
                 CurlFlag::User(..) => {}
@@ -431,9 +432,23 @@ impl<'a> Curl<'a> {
         }
     }
 
-    pub fn set_verbose(&mut self, verbose: bool) {
+    pub fn remove_headers(&mut self, headers: Vec<String>) {
+        if self.headers.is_some() {
+            self.headers
+                .as_mut()
+                .unwrap()
+                .retain(|x| !headers.contains(x));
+        }
+    }
+
+    pub fn set_verbose(&mut self) {
         self.add_flag(CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None));
-        self.curl.verbose(verbose).unwrap_or_default();
+        self.curl.verbose(true).unwrap_or_default();
+    }
+
+    pub fn has_verbose(&self) -> bool {
+        self.opts
+            .contains(&CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None))
     }
 
     pub fn set_any_auth(&mut self) {
@@ -545,7 +560,7 @@ impl<'a> Curl<'a> {
         self.save = save;
     }
 
-    pub fn set_output(&mut self, output: String) {
+    pub fn set_outfile(&mut self, output: String) {
         self.add_flag(CurlFlag::Output(CurlFlagType::Output.get_value(), None));
         self.outfile = Some(output.clone());
     }
@@ -823,10 +838,9 @@ define_curl_flags! {
 mod tests {
     use std::ops::DerefMut;
 
+    use super::*;
     use mockito::ServerGuard;
     use serde_json::json;
-
-    use super::*;
 
     fn setup(method: &str) -> ServerGuard {
         let mut server = mockito::Server::new();
@@ -852,7 +866,7 @@ mod tests {
         let url = "https://example.com".to_string();
         let mut curl = Curl::new();
         curl.set_get_method();
-        curl.set_verbose(true);
+        curl.set_verbose();
         curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X GET -v {}", url));
@@ -900,7 +914,7 @@ mod tests {
         let mut curl = Curl::new();
         let response = "This is a response";
         curl.set_response(response);
-        curl.set_output("output.txt".to_string());
+        curl.set_outfile("output.txt".to_string());
         curl.write_output().unwrap();
         let _ = std::fs::remove_file("output.txt");
     }
@@ -923,18 +937,15 @@ mod tests {
         let verbose_flag = CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None);
         let json = json!(
         {
-                "auth": {"Basic": "username:password"},
-                "cmd": "curl -X GET https://example.com",
-                "url": "https://example.com",
-                "opts": [
-                        method_flag, verbose_flag
-                ],
-                "resp": "This is a response",
-                "upload_file": "file.txt",
-                "outfile": "output.txt",
-                "save": true
-        }
-        );
+            "auth": {"Basic": "username:password"},
+            "cmd": "curl -X GET https://example.com",
+            "headers": [],
+            "url": "https://example.com",
+            "opts": [method_flag, verbose_flag],
+            "resp": "This is a response",
+            "upload_file": "file.txt",
+            "outfile": "output.txt",
+        });
         let binding = json.to_string();
         let curl: Curl = serde_json::from_str(&binding).unwrap();
         assert_eq!(curl.auth, AuthKind::Basic("username:password".to_string()));
@@ -948,12 +959,12 @@ mod tests {
         {
                 "auth": {"Basic": "username:password"},
                 "cmd": "curl -X GET https://example.com",
+                "headers": [],
                 "url": "https://example.com",
                 "opts": [],
                 "resp": "This is a response",
                 "upload_file": "file.txt",
                 "outfile": "output.txt",
-                "save": true
         }
         );
         let binding = json.to_string();
@@ -973,25 +984,29 @@ mod tests {
         let json = json!({
         "auth": {"Basic": "username:password"},
         "cmd": "curl",
+        "headers": [],
         "url": format!("{}", url.as_str()),
         "opts":[],
         "resp": "None",
+        "upload_file": "file.txt",
         "outfile": "output.txt",
-        "save": false,
         });
         let binding = json.to_string();
         let mut curl: Curl = serde_json::from_str(&binding).unwrap();
         curl.set_url(url.as_str());
         curl.easy_from_opts();
+        let _ = std::fs::File::create("file.txt");
         curl.set_basic_auth(String::from("username:password"));
+        curl.set_upload_file("file.txt");
         curl.execute(&mut None).unwrap();
         assert_eq!(curl.url, url.as_str());
-        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.opts.len(), 2);
         assert!(curl.opts.contains(&CurlFlag::Basic(
             CurlFlagType::Basic.get_value(),
             Some(String::from("username:password"))
         )));
         assert!(curl.resp.is_some());
+        let _ = std::fs::remove_file("file.txt");
     }
 
     #[test]
@@ -1007,10 +1022,10 @@ mod tests {
     }
 
     #[test]
-    fn test_set_output() {
+    fn test_set_outfile() {
         let mut curl = Curl::new();
         let output = "output.txt".to_string();
-        curl.set_output(output.clone());
+        curl.set_outfile(output.clone());
         assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.outfile, Some(output.clone()));
     }
@@ -1018,7 +1033,7 @@ mod tests {
     #[test]
     fn test_opts_len() {
         let mut curl = Curl::new();
-        curl.set_verbose(true);
+        curl.set_verbose();
         assert_eq!(curl.opts.len(), 1);
     }
 
@@ -1070,7 +1085,7 @@ mod tests {
     #[test]
     fn test_set_verbose() {
         let mut curl = Curl::new();
-        curl.set_verbose(true);
+        curl.set_verbose();
         assert_eq!(curl.opts.len(), 1);
         assert!(curl
             .opts

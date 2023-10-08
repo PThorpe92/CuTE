@@ -109,7 +109,6 @@ pub fn handle_default_input_screen<B: Backend>(
 fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
         InputOpt::URL(opt) => {
-            app.set_url(message.clone());
             match opt {
                 CmdType::Wget => {
                     app.add_display_option(DisplayOpts::URL(message));
@@ -127,14 +126,8 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::Headers => {
             let headers = message.split(':').collect::<Vec<&str>>();
-            let cpy = (
-                String::from(headers[0].clone()),
-                String::from(headers[1].clone()),
-            );
-            app.command
-                .as_mut()
-                .unwrap()
-                .set_headers(headers.iter().map(|x| x.to_string()).collect());
+            let cpy = (String::from(headers[0]), String::from(headers[1]));
+            app.add_headers(headers.iter().map(|x| x.to_string()).collect());
             app.add_display_option(DisplayOpts::Headers(cpy));
             app.current_screen = Screen::RequestMenu(String::new());
         }

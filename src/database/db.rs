@@ -87,6 +87,15 @@ impl DB {
         Ok(())
     }
 
+    pub fn key_exists(&self, key: &str) -> Result<bool> {
+        let mut stmt = self
+            .conn
+            .prepare(format!("SELECT COUNT(*) FROM keys WHERE key = {}", key).as_str())?;
+
+        let count: i64 = stmt.query_row([], |row| row.get(0))?;
+        Ok(count > 0)
+    }
+
     pub fn get_commands(&self) -> Result<Vec<SavedCommand>> {
         let mut stmt = self
             .conn

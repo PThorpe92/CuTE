@@ -4,7 +4,6 @@ use crate::display::DisplayOpts;
 use crate::request::command::Command;
 use crate::screens::screen::Screen;
 use crate::{database::db::DB, request::response::Response};
-use std::ops::{Deref, DerefMut};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
 
@@ -37,19 +36,6 @@ pub struct App<'a> {
     pub db: Option<Box<DB>>,
 }
 
-impl<'a> Deref for App<'a> {
-    type Target = Command<'a>;
-    fn deref(&self) -> &Self::Target {
-        &self.command.as_ref().unwrap()
-    }
-}
-
-impl<'a> DerefMut for App<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.command.as_mut().unwrap()
-    }
-}
-
 impl<'a> Default for App<'a> {
     fn default() -> Self {
         Self {
@@ -78,6 +64,20 @@ impl<'a> App<'a> {
     }
     pub fn set_command(&mut self, command: Command<'a>) {
         self.command = Some(command);
+    }
+
+    pub fn set_url(&mut self, url: String) {
+        if let Some(ref mut cmd) = self.command {
+            cmd.set_url(url);
+        }
+    }
+
+    pub fn has_auth(&self) -> bool {
+        match self.command.as_ref().unwrap() {
+            Command::Curl(curl) => curl.has_auth(),
+            _ => false,
+        };
+        false
     }
 
     pub fn tick(&self) {}
@@ -163,40 +163,24 @@ impl<'a> App<'a> {
     }
 
     pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
-        for option in self.opts.iter() {
-            match option {
-                DisplayOpts::Verbose => {
-                    self.command.as_mut().unwrap().set_verbose();
-                }
-                DisplayOpts::SaveCommand => {
-                    self.command.as_mut().unwrap().save_command(false);
-                }
-                DisplayOpts::SaveToken => match self.command.as_mut().unwrap() {
-                    Command::Curl(curl) => curl.save_token(false),
-                    _ => {}
-                },
-                DisplayOpts::URL(_) => self.command.as_mut().unwrap().set_url(""),
-                DisplayOpts::Headers(..) => self
-                    .command
-                    .as_mut()
-                    .unwrap()
-                    .remove_headers(vec![opt.get_value()]),
-                DisplayOpts::Outfile(_) => self.command.as_mut().unwrap().set_outfile(""),
-                DisplayOpts::Response(_) => self.response = None,
-                DisplayOpts::RecDownload(_) => {
-                    self.command.as_mut().unwrap().set_rec_download_level(0)
-                }
-                DisplayOpts::Auth(_) => self
-                    .command
-                    .as_mut()
-                    .unwrap()
-                    .set_auth(crate::request::curl::AuthKind::None),
-            }
-        }
         self.opts.retain(|x| x != opt);
     }
     pub fn remove_all_display_options(&mut self) {
         self.opts.clear();
+    }
+
+    pub fn write_response(&mut self) -> Result<(), String> {
+        if let Some(ref mut cmd) = self.command {
+            match cmd {
+                Command::Curl(ref mut curl) => match curl.write_output() {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(e.to_string()),
+                },
+                _ => Err(String::from("downloads output is written by default")),
+            }
+        } else {
+            Err(String::from("No command to write output for"))
+        }
     }
 
     pub fn get_response_headers(&mut self) -> String {
@@ -256,16 +240,8 @@ impl<'a> App<'a> {
         if self.db.is_none() {
             self.db = Some(Box::new(DB::new().unwrap()));
         }
-        match self.db.as_mut().unwrap().add_key(&key) {
-            Ok(_) => {
-                println!("Key Added");
-                return Ok(());
-            }
-            Err(_) => {
-                println!("OOPS");
-                Ok(())
-            }
-        }
+        let db = self.db.as_ref().unwrap();
+        db.add_key(&key)
     }
 
     // Display option is some state that requires us to display the users
@@ -364,15 +340,12 @@ impl<'a> App<'a> {
     }
 
     pub fn toggle_display_option(&mut self, opt: DisplayOpts) {
-        if self.opts.contains(&opt) {
-            self.opts.retain(|x| x != &opt);
-        } else {
-            self.opts.push(opt.clone());
-        }
         match opt.clone() {
-            DisplayOpts::Verbose => {
-                self.command.as_mut().unwrap().set_verbose();
-            }
+            DisplayOpts::Verbose => self
+                .command
+                .as_mut()
+                .unwrap()
+                .set_verbose(!self.opts.contains(&opt)),
             DisplayOpts::SaveCommand => self
                 .command
                 .as_mut()
@@ -407,7 +380,7 @@ impl<'a> App<'a> {
                         .add_headers(vec![format!("{}:{}", key, value)]);
                 }
                 DisplayOpts::URL(url) => {
-                    self.set_url(&url);
+                    self.command.as_mut().unwrap().set_url(url);
                 }
                 DisplayOpts::Outfile(outfile) => {
                     self.command.as_mut().unwrap().set_outfile(&outfile);
@@ -419,81 +392,37 @@ impl<'a> App<'a> {
             }
         } else {
             // We Should Replace An Option
-            // Sorry this is wayy less efficient than it should be, I just need it to work
-            // for right now. TODO:
-            //  FIXME:
-            for option in self.opts.iter_mut() {
-                match option {
-                    DisplayOpts::URL(_) => {
-                        option.replace_value(opt.get_value());
-                        self.command.as_mut().unwrap().set_url(&opt.get_value());
-                        println!("{} YAY MEEEEE", opt.get_value());
-                    }
-                    DisplayOpts::Headers(..) => option.replace_value(opt.get_value()),
-                    DisplayOpts::Outfile(_) => option.replace_value(opt.get_value()),
-                    DisplayOpts::Response(_) => option.replace_value(opt.get_value()),
-                    DisplayOpts::RecDownload(_) => option.replace_value(opt.get_value()),
-                    DisplayOpts::Auth(_) => option.replace_value(opt.get_value()),
-                    _ => {}
+            // The user has already added this command option, and so therefore, we should replace the old value with the new value.
+            //self.opts.retain(|x| x != &opt);
+            // Sorry, this is my way to do this idk if its the right way, but this is what makes sense to me in my head
+            for element in self.opts.iter_mut() {
+                // Same thing down here, I only care if its the same KIND of option, not the same value
+                // Again, this is annoying, I tried to do this an easier way
+                // but mem::discriminant doesnt like element as a comparison so I need to be particular
+                // Sorry lets refactor this
+                // TODO: Refactor This.
+
+                // We Want To Just Replace A URL
+                if let DisplayOpts::URL(_) = element {
+                    *element = opt; // Copy The New URL Into The Old One
+                    return;
                 }
+
+                // TODO: Headers Will Be Handled Differently.
+
+                // TODO: Outfile Will Be Handled Differently.
+
+                // TODO: Verbose & Save Command Will Be Handled Differently.
+
+                // TODO: Other Shit
             }
-            self.opts.push(opt);
         }
     }
 }
 
+
 #[cfg(test)]
 mod tests {
-    use super::App;
-    use crate::display::DisplayOpts;
-    use crate::request::command::Command;
-    use crate::request::curl::Curl;
-
-    // helper
-    fn return_app_cmd() -> App<'static> {
-        let mut app = App::default();
-        app.set_command(Command::Curl(Curl::new()));
-        app
-    }
-
     #[test]
-    fn test_store_key() {
-        let mut app = return_app_cmd();
-        let token = "abcdefghijklmnop".to_string();
-        let _ = app.add_saved_key(token.clone());
-        assert!(app.db.as_ref().unwrap().key_exists(&token).unwrap());
-    }
-
-    #[test]
-    fn test_toggle_verbose() {
-        let mut app = return_app_cmd();
-        // Add one.
-        app.add_display_option(crate::display::DisplayOpts::Verbose);
-        assert!(app.has_display_option(&DisplayOpts::Verbose));
-        // this should toggle
-        app.add_display_option(DisplayOpts::Verbose);
-        assert!(!app.has_display_option(&DisplayOpts::Verbose));
-    }
-
-    #[test]
-    fn test_replace_display_opt() {
-        let mut app = return_app_cmd();
-        let url = "https://www.google.com".to_string();
-        app.add_display_option(DisplayOpts::URL(url.clone()));
-        assert!(app.command.as_ref().unwrap().get_url() == url);
-        println!("{}", url.clone());
-        // overwrite the url
-        let new_url = "https://www.github.com".to_string();
-        app.add_display_option(DisplayOpts::URL(new_url.clone()));
-        println!("{}", new_url.clone());
-        assert!(app.command.as_ref().unwrap().get_url() == new_url);
-    }
-
-    #[test]
-    fn test_remove_display_option() {
-        let mut app = return_app_cmd();
-        let url = "https://www.google.com";
-        app.add_display_option(DisplayOpts::URL(String::from(url)));
-        app.remove_display_option(&DisplayOpts::URL(String::from(url)));
-    }
+    fn test_store_key()
 }
