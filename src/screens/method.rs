@@ -19,9 +19,7 @@ pub fn handle_method_select_screen<B: Backend>(app: &mut App, frame: &mut Frame<
                 .as_mut()
                 .unwrap()
                 .set_method(String::from(METHOD_MENU_OPTIONS[num])); // safe index
-            app.goto_screen(Screen::RequestMenu(String::from(
-                METHOD_MENU_OPTIONS[num].clone(),
-            )));
+            app.goto_screen(Screen::RequestMenu(String::from(METHOD_MENU_OPTIONS[num])));
         }
         None => {}
     }

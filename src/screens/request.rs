@@ -44,6 +44,7 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
                 if app.command.as_ref().unwrap().get_response().is_some() {
                     app.response = app.command.as_ref().unwrap().get_response().clone();
                     app.goto_screen(Screen::Response(app.response.clone().unwrap()));
+                    app.selected = None;
                 } else {
                     app.goto_screen(Screen::Error("Unable To Retreve Response...".to_string()));
                 }

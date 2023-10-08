@@ -122,11 +122,13 @@ impl<'a> Command<'a> {
             curl.save_token(!curl.will_save_token());
         }
     }
+
     pub fn set_rec_download_level(&mut self, level: usize) {
         if let Command::Wget(wget) = self {
             wget.set_rec_download_level(level);
         }
     }
+
     pub fn to_string(&self) -> String {
         match self {
             Command::Curl(_) => "Curl",

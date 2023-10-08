@@ -3,20 +3,21 @@
  */
 use lazy_static::lazy_static;
 
-pub const SAVED_COMMANDS_PARAGRAPH: &'static str = "View / Delete my saved cURL commands.\nPress q to exit\nPress Enter to select\nPress h to go back\n Please select a Menu item\n";
+pub const SAVED_COMMANDS_PARAGRAPH: &'static str = "\nPress q to exit\nPress Enter to Execute command\nPress 'ESC' to go back\nPress 'x' to Delete\n";
 pub const CURL: &'static str = "curl";
 pub const WGET: &'static str = "wget";
 pub const CUSTOM: &'static str = "custom";
 pub const DOWNLOAD: &'static str = "Download";
-pub const API_KEY_PARAGRAPH: &'static str = "Create / Edit / Delete API Keys and tokens.\nPress q to exit\nPress Enter to select\n Please select a Menu item\n";
+pub const API_KEY_PARAGRAPH: &'static str =
+    "Press q to quit\nPress Enter to select\nPress 'x' to delete an item\n";
 pub const HTTP_REQUEST: &'static str = "HTTP Request";
 pub const DEFAULT_MENU_PARAGRAPH: &'static str =
-    "\nPress q to exit \n Press Enter to select \n Please select a Menu item\n";
+    "\nPress q to exit \n Press Enter to select \n Please select a Menu item\n keybindings to navigate";
 pub const API_KEY_TITLE: &'static str = "My API Keys";
 pub const METHOD_MENU_TITLE: &'static str = "** CuTE ** Choose a Method";
 pub const SAVED_COMMANDS_TITLE: &'static str = "My Saved cURL Commands";
 pub const DEFAULT_MENU_TITLE: &'static str = "** CuTE **";
-pub const AUTH_MENU_TITLE: &'static str = "** CuTE ** Authentication Menu";
+pub const AUTH_MENU_TITLE: &'static str = "** CuTE ** Authentication Menu 󰌋";
 pub const VIEW_BODY_TITLE: &'static str = "** CuTE ** View Response Body";
 pub const INPUT_MENU_TITLE: &'static str = "** CuTE ** Input **";
 pub const DOWNLOAD_MENU_TITLE: &'static str = "* CuTE ** Downloads *";
@@ -38,28 +39,43 @@ pub const OPTION_PADDING_MAX: &'static str = "\n\n\n\n";
 pub const OPTION_PADDING_MID: &'static str = "\n\n\n";
 pub const OPTION_PADDING_MIN: &'static str = "\n\n";
 
+#[rustfmt::skip]
+// Yeah... if this is normal here, it f**ks up when we try to center it on the screen
+pub const CUTE_LOGO: &'static str =
+"   . . . . . . . .  .  .  .  . . .    . .p  o  w .. e  r e  d.  . ..b.y ..
+      ***************` *;;;;;;;  ;;;;;, $$####################$`****************``l
+     %%%%%%%%%%%%%%%` %%%%%``|  #####``%%%%%%%%%%%%%%%%%%%%%% '%%%%%%%%%%%%%%%%``i
+      %%%%#``;;;;;;;`  %%%%%``|  %%%%#``| **`;; %%%%&*+`` **;;| %%%%%%`   %%%%%%``b
+         %%%%#``| *.      %%%%%``|  %%%%#``| ~   ` %%%%$*+`  ` i   %%%%%%`===#####``  _*_
+        %%%%#``| `   ___ %%%%%``|  %%%%#``| _*_   %%%%$*+`   -*-  %%%%%%%%%%####``    *
+      %%%%#``````%%%```%%%%%`/;; %%%%#```|      %%%%$*+`        %%%%%%`   _____`c 
+ _*_  %%%%%%%%%%%%%%``|%%%%%=====%%%%#$`|       %%%%&*+``*      %%%%%%``` %%%%%#`u 
+  *   %%%%%%%%%%%%%%`/; %%%%%%%%%%%%%%%%/      *%%%%%%**`       %%%%%%$####%%%%%``r
+      ***************l...**********$  **`... .. .***.... . . ...****************'.l
+";
+
 lazy_static! {
     pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
-        "Build and send an HTTP request",
-        "Download a remote file or directory",
-        "View my stored API keys",
-        "View or execute my saved commands",
+        "Build and send an HTTP request 󰖟 ",
+        "Download a remote file or directory 󰧩 ",
+        "View my stored API keys 󱂛  ",
+        "View or execute my saved commands  ",
     ];
     pub static ref REQUEST_MENU_OPTIONS: [&'static str; 8] = [
-        "Add a URL",
-        "Add Authentication",
-        "Add Headers",
-        "Enable verbose output",
-        "Add Request Body",
-        "Save this Command",
-        "Save your API token or login information",
-        "Execute command",
+        "Add a URL 󰖟 ",
+        "Add Authentication 󰯄 ",
+        "Add Headers  ",
+        "Enable verbose output [-v]",
+        "Add Request Body 󰘦 ",
+        "Save this Command  ",
+        "Save your API token or login information  ",
+        "Execute command  ",
     ];
     pub static ref DOWNLOAD_MENU_OPTIONS: [&'static str; 4] = [
-        "Specify recursive depth",
-        "Add a URL",
-        "Specify output filepath",
-        "Begin Download",
+        "Specify recursive depth 󰆙 ",
+        "Add a URL 󰖟  ",
+        "Specify output filepath  ",
+        "Begin Download  ",
     ];
     pub static ref METHOD_MENU_OPTIONS: [&'static str; 5] =
         ["GET", "POST", "PUT", "DELETE", "PATCH",];
@@ -74,13 +90,9 @@ lazy_static! {
         "SPNEGO",
     ];
     pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 4] = [
-        "Write to file?",
-        "View response headers",
-        "View response body",
-        "Copy command to clipboard"
+        "Write to file? 󱇧 ",
+        "View response headers 󰰀 ",
+        "View response body 󰈮 ",
+        "Copy command to clipboard 󰅎 "
     ];
-    pub static ref API_KEY_MENU_OPTIONS: [&'static str; 3] =
-        ["Add a new key", "View my saved keys", "Delete a key",];
-    pub static ref DEBUG_MENU_OPTIONS: [&'static str; 2] =
-        ["Back...\n \n", "URL Input Screen Debug \n \n"];
 }

@@ -2,7 +2,8 @@ use std::{error, mem};
 
 use crate::display::DisplayOpts;
 use crate::request::command::Command;
-use crate::screens::screen::Screen;
+use crate::request::curl::Curl;
+use crate::screens::screen::{determine_line_size, Screen};
 use crate::{database::db::DB, request::response::Response};
 use std::ops::{Deref, DerefMut};
 use tui::widgets::{ListItem, ListState};
@@ -40,7 +41,7 @@ pub struct App<'a> {
 impl<'a> Deref for App<'a> {
     type Target = Command<'a>;
     fn deref(&self) -> &Self::Target {
-        &self.command.as_ref().unwrap()
+        self.command.as_ref().unwrap()
     }
 }
 
@@ -61,7 +62,7 @@ impl<'a> Default for App<'a> {
             input_mode: InputMode::Normal,
             messages: Vec::new(),
             opts: Vec::new(),
-            items: Screen::Home.get_opts(),
+            items: Screen::Home.get_opts(None),
             input: Input::default(),
             state: None,
             current_screen: Screen::Home,
@@ -93,19 +94,23 @@ impl<'a> App<'a> {
                     .get_saved_keys()
                     .unwrap_or(vec![])
                     .iter()
-                    .map(|key| ListItem::new(key.clone()))
+                    .map(|key| ListItem::new(format!("{}{}", key, determine_line_size())))
                     .collect();
+                self.selected = None;
+                return;
             }
             Screen::SavedCommands => {
                 self.items = self
-                    .get_saved_commands()
+                    .get_saved_command_strings()
                     .unwrap_or(vec![])
                     .iter()
-                    .map(|cmd| ListItem::new(cmd.clone()))
+                    .map(|cmd| ListItem::new(format!("{}{}", cmd, determine_line_size())))
                     .collect();
+                self.selected = None;
+                return;
             }
             _ => {
-                self.items = screen.get_opts();
+                self.items = screen.get_opts(None);
             }
         }
         self.selected = None;
@@ -120,10 +125,7 @@ impl<'a> App<'a> {
             }
             Some(_) => match self.screen_stack.last() {
                 Some(screen) => {
-                    self.cursor = 0;
-                    self.selected = None;
-                    self.items = screen.get_opts();
-                    self.current_screen = screen.clone();
+                    self.goto_screen(screen.clone());
                 }
                 _ => {}
             },
@@ -162,43 +164,6 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
-        for option in self.opts.iter() {
-            match option {
-                DisplayOpts::Verbose => {
-                    self.command.as_mut().unwrap().set_verbose();
-                }
-                DisplayOpts::SaveCommand => {
-                    self.command.as_mut().unwrap().save_command(false);
-                }
-                DisplayOpts::SaveToken => match self.command.as_mut().unwrap() {
-                    Command::Curl(curl) => curl.save_token(false),
-                    _ => {}
-                },
-                DisplayOpts::URL(_) => self.command.as_mut().unwrap().set_url(""),
-                DisplayOpts::Headers(..) => self
-                    .command
-                    .as_mut()
-                    .unwrap()
-                    .remove_headers(vec![opt.get_value()]),
-                DisplayOpts::Outfile(_) => self.command.as_mut().unwrap().set_outfile(""),
-                DisplayOpts::Response(_) => self.response = None,
-                DisplayOpts::RecDownload(_) => {
-                    self.command.as_mut().unwrap().set_rec_download_level(0)
-                }
-                DisplayOpts::Auth(_) => self
-                    .command
-                    .as_mut()
-                    .unwrap()
-                    .set_auth(crate::request::curl::AuthKind::None),
-            }
-        }
-        self.opts.retain(|x| x != opt);
-    }
-    pub fn remove_all_display_options(&mut self) {
-        self.opts.clear();
-    }
-
     pub fn get_response_headers(&mut self) -> String {
         if let Ok(response) = Response::from_raw_string(&self.response.as_ref().unwrap().clone()) {
             response.get_headers().to_string()
@@ -211,7 +176,7 @@ impl<'a> App<'a> {
         match self.command.as_mut().unwrap() {
             Command::Curl(ref mut curl) => {
                 // continue lazy loading by only opening connection if we need to
-                if curl.will_store_command() && self.db.is_none() {
+                if curl.will_save_command() && self.db.is_none() {
                     self.db = Some(Box::new(DB::new().unwrap()));
                 }
                 match curl.execute(&mut self.db) {
@@ -226,17 +191,65 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn get_saved_commands(&mut self) -> Result<Vec<String>, String> {
+    pub fn get_saved_command_strings(&mut self) -> Result<Vec<String>, String> {
         if self.db.is_none() {
             self.db = Some(Box::new(DB::new().unwrap()));
         }
         let db = self.db.as_ref().unwrap();
         let commands = db.get_commands().unwrap();
-        let mut saved_commands = Vec::new();
-        for command in commands {
-            saved_commands.push(format!("{}", command));
-        }
+        let saved_commands = commands.iter().map(|cmd| cmd.get_command()).collect();
         Ok(saved_commands)
+    }
+
+    pub fn get_saved_command_json(&mut self) -> Result<Vec<String>, String> {
+        if self.db.is_none() {
+            self.db = Some(Box::new(DB::new().unwrap()));
+        }
+        let commands = self.db.as_ref().unwrap().get_commands().unwrap();
+        let saved_commands = commands
+            .iter()
+            .map(|cmd| cmd.get_curl_json())
+            .collect::<Vec<String>>();
+        Ok(saved_commands)
+    }
+
+    pub fn execute_saved_command(&mut self, index: usize) {
+        let saved_commands = self.get_saved_command_json().unwrap();
+        let _ = saved_commands.iter().map(|x| x.clone());
+        let json = saved_commands.get(index).unwrap();
+        let mut command: Curl = serde_json::from_str(json.as_str()).unwrap();
+        match command.execute(&mut None) {
+            Ok(_) => self.set_response(
+                command
+                    .get_response()
+                    .unwrap_or("Command failed to execute".to_string())
+                    .clone(),
+            ),
+            Err(e) => self.set_response(e.to_string()),
+        };
+        self.goto_screen(Screen::Response(self.response.clone().unwrap()));
+    }
+
+    pub fn delete_saved_command(&mut self, index: usize) {
+        let saved_commands = self.get_saved_command_strings().unwrap();
+        let command = saved_commands.get(index).unwrap();
+        self.db.as_mut().unwrap().delete_command(command).unwrap();
+        self.goto_screen(Screen::SavedCommands);
+    }
+
+    pub fn delete_saved_key(&mut self, index: usize) {
+        let saved_keys = self.get_saved_keys().unwrap();
+        let key = saved_keys.get(index).unwrap();
+        self.db.as_mut().unwrap().delete_key(key).unwrap();
+        self.goto_screen(Screen::SavedKeys);
+    }
+
+    pub fn delete_item(&mut self, index: usize) {
+        match self.current_screen {
+            Screen::SavedCommands => self.delete_saved_command(index),
+            Screen::SavedKeys => self.delete_saved_key(index),
+            _ => {}
+        }
     }
 
     pub fn get_saved_keys(&mut self) -> Result<Vec<String>, String> {
@@ -268,6 +281,44 @@ impl<'a> App<'a> {
         }
     }
 
+    pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
+        for option in self.opts.iter() {
+            match option {
+                DisplayOpts::Verbose => {
+                    self.command.as_mut().unwrap().set_verbose();
+                }
+                DisplayOpts::SaveCommand => {
+                    self.command.as_mut().unwrap().save_command(false);
+                }
+                DisplayOpts::SaveToken => match self.command.as_mut().unwrap() {
+                    Command::Curl(curl) => curl.save_token(false),
+                    _ => {}
+                },
+                DisplayOpts::URL(_) => self.command.as_mut().unwrap().set_url(""),
+                DisplayOpts::Headers(..) => self
+                    .command
+                    .as_mut()
+                    .unwrap()
+                    .remove_headers(vec![opt.get_value()]),
+                DisplayOpts::Outfile(_) => self.command.as_mut().unwrap().set_outfile(""),
+                DisplayOpts::Response(_) => self.response = None,
+                DisplayOpts::RecDownload(_) => {
+                    self.command.as_mut().unwrap().set_rec_download_level(0)
+                }
+                DisplayOpts::Auth(_) => self
+                    .command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(crate::request::curl::AuthKind::None),
+            }
+        }
+        self.opts
+            .retain(|x| std::mem::discriminant(x) != std::mem::discriminant(opt));
+    }
+
+    pub fn remove_all_display_options(&mut self) {
+        self.opts.clear();
+    }
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
     // Lorenzo - Changing this because I dont think its doing what I want it to do.
@@ -364,33 +415,29 @@ impl<'a> App<'a> {
     }
 
     pub fn toggle_display_option(&mut self, opt: DisplayOpts) {
-        if self.opts.contains(&opt) {
-            self.opts.retain(|x| x != &opt);
-        } else {
-            self.opts.push(opt.clone());
+        if self.has_display_option(&opt) {
+            self.remove_display_option(&opt);
+            return;
         }
+        let will_save_cmd = self.will_save_command();
         match opt.clone() {
             DisplayOpts::Verbose => {
                 self.command.as_mut().unwrap().set_verbose();
             }
-            DisplayOpts::SaveCommand => self
-                .command
-                .as_mut()
-                .unwrap()
-                .save_command(!self.opts.contains(&opt)),
-            DisplayOpts::SaveToken => {
-                if self.command.is_some() && self.has_auth() {
-                    self.command.as_mut().unwrap().save_token();
-                }
+            DisplayOpts::SaveCommand => {
+                self.save_command(!will_save_cmd);
+                println!("Saving Command: {}", !will_save_cmd);
             }
+            DisplayOpts::SaveToken => self.save_token(),
             _ => {}
         }
+        self.opts.push(opt.clone());
     }
 
     pub fn add_display_option(&mut self, opt: DisplayOpts) {
         // We either add the option or we replace the existing one
 
-        // first we look and see if its an option we can just toggle..
+        // first we look and see if its an option we are going to toggle..
         if self.should_toggle(&opt) {
             self.toggle_display_option(opt);
             return;
@@ -412,22 +459,19 @@ impl<'a> App<'a> {
                 DisplayOpts::Outfile(outfile) => {
                     self.command.as_mut().unwrap().set_outfile(&outfile);
                 }
+
                 _ => {
                     // Nothing
-                    // This display opt does not factor into the sharable command.
                 }
             }
         } else {
             // We Should Replace An Option
-            // Sorry this is wayy less efficient than it should be, I just need it to work
-            // for right now. TODO:
-            //  FIXME:
+
             for option in self.opts.iter_mut() {
                 match option {
                     DisplayOpts::URL(_) => {
                         option.replace_value(opt.get_value());
                         self.command.as_mut().unwrap().set_url(&opt.get_value());
-                        println!("{} YAY MEEEEE", opt.get_value());
                     }
                     DisplayOpts::Headers(..) => option.replace_value(opt.get_value()),
                     DisplayOpts::Outfile(_) => option.replace_value(opt.get_value()),
@@ -437,19 +481,20 @@ impl<'a> App<'a> {
                     _ => {}
                 }
             }
-            self.opts.push(opt);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::App;
     use crate::display::DisplayOpts;
     use crate::request::command::Command;
     use crate::request::curl::Curl;
 
-    // helper
+    // helper return app instance with curl command
     fn return_app_cmd() -> App<'static> {
         let mut app = App::default();
         app.set_command(Command::Curl(Curl::new()));
@@ -461,7 +506,18 @@ mod tests {
         let mut app = return_app_cmd();
         let token = "abcdefghijklmnop".to_string();
         let _ = app.add_saved_key(token.clone());
-        assert!(app.db.as_ref().unwrap().key_exists(&token).unwrap());
+        assert!(
+            app.db
+                .as_ref()
+                .unwrap()
+                .get_keys()
+                .unwrap()
+                .iter()
+                .filter(|x| x.is_key(&token))
+                .collect::<Vec<_>>()
+                .len()
+                > 0
+        );
     }
 
     #[test]
@@ -481,12 +537,31 @@ mod tests {
         let url = "https://www.google.com".to_string();
         app.add_display_option(DisplayOpts::URL(url.clone()));
         assert!(app.command.as_ref().unwrap().get_url() == url);
-        println!("{}", url.clone());
         // overwrite the url
         let new_url = "https://www.github.com".to_string();
         app.add_display_option(DisplayOpts::URL(new_url.clone()));
-        println!("{}", new_url.clone());
         assert!(app.command.as_ref().unwrap().get_url() == new_url);
+    }
+
+    #[test]
+    fn test_response_headers() {
+        let response = json!(
+            {
+            "headers": {
+                "content-type": "application/json",
+                "content-length": "123",
+                "server": "nginx"
+            },
+            "body": "Hello World"
+            }
+        );
+        let mut app = return_app_cmd();
+        app.set_response(response.to_string());
+        app.get_response_headers();
+        assert!(
+            app.get_response_headers()
+                == "content-type: application/json\ncontent-length: 123\nserver: nginx\n"
+        );
     }
 
     #[test]

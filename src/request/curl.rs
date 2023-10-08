@@ -55,8 +55,6 @@ impl<'a> Serialize for Curl<'a> {
         state.serialize_field("resp", &self.resp)?;
         state.serialize_field("upload_file", &self.upload_file)?;
         state.serialize_field("outfile", &self.outfile)?;
-        state.serialize_field("save", &self.save)?;
-        state.serialize_field("save_auth", &self.save_auth)?;
         state.end()
     }
 }
@@ -102,8 +100,8 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                         &_ => {}
                     }
                 }
-                let curl = Easy::new(); // You can create the 'curl::Easy' instance here
-                Ok(Curl {
+                let curl = Easy::new();
+                let mut res = Curl {
                     curl,
                     auth: auth.ok_or_else(|| serde::de::Error::missing_field("auth"))?,
                     cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
@@ -116,12 +114,15 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                     outfile: outfile.ok_or_else(|| serde::de::Error::missing_field("outfile"))?,
                     save: false,
                     save_auth: false,
-                })
+                };
+                res.easy_from_opts();
+                Ok(res)
             }
         }
         deserializer.deserialize_struct(
             "Curl",
             &[
+                "curl",
                 "auth",
                 "cmd",
                 "headers",
@@ -487,7 +488,8 @@ impl<'a> Curl<'a> {
         ));
         self.auth = AuthKind::Spnego(login);
     }
-    pub fn will_store_command(&self) -> bool {
+
+    pub fn will_save_command(&self) -> bool {
         self.save
     }
 
@@ -570,7 +572,7 @@ impl<'a> Curl<'a> {
             CurlFlagType::UnixSocket.get_value(),
             None,
         ));
-        self.curl.unix_socket(socket.clone()).unwrap();
+        self.curl.unix_socket(socket).unwrap();
     }
 
     pub fn set_bearer_auth(&mut self, token: String) {
@@ -628,7 +630,7 @@ impl<'a> Curl<'a> {
     // this is only called after execution, we need to
     // find out if its been built already
     pub fn get_command_str(&mut self) -> String {
-        if !self.will_store_command() {
+        if self.will_save_command() {
             self.build_command_str();
         }
         self.cmd.clone()
@@ -650,13 +652,12 @@ impl<'a> Curl<'a> {
                 .iter()
                 .map(|h| list.append(h.as_str()).unwrap());
         }
-        if self.will_store_command() {
-            let _ = self.build_command_str();
+        if self.will_save_command() {
             db.as_mut()
                 .unwrap()
                 .add_command(
-                    &self.cmd.clone(),
-                    serde_json::to_string_pretty(&self)
+                    &self.get_command_str(),
+                    serde_json::to_string(&self)
                         .unwrap_or(String::from("Error serializing command")),
                 )
                 .unwrap();
@@ -975,6 +976,26 @@ mod tests {
         assert_eq!(curl.opts.len(), 0);
     }
     #[test]
+    fn test_serde_json() {
+        let mut curl = Curl::new();
+        let url = "https://google.com";
+        curl.set_url(url);
+        curl.set_verbose();
+        curl.set_get_method();
+        // serialize it
+        let json_str = serde_json::to_string(&curl).unwrap();
+
+        // deserialize it
+        let curl2: Curl = serde_json::from_str(&json_str).unwrap();
+        assert!(curl2.has_verbose());
+        assert!(curl2.opts.contains(&CurlFlag::Method(
+            CurlFlagType::Method.get_value(),
+            Some(String::from("GET"))
+        )));
+        assert_eq!(curl2.url, url);
+    }
+
+    #[test]
     fn test_parse_from_json_execute() {
         let mut server = setup("GET");
         let url = server.deref_mut().url();
@@ -994,7 +1015,6 @@ mod tests {
         let binding = json.to_string();
         let mut curl: Curl = serde_json::from_str(&binding).unwrap();
         curl.set_url(url.as_str());
-        curl.easy_from_opts();
         let _ = std::fs::File::create("file.txt");
         curl.set_basic_auth(String::from("username:password"));
         curl.set_upload_file("file.txt");

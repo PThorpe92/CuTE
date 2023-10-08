@@ -122,7 +122,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::ApiKey => {
             let _ = app.add_saved_key(message.clone());
-            app.goto_screen(Screen::KeysMenu);
+            app.goto_screen(Screen::SavedKeys);
         }
         InputOpt::Headers => {
             let headers = message.split(':').collect::<Vec<&str>>();
