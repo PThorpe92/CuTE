@@ -17,6 +17,8 @@ pub static DEFAULT_CMD: &str = "curl ";
 pub struct Curl<'a> {
     // The libcurl interface for our command/request
     curl: Easy,
+    // The method type
+    method: Method,
     // The auth type we will use
     auth: AuthKind,
     // The final command string we will run
@@ -38,6 +40,26 @@ pub struct Curl<'a> {
     // Whether we are goign to store the key/login in the DB
     save_auth: bool,
 }
+
+#[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
+pub enum Method {
+    Get,
+    Post,
+    Put,
+    Patch,
+    Delete,
+}
+impl Display for Method {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            Method::Get => write!(f, "GET"),
+            Method::Post => write!(f, "POST"),
+            Method::Put => write!(f, "PUT"),
+            Method::Patch => write!(f, "PATCH"),
+            Method::Delete => write!(f, "DELETE"),
+        }
+    }
+}
 impl<'a> Eq for Curl<'a> {}
 
 impl<'a> Serialize for Curl<'a> {
@@ -46,7 +68,8 @@ impl<'a> Serialize for Curl<'a> {
         S: Serializer,
     {
         // Serialize all fields except 'curl::Easy'
-        let mut state = serializer.serialize_struct("Curl", 10)?;
+        let mut state = serializer.serialize_struct("Curl", 9)?;
+        state.serialize_field("method", &self.method)?;
         state.serialize_field("auth", &self.auth)?;
         state.serialize_field("cmd", &self.cmd)?;
         state.serialize_field("headers", &self.headers)?;
@@ -78,6 +101,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
             where
                 A: MapAccess<'de>,
             {
+                let mut method = None;
                 let mut auth = None;
                 let mut cmd = None;
                 let mut headers = None;
@@ -89,6 +113,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
 
                 while let Some(key) = map.next_key()? {
                     match key {
+                        "method" => method = Some(map.next_value()?),
                         "auth" => auth = Some(map.next_value()?),
                         "cmd" => cmd = Some(map.next_value()?),
                         "headers" => headers = Some(map.next_value()?),
@@ -103,6 +128,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                 let curl = Easy::new();
                 let mut res = Curl {
                     curl,
+                    method: method.ok_or_else(|| serde::de::Error::missing_field("method"))?,
                     auth: auth.ok_or_else(|| serde::de::Error::missing_field("auth"))?,
                     cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
                     headers: headers.ok_or_else(|| serde::de::Error::missing_field("headers"))?,
@@ -123,6 +149,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
             "Curl",
             &[
                 "curl",
+                "method",
                 "auth",
                 "cmd",
                 "headers",
@@ -143,9 +170,15 @@ impl<'a> Clone for Curl<'a> {
     fn clone(&self) -> Self {
         let mut curl = Curl::new();
         let _ = self.opts.iter().map(|x| curl.add_flag(x.clone()));
-
         curl.set_url(self.url.as_str());
 
+        match self.method {
+            Method::Get => curl.set_get_method(),
+            Method::Post => curl.set_post_method(),
+            Method::Put => curl.set_put_method(),
+            Method::Patch => curl.set_patch_method(),
+            Method::Delete => curl.set_delete_method(),
+        }
         if let Some(ref res) = self.resp {
             curl.set_response(res.as_str());
         }
@@ -164,6 +197,7 @@ impl<'a> Clone for Curl<'a> {
         curl.build_command_str();
         Self {
             curl: Easy::new(),
+            method: self.method.clone(),
             auth: self.auth.clone(),
             cmd: self.cmd.clone(),
             url: self.url.clone(),
@@ -180,7 +214,8 @@ impl<'a> Clone for Curl<'a> {
 
 impl<'a> PartialEq for Curl<'a> {
     fn eq(&self, other: &Self) -> bool {
-        self.auth == other.auth
+        self.method == other.method
+            && self.auth == other.auth
             && self.cmd == other.cmd
             && self.url == other.url
             && self.opts == other.opts
@@ -241,6 +276,7 @@ impl<'a> Default for Curl<'a> {
     fn default() -> Self {
         Self {
             curl: Easy::new(),
+            method: Method::Get,
             auth: AuthKind::None,
             cmd: String::from("curl "),
             url: String::new(),
@@ -286,21 +322,17 @@ impl<'a> Curl<'a> {
     // ANY time we get a command from the database to run, we have to call this method first.
     pub fn easy_from_opts(&mut self) {
         let opts = self.opts.clone();
+        match self.method {
+            Method::Get => self.set_get_method(),
+            Method::Post => self.set_post_method(),
+            Method::Put => self.set_put_method(),
+            Method::Patch => self.set_patch_method(),
+            Method::Delete => self.set_delete_method(),
+        }
         for opt in opts {
             match opt {
                 CurlFlag::Verbose(..) => self.set_verbose(),
                 CurlFlag::Headers(_, val) => self.add_headers(vec![val.unwrap_or(String::new())]),
-                CurlFlag::Method(_, val) => match val {
-                    Some(val) => match val.as_str() {
-                        "GET" => self.set_get_method(),
-                        "POST" => self.set_post_method(),
-                        "PUT" => self.set_put_method(),
-                        "PATCH" => self.set_patch_method(),
-                        "DELETE" => self.set_delete_method(),
-                        _ => {}
-                    },
-                    None => {}
-                },
                 CurlFlag::Output(..) => {
                     if let Some(val) = opt.get_arg() {
                         self.set_outfile(val);
@@ -494,42 +526,27 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_get_method(&mut self) {
-        self.add_flag(CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("GET")),
-        ));
+        self.method = Method::Get;
         self.curl.get(true).unwrap();
     }
 
     pub fn set_post_method(&mut self) {
-        self.add_flag(CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("POST")),
-        ));
+        self.method = Method::Post;
         self.curl.post(true).unwrap();
     }
 
     pub fn set_put_method(&mut self) {
-        self.add_flag(CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("PUT")),
-        ));
+        self.method = Method::Put;
         self.curl.put(true).unwrap();
     }
 
     pub fn set_patch_method(&mut self) {
-        self.add_flag(CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("PATCH")),
-        ));
+        self.method = Method::Patch;
         self.curl.custom_request("PATCH").unwrap();
     }
 
     pub fn set_delete_method(&mut self) {
-        self.add_flag(CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("DELETE")),
-        ));
+        self.method = Method::Delete;
         self.curl.custom_request("DELETE").unwrap();
     }
 
@@ -608,6 +625,9 @@ impl<'a> Curl<'a> {
     }
 
     pub fn build_command_str(&mut self) {
+        self.cmd.push_str("-X ");
+        self.cmd.push_str(self.method.to_string().as_str());
+        self.cmd.push_str(" ");
         for flag in &self.opts {
             self.cmd.push_str(flag.get_value());
             self.cmd.push(' ');
@@ -623,7 +643,6 @@ impl<'a> Curl<'a> {
                 self.cmd.push(' ');
             });
         }
-        self.cmd.push_str(self.url.as_str());
         self.cmd = self.cmd.trim().to_string();
     }
 
@@ -802,7 +821,6 @@ macro_rules! define_curl_flags {
 // Define the CurlFlag enum using the macro.
 define_curl_flags! {
     Verbose("-v"),
-    Method("-X"),
     Output("-o"),
     User("-u"),
     Bearer("-H"),
@@ -955,7 +973,7 @@ mod tests {
         assert_eq!(curl.opts.len(), 2);
     }
     #[test]
-    fn test_parse_from_json_no_opts() {
+    fn test_deserialize_raw_str() {
         let json = json!(
         {
                 "auth": {"Basic": "username:password"},
@@ -1002,6 +1020,7 @@ mod tests {
         // it doesn't seem to like whatever url format we are getting from
         // mockito at this point. I think we can hardcode this test for now
         // and see if we get a response
+        println!("{}", url.as_str());
         let json = json!({
         "auth": {"Basic": "username:password"},
         "cmd": "curl",
@@ -1013,11 +1032,8 @@ mod tests {
         "outfile": "output.txt",
         });
         let binding = json.to_string();
+        let _ = std::fs::File::create("file.txt").unwrap();
         let mut curl: Curl = serde_json::from_str(&binding).unwrap();
-        curl.set_url(url.as_str());
-        let _ = std::fs::File::create("file.txt");
-        curl.set_basic_auth(String::from("username:password"));
-        curl.set_upload_file("file.txt");
         curl.execute(&mut None).unwrap();
         assert_eq!(curl.url, url.as_str());
         assert_eq!(curl.opts.len(), 2);

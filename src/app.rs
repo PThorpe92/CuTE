@@ -1,14 +1,14 @@
-use std::{error, mem};
-
 use crate::display::DisplayOpts;
 use crate::request::command::Command;
 use crate::request::curl::Curl;
 use crate::screens::screen::{determine_line_size, Screen};
 use crate::{database::db::DB, request::response::Response};
+use dirs::config_dir;
+use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
+use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
-
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -22,6 +22,7 @@ pub enum InputMode {
 #[derive(Debug)]
 pub struct App<'a> {
     /// Is the application running?
+    pub config: Config,
     pub running: bool,
     pub cursor: usize,
     pub current_screen: Screen,
@@ -53,7 +54,14 @@ impl<'a> DerefMut for App<'a> {
 
 impl<'a> Default for App<'a> {
     fn default() -> Self {
+        let mut app_config = Config::default();
+        let base_config_dir = config_dir().unwrap();
+        let config_dir = base_config_dir.join("cute.toml");
+        if let Ok(file_str) = std::fs::read_to_string(config_dir) {
+            app_config = toml::from_str(&file_str).unwrap();
+        }
         Self {
+            config: app_config,
             running: true,
             cursor: 0,
             screen_stack: vec![Screen::Home],
@@ -70,6 +78,76 @@ impl<'a> Default for App<'a> {
             db: None,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Config {
+    keybindings: Keybindings,
+    colors: Colors,
+    logo: Logo,
+    db_path: String,
+}
+impl Config {
+    pub fn get_keybindings(&self) -> &Keybindings {
+        &self.keybindings
+    }
+    pub fn get_colors(&self) -> &Colors {
+        &self.colors
+    }
+    pub fn get_logo(&self) -> &Logo {
+        &self.logo
+    }
+    pub fn get_db_path(&self) -> &String {
+        &self.db_path
+    }
+}
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            keybindings: Keybindings::Regular,
+            colors: Colors {
+                fg: Color::Cyan,
+                bg: Color::Gray,
+            },
+            logo: Logo::Logo1,
+            db_path: String::from(""),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Logo {
+    Logo1,
+    Logo1Inverted,
+    Logo2,
+    Logo2Inverted,
+    None,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Keybindings {
+    Vim,
+    Regular,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Colors {
+    fg: Color,
+    bg: Color,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Color {
+    Red,
+    Green,
+    Blue,
+    Yellow,
+    Magenta,
+    Cyan,
+    White,
+    Black,
+    Gray,
+    Reset,
 }
 
 impl<'a> App<'a> {
@@ -117,19 +195,15 @@ impl<'a> App<'a> {
     }
 
     pub fn go_back_screen(&mut self) {
-        match self.screen_stack.pop() {
-            // we are not returning to an input menu, so we pop the last element that wasn't an input menu
-            Some(Screen::InputMenu(_)) => {
-                // we can unwrap, because if we have hit an input menu, it's guaranteed
-                self.current_screen = self.screen_stack.last().unwrap().clone();
+        self.screen_stack.pop(); // current screen
+        match self.screen_stack.last() {
+            Some(Screen::InputMenu(_)) => self.go_back_screen(),
+            // is that recursion in prod????? o_0
+            Some(screen) if screen == &self.current_screen => self.go_back_screen(),
+            Some(screen) => {
+                self.goto_screen(screen.clone());
             }
-            Some(_) => match self.screen_stack.last() {
-                Some(screen) => {
-                    self.goto_screen(screen.clone());
-                }
-                _ => {}
-            },
-            None => {}
+            None => self.goto_screen(Screen::Home),
         }
     }
 
@@ -138,7 +212,6 @@ impl<'a> App<'a> {
     }
 
     pub fn move_cursor_down(&mut self) {
-        // Lorenzo: I fixed a bug here with -1, where the cursor would roll off the screen.
         if self.items.is_empty() || self.cursor >= self.items.len() - 1 {
             return;
         }
