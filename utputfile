@@ -1,8 +1,0 @@
---2023-10-07 22:06:18--  http://127.0.0.1:40361/
-Connecting to 127.0.0.1:40361... connected.
-HTTP request sent, awaiting response... 501 Not Implemented
-2023-10-07 22:06:18 ERROR 501: Not Implemented.
-
---2023-10-07 22:06:18--  http://output/
-Resolving output (output)... failed: Name or service not known.
-wget: unable to resolve host address ‘output’
