@@ -37,10 +37,9 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
             // View response headers
             1 => {
                 let area_2 = small_alert_box(frame.size());
-                let response = Response::from_raw_string(resp);
+                let response = Response::from_raw_string(resp.as_str()).unwrap();
                 let headers = response.get_headers();
-                let paragraph =
-                    Paragraph::new(Text::from(serde_json::to_string_pretty(&headers).unwrap()));
+                let paragraph = Paragraph::new(Text::from(headers.to_string()));
                 frame.render_widget(paragraph, area_2);
                 app.goto_screen(Screen::SavedCommands);
             }

@@ -238,8 +238,8 @@ impl<'a> App<'a> {
     }
 
     pub fn get_response_headers(&mut self) -> String {
-        if let response = Response::from_raw_string(self.response.as_ref().unwrap().clone()) {
-            serde_json::to_string_pretty(&response.get_headers()).unwrap()
+        if let Ok(response) = Response::from_raw_string(&self.response.as_ref().unwrap().clone()) {
+            response.get_headers().to_string()
         } else {
             return String::from("No headers found");
         }
@@ -254,7 +254,7 @@ impl<'a> App<'a> {
                 }
                 match curl.execute(&mut self.db) {
                     Ok(_) => {
-                        self.response = curl.get_response_json();
+                        self.response = curl.get_response();
                         Ok(())
                     }
                     Err(e) => Err(e.to_string()),
@@ -294,7 +294,7 @@ impl<'a> App<'a> {
         match command.execute(&mut None) {
             Ok(_) => self.set_response(
                 command
-                    .get_response_json()
+                    .get_response()
                     .unwrap_or("Command failed to execute".to_string())
                     .clone(),
             ),
@@ -473,6 +473,9 @@ impl<'a> App<'a> {
 
     pub fn set_response(&mut self, response: String) {
         self.response = Some(response.clone());
+        if let Some(cmd) = &mut self.command {
+            cmd.set_response(&response);
+        }
     }
 
     fn should_toggle(&self, opt: &DisplayOpts) -> bool {
@@ -572,6 +575,25 @@ mod tests {
     }
 
     #[test]
+    fn test_store_key() {
+        let mut app = return_app_cmd();
+        let token = "abcdefghijklmnop".to_string();
+        let _ = app.add_saved_key(token.clone());
+        assert!(
+            app.db
+                .as_ref()
+                .unwrap()
+                .get_keys()
+                .unwrap()
+                .iter()
+                .filter(|x| x.is_key(&token))
+                .collect::<Vec<_>>()
+                .len()
+                > 0
+        );
+    }
+
+    #[test]
     fn test_toggle_verbose() {
         let mut app = return_app_cmd();
         // Add one.
@@ -592,6 +614,27 @@ mod tests {
         let new_url = "https://www.github.com".to_string();
         app.add_display_option(DisplayOpts::URL(new_url.clone()));
         assert!(app.command.as_ref().unwrap().get_url() == new_url);
+    }
+
+    #[test]
+    fn test_response_headers() {
+        let response = json!(
+            {
+            "headers": {
+                "content-type": "application/json",
+                "content-length": "123",
+                "server": "nginx"
+            },
+            "body": "Hello World"
+            }
+        );
+        let mut app = return_app_cmd();
+        app.set_response(response.to_string());
+        app.get_response_headers();
+        assert!(
+            app.get_response_headers()
+                == "content-type: application/json\ncontent-length: 123\nserver: nginx\n"
+        );
     }
 
     #[test]

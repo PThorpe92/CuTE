@@ -1,8 +1,8 @@
 use crate::database::db::DB;
-use crate::request::response::Response;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use std::io::Read;
 use std::{
     cell::RefCell,
@@ -30,7 +30,7 @@ pub struct Curl<'a> {
     // The opts we will build incrementally and store
     opts: Vec<CurlFlag<'a>>,
     // The response we get back from the command if not sent to file
-    resp: Option<Response>,
+    resp: Option<String>,
     // Filepath of file to be uploaded
     upload_file: Option<String>,
     // Filepath of the response output file or download
@@ -180,7 +180,7 @@ impl<'a> Clone for Curl<'a> {
             Method::Delete => curl.set_delete_method(),
         }
         if let Some(ref res) = self.resp {
-            curl.set_response(res.clone());
+            curl.set_response(res.as_str());
         }
 
         if let Some(ref upload_file) = self.upload_file {
@@ -414,40 +414,12 @@ impl<'a> Curl<'a> {
         }
     }
 
-    pub fn set_response(&mut self, resp: Response) {
-        self.resp = Some(resp);
+    pub fn set_response(&mut self, response: &str) {
+        self.resp = Some(String::from(response));
     }
 
-    pub fn get_response_headers(&self) -> Option<Vec<String>> {
-        if self.resp.is_some() {
-            Some(self.resp.as_ref().unwrap().get_headers())
-        } else {
-            None
-        }
-    }
-
-    pub fn get_response_status(&self) -> Option<u16> {
-        if self.resp.is_some() {
-            Some(self.resp.as_ref().unwrap().status)
-        } else {
-            None
-        }
-    }
-
-    pub fn get_response_json(&self) -> Option<String> {
-        if self.resp.is_some() {
-            Some(self.resp.as_ref().unwrap().body.clone())
-        } else {
-            None
-        }
-    }
-
-    pub fn get_response_body(&self) -> Option<String> {
-        if self.resp.is_some() {
-            Some(self.resp.as_ref().unwrap().body.clone())
-        } else {
-            None
-        }
+    pub fn get_response(&self) -> Option<String> {
+        self.resp.clone()
     }
 
     pub fn get_token(&self) -> Option<String> {
@@ -469,7 +441,7 @@ impl<'a> Curl<'a> {
                 let mut writer = std::io::BufWriter::new(&mut file);
 
                 if let Some(resp) = &self.resp {
-                    if let Err(e) = writer.write_all(resp.to_json_string().as_bytes()) {
+                    if let Err(e) = writer.write_all(resp.as_bytes()) {
                         eprintln!("Error writing to file: {:?}", e);
                         return Err(e);
                     }
@@ -653,6 +625,9 @@ impl<'a> Curl<'a> {
     }
 
     pub fn build_command_str(&mut self) {
+        self.cmd.push_str("-X ");
+        self.cmd.push_str(self.method.to_string().as_str());
+        self.cmd.push_str(" ");
         for flag in &self.opts {
             self.cmd.push_str(flag.get_value());
             self.cmd.push(' ');
@@ -668,10 +643,6 @@ impl<'a> Curl<'a> {
                 self.cmd.push(' ');
             });
         }
-        self.cmd.push_str("-X ");
-        self.cmd.push_str(self.method.to_string().as_str());
-        self.cmd.push_str(" ");
-        self.cmd.push_str(self.url.as_str());
         self.cmd = self.cmd.trim().to_string();
     }
 
@@ -789,9 +760,9 @@ impl<'a> Curl<'a> {
             // if its json, pretty-print format it
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&res) {
                 let pretty = serde_json::to_string_pretty(&json).unwrap();
-                self.resp = Some(Response::from_raw_string(pretty));
+                self.resp = Some(pretty);
             } else {
-                self.resp = Some(Response::from_raw_string(res));
+                self.resp = Some(res);
             }
             Ok(())
         }
@@ -917,8 +888,8 @@ mod tests {
         curl.set_verbose();
         curl.set_url(&url);
         curl.build_command_str();
-        assert_eq!(curl.cmd, format!("curl -v -X GET {}", url));
-        assert_eq!(curl.opts.len(), 1);
+        assert_eq!(curl.cmd, format!("curl -X GET -v {}", url));
+        assert_eq!(curl.opts.len(), 2);
         assert_eq!(curl.resp, None);
     }
 
@@ -928,12 +899,14 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_post_method();
         curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, "curl -X POST");
 
         // Test setting method to GET
         let mut curl_get = Curl::new();
         curl_get.set_get_method();
         curl_get.build_command_str();
+        assert_eq!(curl_get.opts.len(), 1);
         assert_eq!(curl_get.cmd, "curl -X GET");
     }
 
@@ -944,24 +917,22 @@ mod tests {
         curl.set_url(url);
         curl.build_command_str();
         assert_eq!(curl.url, url);
-        assert_eq!(curl.cmd, format!("curl -X GET {}", url));
+        assert_eq!(curl.cmd, format!("curl {}", url));
     }
 
     #[test]
     fn test_set_response() {
         let mut curl = Curl::new();
-        let response = json!({"status": "200", "headers": {"content_type": "application/json"}, "body": {"message": "response body"}});
-        let resp = Response::from_raw_string(response.to_string());
-        curl.set_response(resp);
-        assert_eq!(
-            curl.resp,
-            Some(Response::from_raw_string(response.to_string()))
-        );
+        let response = "This is a response";
+        curl.set_response(response);
+        assert_eq!(curl.resp, Some(String::from(response)));
     }
 
     #[test]
     fn test_write_output() {
         let mut curl = Curl::new();
+        let response = "This is a response";
+        curl.set_response(response);
         curl.set_outfile("output.txt".to_string());
         curl.write_output().unwrap();
         let _ = std::fs::remove_file("output.txt");
@@ -980,6 +951,8 @@ mod tests {
 
     #[test]
     fn test_parse_from_json() {
+        let method_flag =
+            CurlFlag::Method(CurlFlagType::Method.get_value(), Some("GET".to_string()));
         let verbose_flag = CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None);
         let json = json!(
         {
@@ -987,8 +960,8 @@ mod tests {
             "cmd": "curl -X GET https://example.com",
             "headers": [],
             "url": "https://example.com",
-            "opts": [verbose_flag],
-            "resp": { "status": 200, "headers": { "content_type": "application/json" }, "body": "This is a response"},
+            "opts": [method_flag, verbose_flag],
+            "resp": "This is a response",
             "upload_file": "file.txt",
             "outfile": "output.txt",
         });
@@ -997,17 +970,18 @@ mod tests {
         assert_eq!(curl.auth, AuthKind::Basic("username:password".to_string()));
         assert_eq!(curl.cmd, "curl -X GET https://example.com");
         assert_eq!(curl.url, "https://example.com");
+        assert_eq!(curl.opts.len(), 2);
     }
     #[test]
     fn test_deserialize_raw_str() {
         let json = json!(
         {
                 "auth": {"Basic": "username:password"},
-                "cmd": "curl -H Basic username:password -X GET https://example.com",
+                "cmd": "curl -X GET https://example.com",
                 "headers": [],
                 "url": "https://example.com",
                 "opts": [],
-                "resp": {"status": 200, "headers": { "content_type": "application/json" }, "body": "This is a response"},
+                "resp": "This is a response",
                 "upload_file": "file.txt",
                 "outfile": "output.txt",
         }
@@ -1015,10 +989,7 @@ mod tests {
         let binding = json.to_string();
         let curl: Curl = serde_json::from_str(&binding).unwrap();
         assert_eq!(curl.auth, AuthKind::Basic("username:password".to_string()));
-        assert_eq!(
-            curl.cmd,
-            "curl -H Basic username:password -X GET https://example.com"
-        );
+        assert_eq!(curl.cmd, "curl -X GET https://example.com");
         assert_eq!(curl.url, "https://example.com");
         assert_eq!(curl.opts.len(), 0);
     }
@@ -1035,9 +1006,10 @@ mod tests {
         // deserialize it
         let curl2: Curl = serde_json::from_str(&json_str).unwrap();
         assert!(curl2.has_verbose());
-        assert!(curl2
-            .opts
-            .contains(&CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None)));
+        assert!(curl2.opts.contains(&CurlFlag::Method(
+            CurlFlagType::Method.get_value(),
+            Some(String::from("GET"))
+        )));
         assert_eq!(curl2.url, url);
     }
 
@@ -1196,7 +1168,7 @@ mod tests {
         curl.build_command_str();
         assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.auth, AuthKind::AwsSigv4("user:password".to_string()));
-        assert_eq!(curl.cmd, "curl --aws-sigv4 user:password -X GET");
+        assert_eq!(curl.cmd, "curl --aws-sigv4 user:password");
         assert!(curl.opts.contains(&CurlFlag::AwsSigv4(
             CurlFlagType::AwsSigv4.get_value(),
             Some(String::from("user:password"))
@@ -1224,8 +1196,12 @@ mod tests {
         let url = server.deref_mut().url();
         curl.set_url(&url);
         curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X GET {}", url));
-        assert!(curl.method == Method::Get);
+        assert!(curl.opts.contains(&CurlFlag::Method(
+            CurlFlagType::Method.get_value(),
+            Some(String::from("GET"))
+        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1238,8 +1214,12 @@ mod tests {
         curl.set_post_method();
         curl.set_url(&url);
         curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X POST {}", url));
-        assert!(curl.method == Method::Post);
+        assert!(curl.opts.contains(&CurlFlag::Method(
+            CurlFlagType::Method.get_value(),
+            Some(String::from("POST"))
+        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1253,8 +1233,12 @@ mod tests {
         curl.set_put_method();
         curl.set_url(&url);
         curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X PUT {}", url));
-        assert!(curl.method == Method::Put);
+        assert!(curl.opts.contains(&CurlFlag::Method(
+            CurlFlagType::Method.get_value(),
+            Some(String::from("PUT"))
+        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1269,8 +1253,12 @@ mod tests {
         curl.set_patch_method();
         curl.set_url(&url);
         curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X PATCH {}", url));
-        assert!(curl.method == Method::Patch);
+        assert!(curl.opts.contains(&CurlFlag::Method(
+            CurlFlagType::Method.get_value(),
+            Some(String::from("PATCH"))
+        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1285,8 +1273,12 @@ mod tests {
         curl.set_delete_method();
         curl.set_url(&url);
         curl.build_command_str();
+        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X DELETE {}", url));
-        assert!(curl.method == Method::Delete);
+        assert!(curl.opts.contains(&CurlFlag::Method(
+            CurlFlagType::Method.get_value(),
+            Some(String::from("DELETE"))
+        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }

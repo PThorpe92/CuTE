@@ -112,7 +112,7 @@ impl<'a> Command<'a> {
 
     pub fn get_response(&self) -> Option<String> {
         match self {
-            Command::Curl(curl) => curl.get_response_json(),
+            Command::Curl(curl) => curl.get_response(),
             Command::Wget(wget) => wget.get_response(),
         }
     }
