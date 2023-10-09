@@ -25,4 +25,44 @@ pub enum DisplayOpts {
     Response(String),
     RecDownload(usize),
     Auth(String),
+    SaveToken,
+}
+impl DisplayOpts {
+    pub fn replace_value(&mut self, val: String) {
+        match self {
+            DisplayOpts::Headers((key, _)) => {
+                *key = val;
+            }
+            DisplayOpts::URL(url) => {
+                *url = val;
+            }
+            DisplayOpts::Outfile(outfile) => {
+                *outfile = val;
+            }
+            DisplayOpts::Response(response) => {
+                *response = val;
+            }
+            DisplayOpts::RecDownload(level) => {
+                *level = val.parse::<usize>().unwrap();
+            }
+            DisplayOpts::Auth(auth) => {
+                *auth = val;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn get_value(&self) -> String {
+        match self {
+            DisplayOpts::Verbose => String::from("Verbose"),
+            DisplayOpts::Headers((key, value)) => format!("{}: {}", key, value),
+            DisplayOpts::URL(url) => url.clone(),
+            DisplayOpts::Outfile(outfile) => outfile.clone(),
+            DisplayOpts::SaveCommand => String::from("Save Command"),
+            DisplayOpts::Response(response) => response.clone(),
+            DisplayOpts::RecDownload(level) => level.to_string(),
+            DisplayOpts::Auth(auth) => auth.clone(),
+            DisplayOpts::SaveToken => String::from("Save Token"),
+        }
+    }
 }

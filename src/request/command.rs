@@ -1,12 +1,30 @@
+use super::curl::{AuthKind, CurlFlagType};
 use crate::request::curl::{Curl, CurlFlag};
 use crate::request::wget::Wget;
-
-use super::curl::{AuthKind, CurlFlagType};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Command<'a> {
     Curl(Curl<'a>),
     Wget(Wget),
+}
+impl<'a> Deref for Command<'a> {
+    type Target = Curl<'a>;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Command::Curl(curl) => curl,
+            _ => panic!("cannot deref wget commands"),
+        }
+    }
+}
+
+impl<'a> DerefMut for Command<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Command::Curl(curl) => curl,
+            _ => panic!("cannot deref wget commands"),
+        }
+    }
 }
 
 impl<'a> Command<'a> {
@@ -36,13 +54,14 @@ impl<'a> Command<'a> {
             _ => {}
         }
     }
+
     pub fn add_download_auth(&mut self, user: &str, pwd: &str) {
         if let Command::Wget(wget) = self {
             wget.add_auth(user, pwd)
         }
     }
 
-    pub fn set_url(&mut self, url: String) {
+    pub fn set_url(&mut self, url: &str) {
         match self {
             Command::Curl(curl) => {
                 curl.set_url(&url);
@@ -53,16 +72,17 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn save_command(&mut self, save: bool) {
-        if let Command::Curl(curl) = self {
-            curl.save_command(save);
+    pub fn get_url(&self) -> String {
+        match self {
+            Command::Curl(curl) => curl.get_url(),
+            Command::Wget(wget) => wget.get_url(),
         }
     }
 
     pub fn set_outfile(&mut self, file: &str) {
         match self {
             Command::Curl(curl) => {
-                curl.set_output(String::from(file));
+                curl.set_outfile(String::from(file));
                 curl.add_flag(CurlFlag::Output(
                     CurlFlagType::Output.get_value(),
                     Some(String::from(file)),
@@ -73,13 +93,6 @@ impl<'a> Command<'a> {
             }
         }
     }
-
-    pub fn set_headers(&mut self, headers: Vec<String>) {
-        if let Command::Curl(curl) = self {
-            curl.add_headers(headers);
-        }
-    }
-
     pub fn set_auth(&mut self, auth: AuthKind) {
         match self {
             Command::Curl(curl) => match auth {
@@ -104,15 +117,9 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn set_verbose(&mut self, verbose: bool) {
+    pub fn save_token(&mut self) {
         if let Command::Curl(curl) = self {
-            curl.set_verbose(verbose);
-        }
-    }
-
-    pub fn add_headers(&mut self, headers: Vec<String>) {
-        if let Command::Curl(curl) = self {
-            curl.add_headers(headers);
+            curl.save_token(!curl.will_save_token());
         }
     }
 
@@ -122,18 +129,22 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn set_response(&mut self, response: &str) {
-        if let Command::Curl(curl) = self {
-            curl.set_response(response);
-        }
-    }
-
     pub fn to_string(&self) -> String {
         match self {
             Command::Curl(_) => "Curl",
             Command::Wget(_) => "Wget",
         }
         .to_string()
+    }
+
+    pub fn write_response(&mut self) -> Result<(), String> {
+        match self {
+            Command::Curl(ref mut curl) => match curl.write_output() {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e.to_string()),
+            },
+            _ => Err(String::from("downloads output is written by default")),
+        }
     }
 }
 

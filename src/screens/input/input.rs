@@ -1,7 +1,7 @@
 use crate::app::App;
 use crate::display::menuopts::{
     INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER, INPUT_OPT_BASIC,
-    INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD, INPUT_OPT_URL,
+    INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD,
 };
 use crate::display::DisplayOpts;
 use crate::request::cmdtype::CmdType;
@@ -58,10 +58,9 @@ pub fn handle_default_input_screen<B: Backend>(
     let (_msg, style) = match app.input_mode {
         InputMode::Normal => (
             vec![
-                Span::raw("Press "),
-                Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to exit, "),
-                Span::styled("i", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Press h"),
+                Span::raw("to go back."),
+                Span::styled("Press i", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to start editing."),
             ],
             Style::default().add_modifier(Modifier::RAPID_BLINK),
@@ -82,7 +81,6 @@ pub fn handle_default_input_screen<B: Backend>(
     render_input_with_prompt(frame, prompt);
 
     let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
-
     let scroll = app.input.visual_scroll(width as usize);
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
@@ -111,7 +109,6 @@ pub fn handle_default_input_screen<B: Backend>(
 fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
         InputOpt::URL(opt) => {
-            app.set_url(message.clone());
             match opt {
                 CmdType::Wget => {
                     app.add_display_option(DisplayOpts::URL(message));
@@ -125,18 +122,12 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::ApiKey => {
             let _ = app.add_saved_key(message.clone());
-            app.goto_screen(Screen::KeysMenu);
+            app.goto_screen(Screen::SavedKeys);
         }
         InputOpt::Headers => {
             let headers = message.split(':').collect::<Vec<&str>>();
-            let cpy = (
-                String::from(headers[0].clone()),
-                String::from(headers[1].clone()),
-            );
-            app.command
-                .as_mut()
-                .unwrap()
-                .set_headers(headers.iter().map(|x| x.to_string()).collect());
+            let cpy = (String::from(headers[0]), String::from(headers[1]));
+            app.add_headers(headers.iter().map(|x| x.to_string()).collect());
             app.add_display_option(DisplayOpts::Headers(cpy));
             app.current_screen = Screen::RequestMenu(String::new());
         }

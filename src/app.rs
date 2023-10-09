@@ -1,12 +1,14 @@
-use std::{error, mem};
-
 use crate::display::DisplayOpts;
 use crate::request::command::Command;
-use crate::screens::screen::Screen;
+use crate::request::curl::Curl;
+use crate::screens::screen::{determine_line_size, Screen};
 use crate::{database::db::DB, request::response::Response};
+use dirs::config_dir;
+use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
+use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
-
 /// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
@@ -20,6 +22,7 @@ pub enum InputMode {
 #[derive(Debug)]
 pub struct App<'a> {
     /// Is the application running?
+    pub config: Config,
     pub running: bool,
     pub cursor: usize,
     pub current_screen: Screen,
@@ -36,9 +39,29 @@ pub struct App<'a> {
     pub db: Option<Box<DB>>,
 }
 
+impl<'a> Deref for App<'a> {
+    type Target = Command<'a>;
+    fn deref(&self) -> &Self::Target {
+        self.command.as_ref().unwrap()
+    }
+}
+
+impl<'a> DerefMut for App<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.command.as_mut().unwrap()
+    }
+}
+
 impl<'a> Default for App<'a> {
     fn default() -> Self {
+        let mut app_config = Config::default();
+        let base_config_dir = config_dir().unwrap();
+        let config_dir = base_config_dir.join("cute.toml");
+        if let Ok(file_str) = std::fs::read_to_string(config_dir) {
+            app_config = toml::from_str(&file_str).unwrap();
+        }
         Self {
+            config: app_config,
             running: true,
             cursor: 0,
             screen_stack: vec![Screen::Home],
@@ -47,7 +70,7 @@ impl<'a> Default for App<'a> {
             input_mode: InputMode::Normal,
             messages: Vec::new(),
             opts: Vec::new(),
-            items: Screen::Home.get_opts(),
+            items: Screen::Home.get_opts(None),
             input: Input::default(),
             state: None,
             current_screen: Screen::Home,
@@ -57,6 +80,76 @@ impl<'a> Default for App<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Config {
+    keybindings: Keybindings,
+    colors: Colors,
+    logo: Logo,
+    db_path: String,
+}
+impl Config {
+    pub fn get_keybindings(&self) -> &Keybindings {
+        &self.keybindings
+    }
+    pub fn get_colors(&self) -> &Colors {
+        &self.colors
+    }
+    pub fn get_logo(&self) -> &Logo {
+        &self.logo
+    }
+    pub fn get_db_path(&self) -> &String {
+        &self.db_path
+    }
+}
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            keybindings: Keybindings::Regular,
+            colors: Colors {
+                fg: Color::Cyan,
+                bg: Color::Gray,
+            },
+            logo: Logo::Logo1,
+            db_path: String::from(""),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Logo {
+    Logo1,
+    Logo1Inverted,
+    Logo2,
+    Logo2Inverted,
+    None,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Keybindings {
+    Vim,
+    Regular,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Colors {
+    fg: Color,
+    bg: Color,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Color {
+    Red,
+    Green,
+    Blue,
+    Yellow,
+    Magenta,
+    Cyan,
+    White,
+    Black,
+    Gray,
+    Reset,
+}
+
 impl<'a> App<'a> {
     /// Constructs a new instance of [`App`].
     pub fn new() -> Self {
@@ -64,12 +157,6 @@ impl<'a> App<'a> {
     }
     pub fn set_command(&mut self, command: Command<'a>) {
         self.command = Some(command);
-    }
-
-    pub fn set_url(&mut self, url: String) {
-        if let Some(ref mut cmd) = self.command {
-            cmd.set_url(url);
-        }
     }
 
     pub fn tick(&self) {}
@@ -85,41 +172,38 @@ impl<'a> App<'a> {
                     .get_saved_keys()
                     .unwrap_or(vec![])
                     .iter()
-                    .map(|key| ListItem::new(key.clone()))
+                    .map(|key| ListItem::new(format!("{}{}", key, determine_line_size())))
                     .collect();
+                self.selected = None;
+                return;
             }
             Screen::SavedCommands => {
                 self.items = self
-                    .get_saved_commands()
+                    .get_saved_command_strings()
                     .unwrap_or(vec![])
                     .iter()
-                    .map(|cmd| ListItem::new(cmd.clone()))
+                    .map(|cmd| ListItem::new(format!("{}{}", cmd, determine_line_size())))
                     .collect();
+                self.selected = None;
+                return;
             }
             _ => {
-                self.items = screen.get_opts();
+                self.items = screen.get_opts(None);
             }
         }
         self.selected = None;
     }
 
     pub fn go_back_screen(&mut self) {
-        match self.screen_stack.pop() {
-            // we are not returning to an input menu, so we pop the last element that wasn't an input menu
-            Some(Screen::InputMenu(_)) => {
-                // we can unwrap, because if we have hit an input menu, it's guaranteed
-                self.current_screen = self.screen_stack.last().unwrap().clone();
+        self.screen_stack.pop(); // current screen
+        match self.screen_stack.last() {
+            Some(Screen::InputMenu(_)) => self.go_back_screen(),
+            // is that recursion in prod????? o_0
+            Some(screen) if screen == &self.current_screen => self.go_back_screen(),
+            Some(screen) => {
+                self.goto_screen(screen.clone());
             }
-            Some(_) => match self.screen_stack.last() {
-                Some(screen) => {
-                    self.cursor = 0;
-                    self.selected = None;
-                    self.items = screen.get_opts();
-                    self.current_screen = screen.clone();
-                }
-                _ => {}
-            },
-            None => {}
+            None => self.goto_screen(Screen::Home),
         }
     }
 
@@ -128,7 +212,6 @@ impl<'a> App<'a> {
     }
 
     pub fn move_cursor_down(&mut self) {
-        // Lorenzo: I fixed a bug here with -1, where the cursor would roll off the screen.
         if self.items.is_empty() || self.cursor >= self.items.len() - 1 {
             return;
         }
@@ -154,27 +237,6 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
-        self.opts.retain(|x| x != opt);
-    }
-    pub fn remove_all_display_options(&mut self) {
-        self.opts.clear();
-    }
-
-    pub fn write_response(&mut self) -> Result<(), String> {
-        if let Some(ref mut cmd) = self.command {
-            match cmd {
-                Command::Curl(ref mut curl) => match curl.write_output() {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(e.to_string()),
-                },
-                _ => Err(String::from("downloads output is written by default")),
-            }
-        } else {
-            Err(String::from("No command to write output for"))
-        }
-    }
-
     pub fn get_response_headers(&mut self) -> String {
         if let Ok(response) = Response::from_raw_string(&self.response.as_ref().unwrap().clone()) {
             response.get_headers().to_string()
@@ -185,9 +247,9 @@ impl<'a> App<'a> {
 
     pub fn execute_command(&mut self) -> Result<(), String> {
         match self.command.as_mut().unwrap() {
-            Command::Curl(curl) => {
+            Command::Curl(ref mut curl) => {
                 // continue lazy loading by only opening connection if we need to
-                if curl.will_store_command() && self.db.is_none() {
+                if curl.will_save_command() && self.db.is_none() {
                     self.db = Some(Box::new(DB::new().unwrap()));
                 }
                 match curl.execute(&mut self.db) {
@@ -202,17 +264,65 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn get_saved_commands(&mut self) -> Result<Vec<String>, String> {
+    pub fn get_saved_command_strings(&mut self) -> Result<Vec<String>, String> {
         if self.db.is_none() {
             self.db = Some(Box::new(DB::new().unwrap()));
         }
         let db = self.db.as_ref().unwrap();
         let commands = db.get_commands().unwrap();
-        let mut saved_commands = Vec::new();
-        for command in commands {
-            saved_commands.push(format!("{}", command));
-        }
+        let saved_commands = commands.iter().map(|cmd| cmd.get_command()).collect();
         Ok(saved_commands)
+    }
+
+    pub fn get_saved_command_json(&mut self) -> Result<Vec<String>, String> {
+        if self.db.is_none() {
+            self.db = Some(Box::new(DB::new().unwrap()));
+        }
+        let commands = self.db.as_ref().unwrap().get_commands().unwrap();
+        let saved_commands = commands
+            .iter()
+            .map(|cmd| cmd.get_curl_json())
+            .collect::<Vec<String>>();
+        Ok(saved_commands)
+    }
+
+    pub fn execute_saved_command(&mut self, index: usize) {
+        let saved_commands = self.get_saved_command_json().unwrap();
+        let _ = saved_commands.iter().map(|x| x.clone());
+        let json = saved_commands.get(index).unwrap();
+        let mut command: Curl = serde_json::from_str(json.as_str()).unwrap();
+        match command.execute(&mut None) {
+            Ok(_) => self.set_response(
+                command
+                    .get_response()
+                    .unwrap_or("Command failed to execute".to_string())
+                    .clone(),
+            ),
+            Err(e) => self.set_response(e.to_string()),
+        };
+        self.goto_screen(Screen::Response(self.response.clone().unwrap()));
+    }
+
+    pub fn delete_saved_command(&mut self, index: usize) {
+        let saved_commands = self.get_saved_command_strings().unwrap();
+        let command = saved_commands.get(index).unwrap();
+        self.db.as_mut().unwrap().delete_command(command).unwrap();
+        self.goto_screen(Screen::SavedCommands);
+    }
+
+    pub fn delete_saved_key(&mut self, index: usize) {
+        let saved_keys = self.get_saved_keys().unwrap();
+        let key = saved_keys.get(index).unwrap();
+        self.db.as_mut().unwrap().delete_key(key).unwrap();
+        self.goto_screen(Screen::SavedKeys);
+    }
+
+    pub fn delete_item(&mut self, index: usize) {
+        match self.current_screen {
+            Screen::SavedCommands => self.delete_saved_command(index),
+            Screen::SavedKeys => self.delete_saved_key(index),
+            _ => {}
+        }
     }
 
     pub fn get_saved_keys(&mut self) -> Result<Vec<String>, String> {
@@ -232,15 +342,60 @@ impl<'a> App<'a> {
         if self.db.is_none() {
             self.db = Some(Box::new(DB::new().unwrap()));
         }
-        let db = self.db.as_ref().unwrap();
-        db.add_key(&key)
+        match self.db.as_mut().unwrap().add_key(&key) {
+            Ok(_) => {
+                println!("Key Added");
+                return Ok(());
+            }
+            Err(_) => {
+                println!("OOPS");
+                Ok(())
+            }
+        }
     }
 
+    pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
+        for option in self.opts.iter() {
+            match option {
+                DisplayOpts::Verbose => {
+                    self.command.as_mut().unwrap().set_verbose();
+                }
+                DisplayOpts::SaveCommand => {
+                    self.command.as_mut().unwrap().save_command(false);
+                }
+                DisplayOpts::SaveToken => match self.command.as_mut().unwrap() {
+                    Command::Curl(curl) => curl.save_token(false),
+                    _ => {}
+                },
+                DisplayOpts::URL(_) => self.command.as_mut().unwrap().set_url(""),
+                DisplayOpts::Headers(..) => self
+                    .command
+                    .as_mut()
+                    .unwrap()
+                    .remove_headers(vec![opt.get_value()]),
+                DisplayOpts::Outfile(_) => self.command.as_mut().unwrap().set_outfile(""),
+                DisplayOpts::Response(_) => self.response = None,
+                DisplayOpts::RecDownload(_) => {
+                    self.command.as_mut().unwrap().set_rec_download_level(0)
+                }
+                DisplayOpts::Auth(_) => self
+                    .command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(crate::request::curl::AuthKind::None),
+            }
+        }
+        self.opts
+            .retain(|x| std::mem::discriminant(x) != std::mem::discriminant(opt));
+    }
+
+    pub fn remove_all_display_options(&mut self) {
+        self.opts.clear();
+    }
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
     // Lorenzo - Changing this because I dont think its doing what I want it to do.
     pub fn has_display_option(&self, opt: &DisplayOpts) -> bool {
-        // I refactored this to take a reference, since it was being referenced anyway.
         for element in self.opts.iter() {
             // I only care if its the same KIND of option, not the same value
             // This is annoying, I tried to do this an easier way
@@ -286,6 +441,11 @@ impl<'a> App<'a> {
                         return true;
                     }
                 }
+                DisplayOpts::SaveToken => {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
             }
         }
         // Otherwise, its not there.
@@ -294,7 +454,7 @@ impl<'a> App<'a> {
 
     // Lorenzo - Im adding this function as a slightly more
     // robust version of has_display_option, to test if we should be replacing a value or adding a new one
-    fn should_replace_or_add(&self, opt: &DisplayOpts) -> bool {
+    fn should_add_option(&self, opt: &DisplayOpts) -> bool {
         // Lets match the type of display option
         // We know that only 1 URL should ever be added,
         // So if we're adding a URL we should replace it if it already exists
@@ -307,6 +467,7 @@ impl<'a> App<'a> {
             DisplayOpts::Response(_) => !self.has_display_option(opt), // Response should be replaced
             DisplayOpts::RecDownload(_) => !self.has_display_option(opt), // Recursive download depth should be replaced
             DisplayOpts::Auth(_) => !self.has_display_option(opt),        // Auth should be replaced
+            DisplayOpts::SaveToken => !self.has_display_option(opt), // Save token should be toggled
         }
     }
 
@@ -317,23 +478,47 @@ impl<'a> App<'a> {
         }
     }
 
-    // user selects once, we add. twice we remove.
-    // Lorenzo - When a display option is added, we should also add it to the sharable command
+    fn should_toggle(&self, opt: &DisplayOpts) -> bool {
+        match opt {
+            DisplayOpts::Verbose => true,
+            DisplayOpts::SaveCommand => true,
+            DisplayOpts::SaveToken => true,
+            _ => false,
+        }
+    }
+
+    pub fn toggle_display_option(&mut self, opt: DisplayOpts) {
+        if self.has_display_option(&opt) {
+            self.remove_display_option(&opt);
+            return;
+        }
+        let will_save_cmd = self.will_save_command();
+        match opt.clone() {
+            DisplayOpts::Verbose => {
+                self.command.as_mut().unwrap().set_verbose();
+            }
+            DisplayOpts::SaveCommand => {
+                self.save_command(!will_save_cmd);
+                println!("Saving Command: {}", !will_save_cmd);
+            }
+            DisplayOpts::SaveToken => self.save_token(),
+            _ => {}
+        }
+        self.opts.push(opt.clone());
+    }
+
     pub fn add_display_option(&mut self, opt: DisplayOpts) {
-        if self.should_replace_or_add(&opt) {
-            // TRUE = We Should Add An Option
-            // Adding The New Test Here. should_replace_or_add
-            // The user has not yet added this command option yet, and so therefore, we push it to the opts vector.
-            // I need a copy of the option before we move it
+        // We either add the option or we replace the existing one
+
+        // first we look and see if its an option we are going to toggle..
+        if self.should_toggle(&opt) {
+            self.toggle_display_option(opt);
+            return;
+        }
+
+        if self.should_add_option(&opt) {
             self.opts.push(opt.clone());
-            // We also need to add it to the sharable command
-            // but we need to know what kind of option it is
-            // the best way I can think of right now is to match it but I'm sure there's a better way
             match opt {
-                DisplayOpts::Verbose => {
-                    // Just add the verbose flag to the command
-                    self.command.as_mut().unwrap().set_verbose(true);
-                }
                 DisplayOpts::Headers((key, value)) => {
                     // Push Header To Shareable Command
                     self.command
@@ -342,44 +527,121 @@ impl<'a> App<'a> {
                         .add_headers(vec![format!("{}:{}", key, value)]);
                 }
                 DisplayOpts::URL(url) => {
-                    // Set URL To Sharable Command
-                    self.command.as_mut().unwrap().set_url(url);
+                    self.set_url(&url);
                 }
                 DisplayOpts::Outfile(outfile) => {
-                    // Set Outfile To Shareable Command
                     self.command.as_mut().unwrap().set_outfile(&outfile);
                 }
+
                 _ => {
                     // Nothing
-                    // This display opt does not factor into the sharable command.
                 }
             }
         } else {
-            // FALSE = We Should Replace An Option
-            // The user has already added this command option, and so therefore, we should replace the old value with the new value.
-            //self.opts.retain(|x| x != &opt);
-            // Sorry, this is my way to do this idk if its the right way, but this is what makes sense to me in my head
-            for element in self.opts.iter_mut() {
-                // Same thing down here, I only care if its the same KIND of option, not the same value
-                // Again, this is annoying, I tried to do this an easier way
-                // but mem::discriminant doesnt like element as a comparison so I need to be particular
-                // Sorry lets refactor this
-                // TODO: Refactor This.
+            // We Should Replace An Option
 
-                // We Want To Just Replace A URL
-                if let DisplayOpts::URL(_) = element {
-                    *element = opt; // Copy The New URL Into The Old One
-                    return;
+            for option in self.opts.iter_mut() {
+                match option {
+                    DisplayOpts::URL(_) => {
+                        option.replace_value(opt.get_value());
+                        self.command.as_mut().unwrap().set_url(&opt.get_value());
+                    }
+                    DisplayOpts::Headers(..) => option.replace_value(opt.get_value()),
+                    DisplayOpts::Outfile(_) => option.replace_value(opt.get_value()),
+                    DisplayOpts::Response(_) => option.replace_value(opt.get_value()),
+                    DisplayOpts::RecDownload(_) => option.replace_value(opt.get_value()),
+                    DisplayOpts::Auth(_) => option.replace_value(opt.get_value()),
+                    _ => {}
                 }
-
-                // TODO: Headers Will Be Handled Differently.
-
-                // TODO: Outfile Will Be Handled Differently.
-
-                // TODO: Verbose & Save Command Will Be Handled Differently.
-
-                // TODO: Other Shit
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::App;
+    use crate::display::DisplayOpts;
+    use crate::request::command::Command;
+    use crate::request::curl::Curl;
+
+    // helper return app instance with curl command
+    fn return_app_cmd() -> App<'static> {
+        let mut app = App::default();
+        app.set_command(Command::Curl(Curl::new()));
+        app
+    }
+
+    #[test]
+    fn test_store_key() {
+        let mut app = return_app_cmd();
+        let token = "abcdefghijklmnop".to_string();
+        let _ = app.add_saved_key(token.clone());
+        assert!(
+            app.db
+                .as_ref()
+                .unwrap()
+                .get_keys()
+                .unwrap()
+                .iter()
+                .filter(|x| x.is_key(&token))
+                .collect::<Vec<_>>()
+                .len()
+                > 0
+        );
+    }
+
+    #[test]
+    fn test_toggle_verbose() {
+        let mut app = return_app_cmd();
+        // Add one.
+        app.add_display_option(crate::display::DisplayOpts::Verbose);
+        assert!(app.has_display_option(&DisplayOpts::Verbose));
+        // this should toggle
+        app.add_display_option(DisplayOpts::Verbose);
+        assert!(!app.has_display_option(&DisplayOpts::Verbose));
+    }
+
+    #[test]
+    fn test_replace_display_opt() {
+        let mut app = return_app_cmd();
+        let url = "https://www.google.com".to_string();
+        app.add_display_option(DisplayOpts::URL(url.clone()));
+        assert!(app.command.as_ref().unwrap().get_url() == url);
+        // overwrite the url
+        let new_url = "https://www.github.com".to_string();
+        app.add_display_option(DisplayOpts::URL(new_url.clone()));
+        assert!(app.command.as_ref().unwrap().get_url() == new_url);
+    }
+
+    #[test]
+    fn test_response_headers() {
+        let response = json!(
+            {
+            "headers": {
+                "content-type": "application/json",
+                "content-length": "123",
+                "server": "nginx"
+            },
+            "body": "Hello World"
+            }
+        );
+        let mut app = return_app_cmd();
+        app.set_response(response.to_string());
+        app.get_response_headers();
+        assert!(
+            app.get_response_headers()
+                == "content-type: application/json\ncontent-length: 123\nserver: nginx\n"
+        );
+    }
+
+    #[test]
+    fn test_remove_display_option() {
+        let mut app = return_app_cmd();
+        let url = "https://www.google.com";
+        app.add_display_option(DisplayOpts::URL(String::from(url)));
+        app.remove_display_option(&DisplayOpts::URL(String::from(url)));
     }
 }

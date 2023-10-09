@@ -3,9 +3,6 @@ pub mod screen;
 // Home Screen
 pub mod home;
 
-// API Keys
-pub mod keys;
-
 // Downloads Screen
 pub mod downloads;
 
@@ -17,9 +14,6 @@ pub mod request;
 
 // Response Screen
 pub mod response;
-
-// Debug Menu Screen
-pub mod debug;
 
 // All Input Type Screens
 pub mod input;

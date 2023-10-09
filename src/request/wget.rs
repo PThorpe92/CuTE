@@ -20,6 +20,9 @@ impl Wget {
             response: None,
         }
     }
+    pub fn get_url(&self) -> String {
+        self.url.clone()
+    }
 
     #[cfg(target_os = "windows")]
     pub fn new() -> Self {

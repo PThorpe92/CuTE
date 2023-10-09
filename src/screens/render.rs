@@ -1,16 +1,15 @@
+use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, DEFAULT_MENU_PARAGRAPH, DEFAULT_MENU_TITLE,
-    DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE, INPUT_MENU_TITLE, SAVED_COMMANDS_TITLE,
-    SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
+    API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, CUTE_LOGO, DEFAULT_MENU_PARAGRAPH,
+    DEFAULT_MENU_TITLE, DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE, INPUT_MENU_TITLE,
+    SAVED_COMMANDS_TITLE, SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
 };
 use crate::display::DisplayOpts;
 use crate::screens::input::input::handle_default_input_screen;
 
 use super::auth::handle_authentication_screen;
-use super::debug::handle_debug_screen;
 use super::downloads::handle_downloads_screen;
 use super::home::handle_home_screen;
-use super::keys::{handle_api_key_screen, handle_view_saved_keys};
 use super::method::handle_method_select_screen;
 use super::request::handle_request_menu_screen;
 use super::response::handle_response_screen;
@@ -27,7 +26,7 @@ use tui::{
     Frame,
 };
 
-use super::{centered_rect, small_rect, Screen};
+use super::{centered_rect, default_rect, small_rect, Screen};
 
 /// Renders the user interface widgets.
 pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -64,20 +63,43 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 let auth_str = format!("- Auth: {}\n", auth);
                 display_opts.push_str(auth_str.as_str());
             }
+            DisplayOpts::SaveToken => {
+                let auth_str = format!("- API Token will be saved\n");
+                display_opts.push_str(auth_str.as_str());
+            }
             _ => {}
         });
+        if app.current_screen == Screen::Home {
+            let logo = Paragraph::new(CUTE_LOGO)
+                .block(Block::default())
+                .style(
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .bg(Color::Gray)
+                        .add_modifier(tui::style::Modifier::BOLD),
+                )
+                .alignment(Alignment::Center);
+            frame.render_widget(logo, small_rect(frame.size()));
+        } else if app.current_screen == Screen::SavedCommands
+            || app.current_screen == Screen::SavedKeys
+        {
+            let logo = Paragraph::new("Press 'x' to delete a saved item.")
+                .block(Block::default())
+                .style(Style::default().fg(Color::Cyan).bg(Color::Gray));
+            frame.render_widget(logo, small_rect(frame.size()));
+        }
+        let area = small_rect(frame.size());
         let final_opts = display_opts.clone();
         let opts = Paragraph::new(final_opts.as_str())
             .block(
                 Block::default()
-                    .title("Options")
+                    .title("Selected Options")
                     .title_alignment(Alignment::Left)
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded),
             )
             .style(Style::default().fg(Color::Cyan).bg(Color::Gray))
             .alignment(Alignment::Left);
-        let area = small_rect(frame.size());
         frame.render_widget(opts, area);
         // ******************************************************************
     } else {
@@ -93,11 +115,20 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
 }
 
 pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    let menu_options = app.current_screen.get_list();
+    let mut items: Option<Vec<String>> = None;
+    match app.current_screen {
+        Screen::SavedKeys => {
+            items = Some(app.get_saved_keys().unwrap_or(vec![]));
+        }
+        Screen::SavedCommands => {
+            items = Some(app.get_saved_command_strings().unwrap_or(vec![]));
+        }
+        _ => {}
+    }
+    let menu_options = app.current_screen.get_list(items);
     let area = centered_rect(70, 60, frame.size());
 
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
-
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
     frame.set_cursor(0, app.cursor as u16);
@@ -124,7 +155,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         Screen::Home => handle_home_screen(app, frame),
         Screen::Method => handle_method_select_screen(app, frame),
         Screen::ViewBody => {
-            let area = small_rect(frame.size());
+            let area = default_rect(frame.size());
             let response = app.response.clone().unwrap();
             let paragraph = Paragraph::new(Text::from(response.as_str()))
                 .style(Style::default().fg(Color::Yellow).bg(Color::Black))
@@ -132,11 +163,9 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             frame.render_widget(paragraph, area);
         }
         Screen::Downloads => handle_downloads_screen(app, frame),
+        //
+        // REQUEST MENU *********************************************************
         Screen::RequestMenu(_) => handle_request_menu_screen(app, frame),
-        // KEYS SCREEN **********************************************************
-        Screen::KeysMenu => {
-            handle_api_key_screen(app, frame);
-        }
         // AUTHENTICATION SCREEN ************************************************
         Screen::Authentication => {
             handle_authentication_screen(app, frame);
@@ -152,10 +181,6 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             app.set_response(resp.clone());
             handle_response_screen(app, frame, resp.to_string());
         }
-        // DEBUG MENU ***********************************************************
-        Screen::Debug => {
-            handle_debug_screen(app, frame);
-        }
         Screen::SavedCommands => {
             handle_saved_commands_screen(app, frame);
         }
@@ -163,11 +188,28 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             handle_response_screen(app, frame, e.to_string());
         }
         Screen::SavedKeys => {
-            handle_view_saved_keys(app, frame);
+            handle_screen_defaults(app, frame);
         }
         _ => {}
     }
 }
+
+pub fn handle_api_key_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+    handle_screen_defaults(app, frame);
+    match app.selected {
+        // View Saved Keys
+        Some(0) => {
+            app.goto_screen(Screen::InputMenu(InputOpt::ApiKey));
+            app.selected = None;
+        }
+        // Add Key
+        Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::ApiKey)),
+        // Delete Key
+        Some(2) => app.goto_screen(Screen::SavedKeys),
+        _ => {}
+    }
+}
+
 pub fn render_header_paragraph(para: &'static str, title: &'static str) -> Paragraph<'static> {
     Paragraph::new(para)
         .block(

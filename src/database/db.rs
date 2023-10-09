@@ -7,15 +7,21 @@ use serde_json;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCommand {
-    id: i64,
+    id: i32,
     command: String,
     curl_json: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedKey {
-    id: i64,
+    id: i32,
     key: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SavedUrl {
+    id: i32,
+    url: String,
 }
 
 #[derive(Debug)]
@@ -56,11 +62,40 @@ impl DB {
     }
 
     pub fn add_command(&self, command: &str, json_str: String) -> Result<(), rusqlite::Error> {
+        if self.command_exists(command).unwrap() {
+            return Ok(());
+        }
         self.conn.execute(
             "INSERT INTO commands (command, curl_json) VALUES (?1, ?2)",
-            params![command, json_str],
+            params![command, &json_str],
         )?;
         Ok(())
+    }
+
+    pub fn delete_command(&self, command: &str) -> Result<(), rusqlite::Error> {
+        self.conn
+            .execute("DELETE FROM commands WHERE command = ?1", params![command])?;
+        Ok(())
+    }
+
+    pub fn key_exists(&self, key: &str) -> Result<bool> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT COUNT(*) FROM keys WHERE key = ?")?;
+        let count: i64 = stmt.query_row([&key], |row| row.get(0))?;
+        Ok(count > 0)
+    }
+
+    pub fn command_exists(&self, command: &str) -> Result<bool, rusqlite::Error> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT COUNT(*) FROM commands WHERE command = ?")?;
+        let count: i64 = stmt.query_row([&command], |row| row.get(0))?;
+        if count.is_positive() {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn get_commands(&self) -> Result<Vec<SavedCommand>> {
@@ -81,7 +116,16 @@ impl DB {
         Ok(commands)
     }
 
+    pub fn delete_key(&self, key: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM keys WHERE key = ?1", params![key])?;
+        Ok(())
+    }
+
     pub fn add_key(&self, key: &str) -> Result<()> {
+        if !self.key_exists(key).unwrap() {
+            return Ok(());
+        }
         self.conn
             .execute("INSERT INTO keys (key) VALUES (?1)", params![key])?;
         Ok(())
@@ -103,6 +147,12 @@ impl DB {
     }
 }
 
+impl Display for SavedUrl {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.url)
+    }
+}
+
 impl Display for SavedCommand {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.command)
@@ -111,7 +161,7 @@ impl Display for SavedCommand {
 
 impl Display for SavedKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.key)
+        write!(f, "ID: {} | Key: {}", self.id, self.key)
     }
 }
 
@@ -132,6 +182,10 @@ impl SavedCommand {
     pub fn get_curl_json(&self) -> String {
         self.curl_json.clone()
     }
+
+    pub fn get_command(&self) -> String {
+        self.command.clone()
+    }
 }
 
 impl SavedKey {
@@ -140,6 +194,9 @@ impl SavedKey {
             id: 0,
             key: key.to_string(),
         }
+    }
+    pub fn is_key(&self, key: &str) -> bool {
+        self.key == key
     }
     pub fn to_json(&self) -> Result<String> {
         Ok(serde_json::to_string(&self).expect("Failed to serialize"))
