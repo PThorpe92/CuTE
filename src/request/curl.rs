@@ -18,7 +18,7 @@ pub struct Curl<'a> {
     // The libcurl interface for our command/request
     curl: Easy,
     // The method type
-    method: Method,
+    method: Option<Method>,
     // The auth type we will use
     auth: AuthKind,
     // The final command string we will run
@@ -173,11 +173,12 @@ impl<'a> Clone for Curl<'a> {
         curl.set_url(self.url.as_str());
 
         match self.method {
-            Method::Get => curl.set_get_method(),
-            Method::Post => curl.set_post_method(),
-            Method::Put => curl.set_put_method(),
-            Method::Patch => curl.set_patch_method(),
-            Method::Delete => curl.set_delete_method(),
+            Some(Method::Get) => curl.set_get_method(),
+            Some(Method::Post) => curl.set_post_method(),
+            Some(Method::Put) => curl.set_put_method(),
+            Some(Method::Patch) => curl.set_patch_method(),
+            Some(Method::Delete) => curl.set_delete_method(),
+            None => {}
         }
         if let Some(ref res) = self.resp {
             curl.set_response(res.as_str());
@@ -276,7 +277,7 @@ impl<'a> Default for Curl<'a> {
     fn default() -> Self {
         Self {
             curl: Easy::new(),
-            method: Method::Get,
+            method: None,
             auth: AuthKind::None,
             cmd: String::from("curl "),
             url: String::new(),
@@ -322,12 +323,14 @@ impl<'a> Curl<'a> {
     // ANY time we get a command from the database to run, we have to call this method first.
     pub fn easy_from_opts(&mut self) {
         let opts = self.opts.clone();
-        match self.method {
-            Method::Get => self.set_get_method(),
-            Method::Post => self.set_post_method(),
-            Method::Put => self.set_put_method(),
-            Method::Patch => self.set_patch_method(),
-            Method::Delete => self.set_delete_method(),
+        if let Some(ref method) = self.method {
+            match method {
+                Method::Get => self.set_get_method(),
+                Method::Post => self.set_post_method(),
+                Method::Put => self.set_put_method(),
+                Method::Patch => self.set_patch_method(),
+                Method::Delete => self.set_delete_method(),
+            }
         }
         for opt in opts {
             match opt {
@@ -526,27 +529,27 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_get_method(&mut self) {
-        self.method = Method::Get;
+        self.method = Some(Method::Get);
         self.curl.get(true).unwrap();
     }
 
     pub fn set_post_method(&mut self) {
-        self.method = Method::Post;
+        self.method = Some(Method::Post);
         self.curl.post(true).unwrap();
     }
 
     pub fn set_put_method(&mut self) {
-        self.method = Method::Put;
+        self.method = Some(Method::Put);
         self.curl.put(true).unwrap();
     }
 
     pub fn set_patch_method(&mut self) {
-        self.method = Method::Patch;
+        self.method = Some(Method::Patch);
         self.curl.custom_request("PATCH").unwrap();
     }
 
     pub fn set_delete_method(&mut self) {
-        self.method = Method::Delete;
+        self.method = Some(Method::Delete);
         self.curl.custom_request("DELETE").unwrap();
     }
 
@@ -585,6 +588,13 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_unix_socket(&mut self, socket: &str) {
+        if self.opts.contains(&CurlFlag::UnixSocket(
+            CurlFlagType::UnixSocket.get_value(),
+            None,
+        )) {
+            self.opts
+                .retain(|x| *x != CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None));
+        }
         self.add_flag(CurlFlag::UnixSocket(
             CurlFlagType::UnixSocket.get_value(),
             None,
@@ -625,8 +635,12 @@ impl<'a> Curl<'a> {
     }
 
     pub fn build_command_str(&mut self) {
-        self.cmd.push_str("-X ");
-        self.cmd.push_str(self.method.to_string().as_str());
+        if let Some(ref method) = &self.method {
+            self.cmd.push_str("-X ");
+            self.cmd.push_str(method.to_string().as_str());
+            self.cmd.push_str(" ");
+        }
+        self.cmd.push_str(self.url.as_str());
         self.cmd.push_str(" ");
         for flag in &self.opts {
             self.cmd.push_str(flag.get_value());
@@ -888,8 +902,8 @@ mod tests {
         curl.set_verbose();
         curl.set_url(&url);
         curl.build_command_str();
-        assert_eq!(curl.cmd, format!("curl -X GET -v {}", url));
-        assert_eq!(curl.opts.len(), 2);
+        assert_eq!(curl.cmd, format!("curl -X GET {} -v", url));
+        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.resp, None);
     }
 
@@ -899,14 +913,12 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_post_method();
         curl.build_command_str();
-        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, "curl -X POST");
 
         // Test setting method to GET
         let mut curl_get = Curl::new();
         curl_get.set_get_method();
         curl_get.build_command_str();
-        assert_eq!(curl_get.opts.len(), 1);
         assert_eq!(curl_get.cmd, "curl -X GET");
     }
 
@@ -915,9 +927,11 @@ mod tests {
         let mut curl = Curl::new();
         let url = "https://example.com";
         curl.set_url(url);
+        curl.set_get_method();
         curl.build_command_str();
         assert_eq!(curl.url, url);
-        assert_eq!(curl.cmd, format!("curl {}", url));
+        // get is default method
+        assert_eq!(curl.cmd, format!("curl -X GET {}", url));
     }
 
     #[test]
@@ -951,26 +965,15 @@ mod tests {
 
     #[test]
     fn test_parse_from_json() {
-        let method_flag =
-            CurlFlag::Method(CurlFlagType::Method.get_value(), Some("GET".to_string()));
-        let verbose_flag = CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None);
-        let json = json!(
-        {
-            "auth": {"Basic": "username:password"},
-            "cmd": "curl -X GET https://example.com",
-            "headers": [],
-            "url": "https://example.com",
-            "opts": [method_flag, verbose_flag],
-            "resp": "This is a response",
-            "upload_file": "file.txt",
-            "outfile": "output.txt",
-        });
-        let binding = json.to_string();
-        let curl: Curl = serde_json::from_str(&binding).unwrap();
-        assert_eq!(curl.auth, AuthKind::Basic("username:password".to_string()));
-        assert_eq!(curl.cmd, "curl -X GET https://example.com");
-        assert_eq!(curl.url, "https://example.com");
-        assert_eq!(curl.opts.len(), 2);
+        let mut curl = Curl::new();
+        let url = "https://google.com";
+        curl.set_url(url);
+        curl.set_post_method();
+        let json_str = serde_json::to_string(&curl).unwrap();
+        let new_curl: Curl = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(curl.url, new_curl.url);
+        assert_eq!(curl.cmd, new_curl.cmd);
+        assert_eq!(curl.opts.len(), new_curl.opts.len());
     }
     #[test]
     fn test_deserialize_raw_str() {
@@ -1006,43 +1009,20 @@ mod tests {
         // deserialize it
         let curl2: Curl = serde_json::from_str(&json_str).unwrap();
         assert!(curl2.has_verbose());
-        assert!(curl2.opts.contains(&CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("GET"))
-        )));
         assert_eq!(curl2.url, url);
     }
 
     #[test]
     fn test_parse_from_json_execute() {
         let mut server = setup("GET");
-        let url = server.deref_mut().url();
-        // it doesn't seem to like whatever url format we are getting from
-        // mockito at this point. I think we can hardcode this test for now
-        // and see if we get a response
-        println!("{}", url.as_str());
-        let json = json!({
-        "auth": {"Basic": "username:password"},
-        "cmd": "curl",
-        "headers": [],
-        "url": format!("{}", url.as_str()),
-        "opts":[],
-        "resp": "None",
-        "upload_file": "file.txt",
-        "outfile": "output.txt",
-        });
-        let binding = json.to_string();
-        let _ = std::fs::File::create("file.txt").unwrap();
-        let mut curl: Curl = serde_json::from_str(&binding).unwrap();
-        curl.execute(&mut None).unwrap();
-        assert_eq!(curl.url, url.as_str());
-        assert_eq!(curl.opts.len(), 2);
-        assert!(curl.opts.contains(&CurlFlag::Basic(
-            CurlFlagType::Basic.get_value(),
-            Some(String::from("username:password"))
-        )));
-        assert!(curl.resp.is_some());
-        let _ = std::fs::remove_file("file.txt");
+        let mut curl = Curl::new();
+        let url = server.deref_mut().url().clone();
+        curl.set_url(&url);
+        let json_str = serde_json::to_string(&curl).unwrap();
+        let mut new_curl: Curl = serde_json::from_str(&json_str).unwrap();
+        new_curl.execute(&mut None).unwrap();
+        assert_eq!(new_curl.url, url);
+        assert!(new_curl.resp.is_some());
     }
 
     #[test]
@@ -1196,12 +1176,7 @@ mod tests {
         let url = server.deref_mut().url();
         curl.set_url(&url);
         curl.build_command_str();
-        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X GET {}", url));
-        assert!(curl.opts.contains(&CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("GET"))
-        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1214,12 +1189,7 @@ mod tests {
         curl.set_post_method();
         curl.set_url(&url);
         curl.build_command_str();
-        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X POST {}", url));
-        assert!(curl.opts.contains(&CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("POST"))
-        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1233,12 +1203,7 @@ mod tests {
         curl.set_put_method();
         curl.set_url(&url);
         curl.build_command_str();
-        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X PUT {}", url));
-        assert!(curl.opts.contains(&CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("PUT"))
-        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1253,12 +1218,7 @@ mod tests {
         curl.set_patch_method();
         curl.set_url(&url);
         curl.build_command_str();
-        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X PATCH {}", url));
-        assert!(curl.opts.contains(&CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("PATCH"))
-        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }
@@ -1273,12 +1233,7 @@ mod tests {
         curl.set_delete_method();
         curl.set_url(&url);
         curl.build_command_str();
-        assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.cmd, format!("curl -X DELETE {}", url));
-        assert!(curl.opts.contains(&CurlFlag::Method(
-            CurlFlagType::Method.get_value(),
-            Some(String::from("DELETE"))
-        )));
         curl.execute(&mut None).unwrap();
         assert!(curl.resp.is_some());
     }

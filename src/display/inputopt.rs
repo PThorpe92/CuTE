@@ -14,6 +14,7 @@ pub enum InputOpt {
     Auth(AuthType),
     Execute,
     ApiKey,
+    UnixSocket,
 }
 
 impl Display for InputOpt {
@@ -28,6 +29,7 @@ impl Display for InputOpt {
             InputOpt::Auth(auth) => write!(f, "|- Authentication: {}", auth),
             InputOpt::Execute => write!(f, "| Execute"),
             InputOpt::ApiKey => write!(f, "| API Key"),
+            InputOpt::UnixSocket => write!(f, "| Unix Socket"),
         }
     }
 }

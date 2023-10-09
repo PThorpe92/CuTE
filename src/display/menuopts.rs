@@ -70,8 +70,9 @@ lazy_static! {
         "View my stored API keys 󱂛  ",
         "View or execute my saved commands  ",
     ];
-    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 8] = [
+    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 9] = [
         "Add a URL 󰖟 ",
+        "Add Unix Socket address 󰟩 ",
         "Add Authentication 󰯄 ",
         "Add Headers  ",
         "Enable verbose output [-v]",
@@ -86,8 +87,14 @@ lazy_static! {
         "Specify output filepath  ",
         "Begin Download  ",
     ];
-    pub static ref METHOD_MENU_OPTIONS: [&'static str; 5] =
-        ["GET", "POST", "PUT", "DELETE", "PATCH",];
+    pub static ref METHOD_MENU_OPTIONS: [&'static str; 6] = [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "PATCH",
+        "OTHER (custom command)"
+    ];
     pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 8] = [
         "Basic",
         "Bearer",
