@@ -48,7 +48,6 @@ impl<'a> Command<'a> {
             },
             "DELETE" => match self {
                 Command::Curl(curl) => curl.set_delete_method(),
-
                 _ => {}
             },
             _ => {}

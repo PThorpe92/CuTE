@@ -14,32 +14,34 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
     match app.selected {
         // Add a URL,
         Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::URL(CmdType::Curl))),
+        // Add Unix Socket address
+        Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::UnixSocket)),
         // Auth
-        Some(1) => app.goto_screen(Screen::Authentication),
+        Some(2) => app.goto_screen(Screen::Authentication),
         // Headers
-        Some(2) => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
+        Some(3) => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
         // Verbose
-        Some(3) => {
+        Some(4) => {
             app.add_display_option(DisplayOpts::Verbose);
             app.selected = None;
         }
         // Request Body
-        Some(4) => {
+        Some(5) => {
             app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
             app.selected = None;
         }
         // Save this command
-        Some(5) => {
+        Some(6) => {
             app.add_display_option(DisplayOpts::SaveCommand);
             app.selected = None;
         }
         // Save your token or login
-        Some(6) => {
+        Some(7) => {
             app.add_display_option(DisplayOpts::SaveToken);
             app.selected = None;
         }
         // Execute command
-        Some(7) => match app.execute_command() {
+        Some(8) => match app.execute_command() {
             Ok(()) => {
                 if app.command.as_ref().unwrap().get_response().is_some() {
                     app.response = app.command.as_ref().unwrap().get_response().clone();

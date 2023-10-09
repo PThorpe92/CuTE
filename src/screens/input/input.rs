@@ -124,12 +124,15 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             let _ = app.add_saved_key(message.clone());
             app.goto_screen(Screen::SavedKeys);
         }
+        InputOpt::UnixSocket => {
+            app.add_display_option(DisplayOpts::UnixSocket(message.clone()));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
         InputOpt::Headers => {
             let headers = message.split(':').collect::<Vec<&str>>();
             let cpy = (String::from(headers[0]), String::from(headers[1]));
-            app.add_headers(headers.iter().map(|x| x.to_string()).collect());
             app.add_display_option(DisplayOpts::Headers(cpy));
-            app.current_screen = Screen::RequestMenu(String::new());
+            app.goto_screen(Screen::RequestMenu(String::new()));
         }
         // Only downloads let you specify the output file prior to execution of the command
         InputOpt::Output => {

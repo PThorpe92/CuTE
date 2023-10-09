@@ -26,7 +26,9 @@ pub enum DisplayOpts {
     RecDownload(usize),
     Auth(String),
     SaveToken,
+    UnixSocket(String),
 }
+
 impl DisplayOpts {
     pub fn replace_value(&mut self, val: String) {
         match self {
@@ -48,6 +50,9 @@ impl DisplayOpts {
             DisplayOpts::Auth(auth) => {
                 *auth = val;
             }
+            DisplayOpts::UnixSocket(socket) => {
+                *socket = val;
+            }
             _ => {}
         }
     }
@@ -63,6 +68,7 @@ impl DisplayOpts {
             DisplayOpts::RecDownload(level) => level.to_string(),
             DisplayOpts::Auth(auth) => auth.clone(),
             DisplayOpts::SaveToken => String::from("Save Token"),
+            DisplayOpts::UnixSocket(socket) => socket.clone(),
         }
     }
 }

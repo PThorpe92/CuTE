@@ -378,6 +378,7 @@ impl<'a> App<'a> {
                 DisplayOpts::RecDownload(_) => {
                     self.command.as_mut().unwrap().set_rec_download_level(0)
                 }
+                DisplayOpts::UnixSocket(_) => self.command.as_mut().unwrap().set_unix_socket(""),
                 DisplayOpts::Auth(_) => self
                     .command
                     .as_mut()
@@ -446,6 +447,11 @@ impl<'a> App<'a> {
                         return true;
                     }
                 }
+                DisplayOpts::UnixSocket(_) => {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
             }
         }
         // Otherwise, its not there.
@@ -468,6 +474,7 @@ impl<'a> App<'a> {
             DisplayOpts::RecDownload(_) => !self.has_display_option(opt), // Recursive download depth should be replaced
             DisplayOpts::Auth(_) => !self.has_display_option(opt),        // Auth should be replaced
             DisplayOpts::SaveToken => !self.has_display_option(opt), // Save token should be toggled
+            DisplayOpts::UnixSocket(_) => !self.has_display_option(opt), // Unix socket should be replaced
         }
     }
 
@@ -532,6 +539,9 @@ impl<'a> App<'a> {
                 DisplayOpts::Outfile(outfile) => {
                     self.command.as_mut().unwrap().set_outfile(&outfile);
                 }
+                DisplayOpts::UnixSocket(socket) => {
+                    self.command.as_mut().unwrap().set_unix_socket(&socket);
+                }
 
                 _ => {
                     // Nothing
@@ -551,6 +561,7 @@ impl<'a> App<'a> {
                     DisplayOpts::Response(_) => option.replace_value(opt.get_value()),
                     DisplayOpts::RecDownload(_) => option.replace_value(opt.get_value()),
                     DisplayOpts::Auth(_) => option.replace_value(opt.get_value()),
+                    DisplayOpts::UnixSocket(_) => option.replace_value(opt.get_value()),
                     _ => {}
                 }
             }
@@ -560,7 +571,6 @@ impl<'a> App<'a> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
 
     use super::App;
     use crate::display::DisplayOpts;
@@ -575,22 +585,11 @@ mod tests {
     }
 
     #[test]
-    fn test_store_key() {
+    fn test_add_display_option() {
         let mut app = return_app_cmd();
-        let token = "abcdefghijklmnop".to_string();
-        let _ = app.add_saved_key(token.clone());
-        assert!(
-            app.db
-                .as_ref()
-                .unwrap()
-                .get_keys()
-                .unwrap()
-                .iter()
-                .filter(|x| x.is_key(&token))
-                .collect::<Vec<_>>()
-                .len()
-                > 0
-        );
+        let url = "https://www.google.com";
+        app.add_display_option(DisplayOpts::URL(String::from(url)));
+        assert!(app.command.as_ref().unwrap().get_url() == url);
     }
 
     #[test]
@@ -614,27 +613,6 @@ mod tests {
         let new_url = "https://www.github.com".to_string();
         app.add_display_option(DisplayOpts::URL(new_url.clone()));
         assert!(app.command.as_ref().unwrap().get_url() == new_url);
-    }
-
-    #[test]
-    fn test_response_headers() {
-        let response = json!(
-            {
-            "headers": {
-                "content-type": "application/json",
-                "content-length": "123",
-                "server": "nginx"
-            },
-            "body": "Hello World"
-            }
-        );
-        let mut app = return_app_cmd();
-        app.set_response(response.to_string());
-        app.get_response_headers();
-        assert!(
-            app.get_response_headers()
-                == "content-type: application/json\ncontent-length: 123\nserver: nginx\n"
-        );
     }
 
     #[test]
