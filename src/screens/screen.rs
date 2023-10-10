@@ -7,8 +7,8 @@ use std::fmt::{Display, Formatter};
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     AUTHENTICATION_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS,
-    OPTION_PADDING_MAX, OPTION_PADDING_MID, OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS,
-    RESPONSE_MENU_OPTIONS,
+    MORE_FLAGS_MENU, OPTION_PADDING_MAX, OPTION_PADDING_MID, OPTION_PADDING_MIN,
+    REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
 };
 use crossterm::terminal::window_size;
 use tui::style::{Color, Modifier, Style};
@@ -29,6 +29,7 @@ pub enum Screen {
     SavedCommands,
     Error(String),
     ViewBody,
+    MoreFlags,
 }
 
 impl Display for Screen {
@@ -47,6 +48,7 @@ impl Display for Screen {
             Screen::SavedCommands => "My Saved Commands",
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
+            Screen::MoreFlags => "MoreFlags",
         };
         write!(f, "{}", screen)
     }
@@ -147,6 +149,15 @@ impl<'a> Screen {
                     .unwrap_or(vec!["No Saved Commands".to_string()])
                     .iter()
                     .map(|c| ListItem::new(format!("{}{}", c, determine_line_size())))
+                    .collect();
+            }
+            Screen::MoreFlags => {
+                return MORE_FLAGS_MENU
+                    .iter()
+                    .map(|i| {
+                        ListItem::new(format!("{}{}", i, OPTION_PADDING_MIN))
+                            .style(Style::default().fg(Color::Red))
+                    })
                     .collect();
             }
         }

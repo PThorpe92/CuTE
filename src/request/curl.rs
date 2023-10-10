@@ -1,22 +1,34 @@
 use crate::database::db::DB;
+use curl::Error;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use curl::easy::{Auth, Easy2, Handler, List, WriteError};
 use std::io::Read;
+use std::u8;
 use std::{
-    cell::RefCell,
     fmt::{Display, Formatter},
     io::Write,
 };
 
-use curl::easy::{Auth, Easy, List};
+use super::command::{CmdOpts, CombinedOpts, CurlOpts};
+
 pub static DEFAULT_CMD: &str = "curl ";
+#[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
+struct Collector(Vec<u8>);
+
+impl Handler for Collector {
+    fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
+        self.0.extend_from_slice(data);
+        Ok(data.len())
+    }
+}
 
 #[derive(Debug)]
 pub struct Curl<'a> {
     // The libcurl interface for our command/request
-    curl: Easy,
+    curl: Easy2<Collector>,
     // The method type
     method: Option<Method>,
     // The auth type we will use
@@ -125,7 +137,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                         &_ => {}
                     }
                 }
-                let curl = Easy::new();
+                let curl = Easy2::new(Collector(Vec::new()));
                 let mut res = Curl {
                     curl,
                     method: method.ok_or_else(|| serde::de::Error::missing_field("method"))?,
@@ -189,7 +201,7 @@ impl<'a> Clone for Curl<'a> {
         }
 
         if let Some(ref outfile) = self.outfile {
-            curl.set_outfile(outfile.clone());
+            curl.set_outfile(&outfile);
         }
         if self.cmd != DEFAULT_CMD {
             // our cmd string has been built
@@ -197,7 +209,7 @@ impl<'a> Clone for Curl<'a> {
         }
         curl.build_command_str();
         Self {
-            curl: Easy::new(),
+            curl: Easy2::new(Collector(Vec::new())),
             method: self.method.clone(),
             auth: self.auth.clone(),
             cmd: self.cmd.clone(),
@@ -273,10 +285,12 @@ impl Display for AuthKind {
     }
 }
 
+impl CombinedOpts for Curl<'_> {}
+
 impl<'a> Default for Curl<'a> {
     fn default() -> Self {
         Self {
-            curl: Easy::new(),
+            curl: Easy2::new(Collector(Vec::new())),
             method: None,
             auth: AuthKind::None,
             cmd: String::from("curl "),
@@ -291,31 +305,264 @@ impl<'a> Default for Curl<'a> {
         }
     }
 }
+impl<'a> CmdOpts for Curl<'a> {
+    fn get_url(&self) -> String {
+        String::from(self.url.clone())
+    }
+    fn add_basic_auth(&mut self, info: &str) {
+        self.add_flag(CurlFlag::Basic(
+            CurlFlagType::Basic.get_value(),
+            Some(String::from(info)),
+        ));
+        self.auth = AuthKind::Basic(String::from(info));
+    }
+    //
+    // this is only called after execution, we need to
+    // find out if its been built already
+    fn get_command_string(&mut self) -> String {
+        if self.will_save_command() {
+            self.build_command_str();
+        }
+        self.cmd.clone()
+    }
+
+    fn set_outfile(&mut self, outfile: &str) {
+        self.add_flag(CurlFlag::Output(CurlFlagType::Output.get_value(), None));
+        self.outfile = Some(String::from(outfile));
+    }
+
+    fn set_url(&mut self, url: &str) {
+        self.url = String::from(url);
+        self.curl.url(url).unwrap();
+    }
+
+    fn set_response(&mut self, response: &str) {
+        self.resp = Some(String::from(response));
+    }
+
+    fn set_rec_download_level(&mut self, _level: usize) {}
+
+    fn get_response(&self) -> String {
+        self.resp.clone().unwrap_or(String::new())
+    }
+
+    fn execute(&mut self, mut db: Option<&mut Box<DB>>) -> Result<(), String> {
+        let mut list = List::new();
+        // Setup auth if we have it, will return whether we appended to the list
+        let mut has_headers = self.handle_auth_exec(&mut list);
+        if self.headers.is_some() {
+            has_headers = true;
+            let _ = self
+                .headers
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|h| list.append(h.as_str()).unwrap());
+        }
+        if self.will_save_command() {
+            db.as_mut()
+                .unwrap()
+                .add_command(
+                    &self.get_command_string(),
+                    serde_json::to_string(&self)
+                        .unwrap_or(String::from("Error serializing command")),
+                )
+                .unwrap();
+        }
+        if self.will_save_token() {
+            let _ = db
+                .as_mut()
+                .unwrap()
+                .add_key(&self.auth.get_token().unwrap());
+        }
+        // We have to append the list of headers all at once
+        // but if we never appended to the list, we skip this
+        if has_headers {
+            self.curl.http_headers(list).unwrap();
+        }
+
+        // If we are uploading a file...
+        if let Some(ref upload_file) = self.upload_file {
+            let file = std::fs::File::open(upload_file).unwrap();
+            let mut buff: Vec<u8> = Vec::new();
+            let mut reader = std::io::BufReader::new(file);
+            let _ = reader.read_to_end(&mut buff);
+            // set connect only + establish connection to the URL
+            let _ = self.curl.connect_only(true).unwrap();
+            if let Ok(_) = self.curl.perform() {
+                // Upload the file contents
+                if let Ok(_) = self.curl.send(buff.as_slice()) {
+                    return Ok(());
+                } else {
+                    Err(String::from("Error with upload"))
+                }
+            } else {
+                Err(String::from("Error making connection"))
+            }
+        } else {
+            let _ = self.curl.perform().unwrap();
+            let contents = self.curl.get_ref();
+            let res = String::from_utf8_lossy(&contents.0);
+            if let Ok(json) =
+                serde_json::from_str::<serde_json::Value>(&String::from_utf8_lossy(&contents.0))
+            {
+                self.resp = Some(serde_json::to_string_pretty(&json).unwrap());
+                Ok(())
+            } else {
+                self.resp = Some(res.to_string());
+                Ok(())
+            }
+        }
+    }
+}
+impl<'a> CurlOpts for Curl<'a> {
+    fn set_auth(&mut self, auth: AuthKind) {
+        match auth {
+            AuthKind::Basic(info) => self.set_basic_auth(info),
+            AuthKind::Ntlm(info) => self.set_ntlm_auth(&info),
+            AuthKind::Bearer(token) => self.set_bearer_auth(token),
+            AuthKind::AwsSigv4(login) => self.set_aws_sigv4_auth(login),
+            AuthKind::Digest(login) => self.set_digest_auth(&login),
+            AuthKind::Kerberos(info) => self.set_kerberos_auth(&info),
+            AuthKind::NtlmWb(info) => self.set_ntlm_wb_auth(&info),
+            AuthKind::Spnego(info) => self.set_spnego_auth(info),
+            AuthKind::None => {}
+        }
+    }
+    fn set_method(&mut self, method: String) {
+        match method.as_str() {
+            "GET" => self.set_get_method(),
+            "POST" => self.set_post_method(),
+            "PUT" => self.set_put_method(),
+            "PATCH" => self.set_patch_method(),
+            "DELETE" => self.set_delete_method(),
+            _ => {}
+        }
+    }
+
+    fn will_save_command(&self) -> bool {
+        self.save
+    }
+
+    fn set_verbose(&mut self, opt: bool) {
+        self.add_flag(CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None));
+        self.curl.verbose(opt).unwrap();
+    }
+
+    fn set_headers(&mut self, headers: Vec<String>) {
+        if self.headers.is_some() {
+            self.headers.as_mut().unwrap().extend(headers);
+        } else {
+            self.headers = Some(headers.clone());
+        }
+    }
+    fn set_fail_on_error(&mut self, fail: bool) {
+        if fail {
+            self.add_flag(CurlFlag::FailOnError(
+                CurlFlagType::FailOnError.get_value(),
+                None,
+            ));
+        } else {
+            self.opts.retain(|x| {
+                *x != CurlFlag::FailOnError(CurlFlagType::FailOnError.get_value(), None)
+            });
+        }
+        self.curl.fail_on_error(fail).unwrap();
+    }
+    fn set_unix_socket(&mut self, socket: &str) {
+        if self.opts.contains(&CurlFlag::UnixSocket(
+            CurlFlagType::UnixSocket.get_value(),
+            None,
+        )) {
+            self.opts
+                .retain(|x| *x != CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None));
+        }
+        self.add_flag(CurlFlag::UnixSocket(
+            CurlFlagType::UnixSocket.get_value(),
+            None,
+        ));
+        self.curl.unix_socket(socket).unwrap();
+    }
+    fn enable_progress_bar(&mut self, on: bool) {
+        if on {
+            self.add_flag(CurlFlag::Progress(CurlFlagType::Progress.get_value(), None));
+        } else {
+            self.remove_flag(CurlFlag::Progress(CurlFlagType::Progress.get_value(), None));
+        }
+        self.curl.progress(on).unwrap();
+    }
+
+    fn save_command(&mut self, opt: bool) {
+        self.save = opt;
+    }
+
+    fn add_headers(&mut self, headers: String) {
+        if self.headers.is_some() {
+            self.headers.as_mut().unwrap().push(headers);
+        } else {
+            self.headers = Some(vec![headers]);
+        }
+    }
+
+    fn save_token(&mut self, opt: bool) {
+        self.save_auth = opt;
+    }
+
+    fn get_token(&self) -> Option<String> {
+        self.auth.get_token()
+    }
+    fn remove_headers(&mut self, headers: String) {
+        if self.headers.is_some() {
+            self.headers
+                .as_mut()
+                .unwrap()
+                .retain(|x| !headers.contains(x));
+        }
+    }
+
+    fn write_output(&mut self) -> Result<(), std::io::Error> {
+        println!("{}", self.outfile.as_ref().unwrap().clone());
+        match self.outfile {
+            Some(ref mut outfile) => {
+                let mut file = match std::fs::File::create(outfile) {
+                    Ok(f) => f,
+                    Err(e) => {
+                        eprintln!("Error creating file: {:?}", e);
+                        return Err(e);
+                    }
+                };
+
+                let mut writer = std::io::BufWriter::new(&mut file);
+
+                if let Some(resp) = &self.resp {
+                    if let Err(e) = writer.write_all(resp.as_bytes()) {
+                        eprintln!("Error writing to file: {:?}", e);
+                        return Err(e);
+                    }
+                }
+
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
+    fn enable_response_headers(&mut self, opt: bool) {
+        self.curl.show_header(opt).unwrap();
+    }
+}
 
 impl<'a> Curl<'a> {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn set_url(&mut self, url: &str) {
-        self.url = String::from(url);
-        self.curl.url(url).unwrap();
-    }
-
-    pub fn get_url(&self) -> String {
-        self.url.clone()
-    }
-
-    pub fn has_auth(&self) -> bool {
+    fn has_auth(&self) -> bool {
         self.auth != AuthKind::None
     }
 
-    pub fn will_save_token(&self) -> bool {
+    fn will_save_token(&self) -> bool {
         self.save_auth
-    }
-
-    pub fn save_token(&mut self, save: bool) {
-        self.save_auth = save;
     }
 
     // This is a hack because when we deseialize from the DB, we get a curl struct with no curl::Easy
@@ -334,11 +581,11 @@ impl<'a> Curl<'a> {
         }
         for opt in opts {
             match opt {
-                CurlFlag::Verbose(..) => self.set_verbose(),
-                CurlFlag::Headers(_, val) => self.add_headers(vec![val.unwrap_or(String::new())]),
+                CurlFlag::Verbose(..) => self.set_verbose(true),
+                CurlFlag::Headers(_, val) => self.add_headers(val.unwrap_or(String::new())),
                 CurlFlag::Output(..) => {
                     if let Some(val) = opt.get_arg() {
-                        self.set_outfile(val);
+                        self.set_outfile(&val);
                     }
                 }
                 CurlFlag::User(..) => {}
@@ -398,6 +645,7 @@ impl<'a> Curl<'a> {
                         self.show_headers(val.as_str());
                     }
                 }
+                CurlFlag::FailOnError(..) => self.set_fail_on_error(true),
                 CurlFlag::Proxy(..) => {}
                 CurlFlag::ProxyTunnel(..) => {}
                 CurlFlag::Socks5(..) => {}
@@ -407,7 +655,6 @@ impl<'a> Curl<'a> {
                 CurlFlag::Trace(..) => {}
                 CurlFlag::DataUrlEncode(..) => {}
                 CurlFlag::Referrer(..) => {}
-                CurlFlag::Insecure(..) => {}
                 CurlFlag::PreventDefaultConfig(..) => {}
                 CurlFlag::CaCert(..) => {}
                 CurlFlag::CaNative(..) => {}
@@ -417,72 +664,11 @@ impl<'a> Curl<'a> {
         }
     }
 
-    pub fn set_response(&mut self, response: &str) {
-        self.resp = Some(String::from(response));
-    }
-
-    pub fn get_response(&self) -> Option<String> {
-        self.resp.clone()
-    }
-
-    pub fn get_token(&self) -> Option<String> {
-        self.auth.get_token()
-    }
-
-    pub fn write_output(&mut self) -> Result<(), std::io::Error> {
-        println!("{}", self.outfile.as_ref().unwrap().clone());
-        match self.outfile {
-            Some(ref mut outfile) => {
-                let mut file = match std::fs::File::create(outfile) {
-                    Ok(f) => f,
-                    Err(e) => {
-                        eprintln!("Error creating file: {:?}", e);
-                        return Err(e);
-                    }
-                };
-
-                let mut writer = std::io::BufWriter::new(&mut file);
-
-                if let Some(resp) = &self.resp {
-                    if let Err(e) = writer.write_all(resp.as_bytes()) {
-                        eprintln!("Error writing to file: {:?}", e);
-                        return Err(e);
-                    }
-                }
-
-                Ok(())
-            }
-            None => Ok(()),
-        }
-    }
-
     pub fn remove_flag(&mut self, flag: CurlFlag<'a>) {
         self.opts.retain(|x| *x != flag);
     }
 
-    pub fn add_headers(&mut self, headers: Vec<String>) {
-        if self.headers.is_some() {
-            self.headers.as_mut().unwrap().extend(headers);
-        } else {
-            self.headers = Some(headers.clone());
-        }
-    }
-
-    pub fn remove_headers(&mut self, headers: Vec<String>) {
-        if self.headers.is_some() {
-            self.headers
-                .as_mut()
-                .unwrap()
-                .retain(|x| !headers.contains(x));
-        }
-    }
-
-    pub fn set_verbose(&mut self) {
-        self.add_flag(CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None));
-        self.curl.verbose(true).unwrap_or_default();
-    }
-
-    pub fn has_verbose(&self) -> bool {
+    fn has_verbose(&self) -> bool {
         self.opts
             .contains(&CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None))
     }
@@ -569,39 +755,6 @@ impl<'a> Curl<'a> {
         self.auth = AuthKind::NtlmWb(login.to_string());
     }
 
-    pub fn set_progress(&mut self, on: bool) {
-        if on {
-            self.add_flag(CurlFlag::Progress(CurlFlagType::Progress.get_value(), None));
-        } else {
-            self.remove_flag(CurlFlag::Progress(CurlFlagType::Progress.get_value(), None));
-        }
-        self.curl.progress(on).unwrap();
-    }
-
-    pub fn save_command(&mut self, save: bool) {
-        self.save = save;
-    }
-
-    pub fn set_outfile(&mut self, output: String) {
-        self.add_flag(CurlFlag::Output(CurlFlagType::Output.get_value(), None));
-        self.outfile = Some(output.clone());
-    }
-
-    pub fn set_unix_socket(&mut self, socket: &str) {
-        if self.opts.contains(&CurlFlag::UnixSocket(
-            CurlFlagType::UnixSocket.get_value(),
-            None,
-        )) {
-            self.opts
-                .retain(|x| *x != CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None));
-        }
-        self.add_flag(CurlFlag::UnixSocket(
-            CurlFlagType::UnixSocket.get_value(),
-            None,
-        ));
-        self.curl.unix_socket(socket).unwrap();
-    }
-
     pub fn set_bearer_auth(&mut self, token: String) {
         self.add_flag(CurlFlag::Bearer(
             CurlFlagType::Bearer.get_value(),
@@ -632,9 +785,10 @@ impl<'a> Curl<'a> {
             Some(file.to_string()),
         ));
         self.upload_file = Some(file.to_string());
+        self.curl.upload(true).unwrap();
     }
 
-    pub fn build_command_str(&mut self) {
+    fn build_command_str(&mut self) {
         if let Some(ref method) = &self.method {
             self.cmd.push_str("-X ");
             self.cmd.push_str(method.to_string().as_str());
@@ -660,48 +814,11 @@ impl<'a> Curl<'a> {
         self.cmd = self.cmd.trim().to_string();
     }
 
-    // this is only called after execution, we need to
-    // find out if its been built already
-    pub fn get_command_str(&mut self) -> String {
-        if self.will_save_command() {
-            self.build_command_str();
-        }
-        self.cmd.clone()
-    }
-
-    pub fn add_flag(&mut self, flag: CurlFlag<'a>) {
-        self.opts.push(flag.clone());
-    }
-
-    pub fn execute(&mut self, db: &mut Option<Box<DB>>) -> Result<(), curl::Error> {
-        let mut list = List::new();
-        let mut has_headers = false;
-        if self.headers.is_some() {
-            has_headers = true;
-            let _ = self
-                .headers
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|h| list.append(h.as_str()).unwrap());
-        }
-        if self.will_save_command() {
-            db.as_mut()
-                .unwrap()
-                .add_command(
-                    &self.get_command_str(),
-                    serde_json::to_string(&self)
-                        .unwrap_or(String::from("Error serializing command")),
-                )
-                .unwrap();
-        }
-        if self.will_save_token() {
-            let _ = db
-                .as_mut()
-                .unwrap()
-                .add_key(&self.auth.get_token().unwrap());
-        }
+    pub fn handle_auth_exec(&mut self, list: &mut List) -> bool {
+        // we need to know if we have appended to this list
+        let mut list_edited = false;
         match &self.auth {
+            AuthKind::None => {}
             AuthKind::Basic(login) => {
                 self.curl
                     .username(login.split(':').next().unwrap())
@@ -712,7 +829,7 @@ impl<'a> Curl<'a> {
                 let _ = self.curl.http_auth(Auth::new().basic(true));
             }
             AuthKind::Bearer(token) => {
-                has_headers = true;
+                list_edited = true;
                 let _ = list.append(&format!("Authorization: Bearer {}", token.clone()));
             }
             AuthKind::Digest(login) => {
@@ -747,39 +864,19 @@ impl<'a> Curl<'a> {
             }
             _ => {}
         };
-        // If we are uploading a file...
-        if let Some(ref upload_file) = self.upload_file {
-            let mut file = std::fs::File::open(upload_file).unwrap();
-            self.curl.upload(true).unwrap();
-            self.curl
-                .read_function(move |buf| Ok(file.read(buf).unwrap_or(0)))
-                .unwrap();
-        }
-        // We have to append the list of headers all at once
-        if has_headers {
-            self.curl.http_headers(list).unwrap();
-        }
-        let data = RefCell::new(Vec::new());
-        let mut transfer = self.curl.transfer();
-        {
-            transfer
-                .write_function(|new_data| {
-                    let mut data = data.borrow_mut();
-                    data.extend_from_slice(new_data);
-                    Ok(new_data.len())
-                })
-                .unwrap();
-            transfer.perform().unwrap();
-            let res = String::from_utf8(data.take()).unwrap();
-            // if its json, pretty-print format it
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&res) {
-                let pretty = serde_json::to_string_pretty(&json).unwrap();
-                self.resp = Some(pretty);
-            } else {
-                self.resp = Some(res);
-            }
-            Ok(())
-        }
+        list_edited
+    }
+
+    pub fn url_encode(&mut self, data: &str) {
+        self.add_flag(CurlFlag::DataUrlEncode(
+            CurlFlagType::DataUrlEncode.get_value(),
+            Some(data.to_string()),
+        ));
+        self.url = self.curl.url_encode(data.as_bytes());
+    }
+
+    pub fn add_flag(&mut self, flag: CurlFlag<'a>) {
+        self.opts.push(flag.clone());
     }
 }
 
@@ -857,7 +954,7 @@ define_curl_flags! {
     DataUrlEncode("--data-urlencode"),
     DumpHeaders("--dump-headers"),
     Referrer("-e"),
-    Insecure("--insecure"),
+    FailOnError("--fail"),
     PreventDefaultConfig("-q"),
     CaCert("--cacert"),
     CaNative("--ca-native"),
@@ -899,7 +996,7 @@ mod tests {
         let url = "https://example.com".to_string();
         let mut curl = Curl::new();
         curl.set_get_method();
-        curl.set_verbose();
+        curl.set_verbose(true);
         curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X GET {} -v", url));
@@ -947,7 +1044,7 @@ mod tests {
         let mut curl = Curl::new();
         let response = "This is a response";
         curl.set_response(response);
-        curl.set_outfile("output.txt".to_string());
+        curl.set_outfile("output.txt");
         curl.write_output().unwrap();
         let _ = std::fs::remove_file("output.txt");
     }
@@ -1001,7 +1098,7 @@ mod tests {
         let mut curl = Curl::new();
         let url = "https://google.com";
         curl.set_url(url);
-        curl.set_verbose();
+        curl.set_verbose(true);
         curl.set_get_method();
         // serialize it
         let json_str = serde_json::to_string(&curl).unwrap();
@@ -1020,7 +1117,7 @@ mod tests {
         curl.set_url(&url);
         let json_str = serde_json::to_string(&curl).unwrap();
         let mut new_curl: Curl = serde_json::from_str(&json_str).unwrap();
-        new_curl.execute(&mut None).unwrap();
+        new_curl.execute(None).unwrap();
         assert_eq!(new_curl.url, url);
         assert!(new_curl.resp.is_some());
     }
@@ -1040,16 +1137,16 @@ mod tests {
     #[test]
     fn test_set_outfile() {
         let mut curl = Curl::new();
-        let output = "output.txt".to_string();
-        curl.set_outfile(output.clone());
+        let output = "output.txt";
+        curl.set_outfile(output);
         assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.outfile, Some(output.clone()));
+        assert_eq!(curl.outfile, Some(output.to_string()));
     }
 
     #[test]
     fn test_opts_len() {
         let mut curl = Curl::new();
-        curl.set_verbose();
+        curl.set_verbose(true);
         assert_eq!(curl.opts.len(), 1);
     }
 
@@ -1067,12 +1164,11 @@ mod tests {
     #[test]
     fn test_add_headers() {
         let mut curl = Curl::new();
-        let headers = vec![
-            String::from("Header1: Value1"),
-            String::from("Header2: Value2"),
-        ];
-        curl.add_headers(headers.clone());
+        let headers = String::from("Header2: Value2");
+        curl.add_headers(headers);
         assert_eq!(curl.opts.len(), 0);
+        assert!(curl.headers.is_some());
+        assert!(curl.headers.as_ref().unwrap().contains(&headers));
     }
 
     #[test]
@@ -1082,7 +1178,7 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_url(server.url().as_str());
         curl.set_get_method();
-        assert!(curl.execute(&mut None).is_ok());
+        assert!(curl.execute(None).is_ok());
         assert_eq!(curl.url, server.deref_mut().url());
         assert!(curl.resp.is_some());
     }
@@ -1101,7 +1197,7 @@ mod tests {
     #[test]
     fn test_set_verbose() {
         let mut curl = Curl::new();
-        curl.set_verbose();
+        curl.set_verbose(true);
         assert_eq!(curl.opts.len(), 1);
         assert!(curl
             .opts
@@ -1177,7 +1273,7 @@ mod tests {
         curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X GET {}", url));
-        curl.execute(&mut None).unwrap();
+        curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -1190,7 +1286,7 @@ mod tests {
         curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X POST {}", url));
-        curl.execute(&mut None).unwrap();
+        curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -1204,7 +1300,7 @@ mod tests {
         curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X PUT {}", url));
-        curl.execute(&mut None).unwrap();
+        curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -1219,7 +1315,7 @@ mod tests {
         curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X PATCH {}", url));
-        curl.execute(&mut None).unwrap();
+        curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
     }
 
@@ -1234,7 +1330,7 @@ mod tests {
         curl.set_url(&url);
         curl.build_command_str();
         assert_eq!(curl.cmd, format!("curl -X DELETE {}", url));
-        curl.execute(&mut None).unwrap();
+        curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
     }
 }

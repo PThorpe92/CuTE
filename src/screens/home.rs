@@ -1,6 +1,6 @@
 use super::render::handle_screen_defaults;
 use crate::app::App;
-use crate::request::command::Command;
+use crate::request::command::AppCmd;
 use crate::request::curl::Curl;
 use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
@@ -12,11 +12,11 @@ pub fn handle_home_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     if let Some(num) = app.selected {
         match num {
             0 => {
-                app.set_command(Command::Curl(Curl::new()));
+                app.set_command(AppCmd::CurlCmd(Box::new(Curl::new())));
                 app.goto_screen(Screen::Method);
             }
             1 => {
-                app.set_command(Command::Wget(Wget::new()));
+                app.set_command(AppCmd::WgetCmd(Box::new(Wget::new())));
                 app.goto_screen(Screen::Downloads);
             }
             2 => app.goto_screen(Screen::SavedKeys),

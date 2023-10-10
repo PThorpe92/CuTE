@@ -18,7 +18,7 @@ pub mod auth;
 pub enum DisplayOpts {
     Verbose,
     // TODO: support more headers
-    Headers((String, String)),
+    Headers(String),
     URL(String),
     Outfile(String),
     SaveCommand,
@@ -27,12 +27,15 @@ pub enum DisplayOpts {
     Auth(String),
     SaveToken,
     UnixSocket(String),
+    EnableHeaders,
+    ProgressBar,
+    FailOnError,
 }
 
 impl DisplayOpts {
     pub fn replace_value(&mut self, val: String) {
         match self {
-            DisplayOpts::Headers((key, _)) => {
+            DisplayOpts::Headers(key) => {
                 *key = val;
             }
             DisplayOpts::URL(url) => {
@@ -60,7 +63,7 @@ impl DisplayOpts {
     pub fn get_value(&self) -> String {
         match self {
             DisplayOpts::Verbose => String::from("Verbose"),
-            DisplayOpts::Headers((key, value)) => format!("{}: {}", key, value),
+            DisplayOpts::Headers(key) => format!("{}", key),
             DisplayOpts::URL(url) => url.clone(),
             DisplayOpts::Outfile(outfile) => outfile.clone(),
             DisplayOpts::SaveCommand => String::from("Save Command"),
@@ -69,6 +72,9 @@ impl DisplayOpts {
             DisplayOpts::Auth(auth) => auth.clone(),
             DisplayOpts::SaveToken => String::from("Save Token"),
             DisplayOpts::UnixSocket(socket) => socket.clone(),
+            DisplayOpts::EnableHeaders => String::from("--include"),
+            DisplayOpts::ProgressBar => String::from("--progress-bar"),
+            DisplayOpts::FailOnError => String::from("--fail"),
         }
     }
 }
