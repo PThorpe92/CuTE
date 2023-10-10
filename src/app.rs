@@ -1,10 +1,10 @@
 use crate::database::db;
 use crate::display::DisplayOpts;
-use crate::request::command::{AppCmd, CmdOpts, CombinedOpts};
+use crate::request::command::{AppCmd, CmdOpts};
 use crate::request::curl::Curl;
 use crate::screens::screen::{determine_line_size, Screen};
 use crate::Config;
-use crate::{database::db::DB, request::response::Response};
+use crate::{database::db::DB};
 use dirs::config_dir;
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};

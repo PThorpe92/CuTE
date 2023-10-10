@@ -1,5 +1,4 @@
 use crate::database::db::DB;
-use curl::Error;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -1165,7 +1164,7 @@ mod tests {
     fn test_add_headers() {
         let mut curl = Curl::new();
         let headers = String::from("Header2: Value2");
-        curl.add_headers(headers);
+        curl.add_headers(headers.clone());
         assert_eq!(curl.opts.len(), 0);
         assert!(curl.headers.is_some());
         assert!(curl.headers.as_ref().unwrap().contains(&headers));

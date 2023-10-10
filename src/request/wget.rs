@@ -54,7 +54,7 @@ impl CmdOpts for Wget {
     }
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
-    fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String> {
+    fn execute(&mut self, _db: Option<&mut Box<DB>>) -> Result<(), String> {
         self.build_command();
         let command = std::process::Command::new("sh")
             .arg("-c")
@@ -207,10 +207,10 @@ impl Wget {
 
 mod tests {
 
-    use crate::request::wget::Wget;
-    use std::ops::DerefMut;
+    
+    
 
-    use crate::request::command::CmdOpts;
+    
     use mockito::ServerGuard;
 
     fn setup() -> ServerGuard {

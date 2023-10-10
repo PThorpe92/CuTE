@@ -11,7 +11,7 @@ use super::render::handle_screen_defaults;
 
 pub fn handle_method_select_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     if app.command.is_none() {
-        let mut curl = Curl::new();
+        let curl = Curl::new();
         let appcmd = AppCmd::CurlCmd(Box::new(curl));
         app.set_command(appcmd);
     }
