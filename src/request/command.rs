@@ -1,154 +1,96 @@
-use super::curl::{AuthKind, CurlFlagType};
-use crate::request::curl::{Curl, CurlFlag};
-use crate::request::wget::Wget;
-use std::ops::{Deref, DerefMut};
+use super::curl::AuthKind;
+use crate::database::db::DB;
 
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Command<'a> {
-    Curl(Curl<'a>),
-    Wget(Wget),
-}
-impl<'a> Deref for Command<'a> {
-    type Target = Curl<'a>;
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Command::Curl(curl) => curl,
-            _ => panic!("cannot deref wget commands"),
-        }
-    }
+pub enum AppCmd {
+    CurlCmd(Box<dyn CombinedOpts>),
+    WgetCmd(Box<dyn CmdOpts>),
 }
 
-impl<'a> DerefMut for Command<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+pub trait CombinedOpts: CmdOpts + CurlOpts {}
+
+impl CmdOpts for AppCmd {
+    fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String> {
         match self {
-            Command::Curl(curl) => curl,
-            _ => panic!("cannot deref wget commands"),
+            AppCmd::CurlCmd(opts) => opts.execute(db),
+            AppCmd::WgetCmd(opts) => opts.execute(db),
         }
     }
-}
-
-impl<'a> Command<'a> {
-    pub fn set_method(&mut self, method: String) {
-        match method.as_str() {
-            "GET" => match self {
-                Command::Curl(curl) => curl.set_get_method(),
-                _ => {}
-            },
-            "POST" => match self {
-                Command::Curl(curl) => curl.set_post_method(),
-                _ => {}
-            },
-            "PUT" => match self {
-                Command::Curl(curl) => curl.set_put_method(),
-                _ => {}
-            },
-            "PATCH" => match self {
-                Command::Curl(curl) => curl.set_patch_method(),
-                _ => {}
-            },
-            "DELETE" => match self {
-                Command::Curl(curl) => curl.set_delete_method(),
-                _ => {}
-            },
-            _ => {}
-        }
-    }
-
-    pub fn add_download_auth(&mut self, user: &str, pwd: &str) {
-        if let Command::Wget(wget) = self {
-            wget.add_auth(user, pwd)
-        }
-    }
-
-    pub fn set_url(&mut self, url: &str) {
+    fn add_basic_auth(&mut self, info: &str) {
         match self {
-            Command::Curl(curl) => {
-                curl.set_url(&url);
-            }
-            Command::Wget(wget) => {
-                wget.set_url(&url);
-            }
+            AppCmd::CurlCmd(opts) => opts.add_basic_auth(info),
+            AppCmd::WgetCmd(opts) => opts.add_basic_auth(info),
         }
     }
-
-    pub fn get_url(&self) -> String {
+    fn get_url(&self) -> String {
         match self {
-            Command::Curl(curl) => curl.get_url(),
-            Command::Wget(wget) => wget.get_url(),
+            AppCmd::CurlCmd(opts) => opts.get_url(),
+            AppCmd::WgetCmd(opts) => opts.get_url(),
         }
     }
-
-    pub fn set_outfile(&mut self, file: &str) {
+    fn set_outfile(&mut self, file: &str) {
         match self {
-            Command::Curl(curl) => {
-                curl.set_outfile(String::from(file));
-                curl.add_flag(CurlFlag::Output(
-                    CurlFlagType::Output.get_value(),
-                    Some(String::from(file)),
-                ));
-            }
-            Command::Wget(wget) => {
-                wget.set_output(file);
-            }
+            AppCmd::CurlCmd(opts) => opts.set_outfile(file),
+            AppCmd::WgetCmd(opts) => opts.set_outfile(file),
         }
     }
-    pub fn set_auth(&mut self, auth: AuthKind) {
+    fn get_response(&self) -> String {
         match self {
-            Command::Curl(curl) => match auth {
-                AuthKind::Basic(login) => curl.set_basic_auth(login),
-                AuthKind::Bearer(token) => curl.set_bearer_auth(token),
-                AuthKind::Digest(login) => curl.set_digest_auth(&login),
-                AuthKind::AwsSigv4(login) => curl.set_aws_sigv4_auth(login),
-                AuthKind::Ntlm(login) => curl.set_ntlm_auth(&login),
-                AuthKind::Kerberos(login) => curl.set_kerberos_auth(&login),
-                AuthKind::Spnego(login) => curl.set_spnego_auth(login),
-                AuthKind::NtlmWb(login) => curl.set_ntlm_wb_auth(&login),
-                AuthKind::None => {}
-            },
-            Command::Wget(_) => {}
+            AppCmd::CurlCmd(opts) => opts.get_response(),
+            AppCmd::WgetCmd(opts) => opts.get_response(),
         }
     }
-
-    pub fn get_response(&self) -> Option<String> {
+    fn set_rec_download_level(&mut self, level: usize) {
         match self {
-            Command::Curl(curl) => curl.get_response(),
-            Command::Wget(wget) => wget.get_response(),
+            AppCmd::CurlCmd(_) => {}
+            AppCmd::WgetCmd(opts) => opts.set_rec_download_level(level),
         }
     }
-
-    pub fn save_token(&mut self) {
-        if let Command::Curl(curl) = self {
-            curl.save_token(!curl.will_save_token());
-        }
-    }
-
-    pub fn set_rec_download_level(&mut self, level: usize) {
-        if let Command::Wget(wget) = self {
-            wget.set_rec_download_level(level);
-        }
-    }
-
-    pub fn to_string(&self) -> String {
+    fn set_url(&mut self, url: &str) {
         match self {
-            Command::Curl(_) => "Curl",
-            Command::Wget(_) => "Wget",
+            AppCmd::CurlCmd(opts) => opts.set_url(url),
+            AppCmd::WgetCmd(opts) => opts.set_url(url),
         }
-        .to_string()
     }
-
-    pub fn write_response(&mut self) -> Result<(), String> {
+    fn set_response(&mut self, response: &str) {
         match self {
-            Command::Curl(ref mut curl) => match curl.write_output() {
-                Ok(_) => Ok(()),
-                Err(e) => Err(e.to_string()),
-            },
-            _ => Err(String::from("downloads output is written by default")),
+            AppCmd::CurlCmd(opts) => opts.set_response(response),
+            AppCmd::WgetCmd(opts) => opts.set_response(response),
+        }
+    }
+    fn get_command_string(&mut self) -> String {
+        match self {
+            AppCmd::CurlCmd(opts) => opts.get_command_string(),
+            AppCmd::WgetCmd(opts) => opts.get_command_string(),
         }
     }
 }
 
-impl<'a> Default for Command<'a> {
-    fn default() -> Self {
-        Command::Curl(Curl::new())
-    }
+pub trait CmdOpts {
+    fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String>;
+    fn add_basic_auth(&mut self, info: &str);
+    fn get_url(&self) -> String;
+    fn set_outfile(&mut self, file: &str);
+    fn get_response(&self) -> String;
+    fn set_rec_download_level(&mut self, level: usize);
+    fn set_url(&mut self, url: &str);
+    fn set_response(&mut self, response: &str);
+    fn get_command_string(&mut self) -> String;
+}
+
+pub trait CurlOpts {
+    fn write_output(&mut self) -> Result<(), std::io::Error>;
+    fn set_method(&mut self, method: String);
+    fn set_auth(&mut self, auth: AuthKind);
+    fn add_headers(&mut self, headers: String);
+    fn enable_response_headers(&mut self, opt: bool);
+    fn enable_progress_bar(&mut self, opt: bool);
+    fn set_fail_on_error(&mut self, opt: bool);
+    fn save_command(&mut self, opt: bool);
+    fn set_headers(&mut self, headers: Vec<String>);
+    fn set_verbose(&mut self, opt: bool);
+    fn set_unix_socket(&mut self, socket: &str);
+    fn save_token(&mut self, opt: bool);
+    fn get_token(&self) -> Option<String>;
+    fn remove_headers(&mut self, headers: String);
+    fn will_save_command(&self) -> bool;
 }

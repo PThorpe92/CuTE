@@ -5,6 +5,7 @@ use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::DisplayOpts;
 use crate::request::cmdtype::CmdType;
+use crate::request::command::AppCmd;
 use crate::screens::screen::Screen;
 
 use super::render::handle_screen_defaults;
@@ -25,37 +26,41 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
             app.add_display_option(DisplayOpts::Verbose);
             app.selected = None;
         }
+        // Enable headers in response
+        Some(5) => app.add_display_option(DisplayOpts::EnableHeaders),
         // Request Body
-        Some(5) => {
+        Some(6) => {
             app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
             app.selected = None;
         }
         // Save this command
-        Some(6) => {
+        Some(7) => {
             app.add_display_option(DisplayOpts::SaveCommand);
             app.selected = None;
         }
         // Save your token or login
-        Some(7) => {
+        Some(8) => {
             app.add_display_option(DisplayOpts::SaveToken);
             app.selected = None;
         }
+        Some(9) => app.goto_screen(Screen::MoreFlags),
         // Execute command
-        Some(8) => match app.execute_command() {
+        Some(10) => match app.execute_command() {
             Ok(()) => {
-                if app.command.as_ref().unwrap().get_response().is_some() {
-                    app.response = app.command.as_ref().unwrap().get_response().clone();
-                    app.goto_screen(Screen::Response(app.response.clone().unwrap()));
-                    app.selected = None;
-                } else {
-                    app.goto_screen(Screen::Error("Unable To Retreve Response...".to_string()));
-                }
+                match app.command.as_ref().unwrap() {
+                    AppCmd::CurlCmd(curl) => {
+                        let response = curl.get_response();
+                        app.response = Some(response.clone());
+                        app.goto_screen(Screen::Response(response));
+                    }
+                    _ => {}
+                };
             }
             Err(e) => {
                 app.goto_screen(Screen::Error(e.to_string()));
             }
         },
-
+        Some(11) => app.goto_screen(Screen::MoreFlags),
         _ => {}
     }
 }

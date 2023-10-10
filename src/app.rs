@@ -1,11 +1,11 @@
+use crate::database::db;
 use crate::display::DisplayOpts;
-use crate::request::command::Command;
+use crate::request::command::{AppCmd, CmdOpts};
 use crate::request::curl::Curl;
 use crate::screens::screen::{determine_line_size, Screen};
-use crate::{database::db::DB, request::response::Response};
+use crate::Config;
+use crate::{database::db::DB};
 use dirs::config_dir;
-use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
@@ -19,15 +19,14 @@ pub enum InputMode {
 }
 
 /// Application.
-#[derive(Debug)]
 pub struct App<'a> {
-    /// Is the application running?
     pub config: Config,
+    /// Is the application running?
     pub running: bool,
     pub cursor: usize,
     pub current_screen: Screen,
     pub screen_stack: Vec<Screen>,
-    pub command: Option<Command<'a>>,
+    pub command: Option<AppCmd>,
     pub selected: Option<usize>,
     pub opts: Vec<DisplayOpts>,
     pub input: Input,
@@ -37,19 +36,6 @@ pub struct App<'a> {
     pub state: Option<ListState>,
     pub response: Option<String>,
     pub db: Option<Box<DB>>,
-}
-
-impl<'a> Deref for App<'a> {
-    type Target = Command<'a>;
-    fn deref(&self) -> &Self::Target {
-        self.command.as_ref().unwrap()
-    }
-}
-
-impl<'a> DerefMut for App<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.command.as_mut().unwrap()
-    }
 }
 
 impl<'a> Default for App<'a> {
@@ -80,82 +66,12 @@ impl<'a> Default for App<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Config {
-    keybindings: Keybindings,
-    colors: Colors,
-    logo: Logo,
-    db_path: String,
-}
-impl Config {
-    pub fn get_keybindings(&self) -> &Keybindings {
-        &self.keybindings
-    }
-    pub fn get_colors(&self) -> &Colors {
-        &self.colors
-    }
-    pub fn get_logo(&self) -> &Logo {
-        &self.logo
-    }
-    pub fn get_db_path(&self) -> &String {
-        &self.db_path
-    }
-}
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            keybindings: Keybindings::Regular,
-            colors: Colors {
-                fg: Color::Cyan,
-                bg: Color::Gray,
-            },
-            logo: Logo::Logo1,
-            db_path: String::from(""),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Logo {
-    Logo1,
-    Logo1Inverted,
-    Logo2,
-    Logo2Inverted,
-    None,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Keybindings {
-    Vim,
-    Regular,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Colors {
-    fg: Color,
-    bg: Color,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Color {
-    Red,
-    Green,
-    Blue,
-    Yellow,
-    Magenta,
-    Cyan,
-    White,
-    Black,
-    Gray,
-    Reset,
-}
-
 impl<'a> App<'a> {
     /// Constructs a new instance of [`App`].
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn set_command(&mut self, command: Command<'a>) {
+    pub fn set_command(&mut self, command: AppCmd) {
         self.command = Some(command);
     }
 
@@ -237,31 +153,12 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn get_response_headers(&mut self) -> String {
-        if let Ok(response) = Response::from_raw_string(&self.response.as_ref().unwrap().clone()) {
-            response.get_headers().to_string()
-        } else {
-            return String::from("No headers found");
-        }
-    }
-
     pub fn execute_command(&mut self) -> Result<(), String> {
-        match self.command.as_mut().unwrap() {
-            Command::Curl(ref mut curl) => {
-                // continue lazy loading by only opening connection if we need to
-                if curl.will_save_command() && self.db.is_none() {
-                    self.db = Some(Box::new(DB::new().unwrap()));
-                }
-                match curl.execute(&mut self.db) {
-                    Ok(_) => {
-                        self.response = curl.get_response();
-                        Ok(())
-                    }
-                    Err(e) => Err(e.to_string()),
-                }
-            }
-            Command::Wget(wget) => wget.execute(),
+        if self.db.is_none() {
+            self.db = Some(Box::new(db::DB::new().unwrap()));
         }
+        self.command.as_mut().unwrap().execute(self.db.as_mut());
+        Ok(())
     }
 
     pub fn get_saved_command_strings(&mut self) -> Result<Vec<String>, String> {
@@ -291,13 +188,8 @@ impl<'a> App<'a> {
         let _ = saved_commands.iter().map(|x| x.clone());
         let json = saved_commands.get(index).unwrap();
         let mut command: Curl = serde_json::from_str(json.as_str()).unwrap();
-        match command.execute(&mut None) {
-            Ok(_) => self.set_response(
-                command
-                    .get_response()
-                    .unwrap_or("Command failed to execute".to_string())
-                    .clone(),
-            ),
+        match command.execute(None) {
+            Ok(_) => self.set_response(command.get_response().clone()),
             Err(e) => self.set_response(e.to_string()),
         };
         self.goto_screen(Screen::Response(self.response.clone().unwrap()));
@@ -344,55 +236,80 @@ impl<'a> App<'a> {
         }
         match self.db.as_mut().unwrap().add_key(&key) {
             Ok(_) => {
-                println!("Key Added");
                 return Ok(());
             }
-            Err(_) => {
-                println!("OOPS");
-                Ok(())
-            }
+            Err(_) => Ok(()),
         }
     }
 
     pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
-        for option in self.opts.iter() {
-            match option {
+        match self.command.as_mut().unwrap() {
+            AppCmd::CurlCmd(curl) => match opt {
+                DisplayOpts::URL(_) => {
+                    curl.set_url("");
+                }
+                DisplayOpts::Headers(_) => {
+                    curl.remove_headers(opt.get_value());
+                }
+                DisplayOpts::Outfile(_) => {
+                    curl.set_outfile("");
+                }
+                DisplayOpts::Auth(_) => {
+                    curl.set_auth(crate::request::curl::AuthKind::None);
+                }
+                DisplayOpts::UnixSocket(_) => {
+                    curl.set_unix_socket("");
+                }
+                DisplayOpts::EnableHeaders => {
+                    curl.enable_response_headers(false);
+                }
+                DisplayOpts::ProgressBar => {
+                    curl.enable_progress_bar(false);
+                }
+                DisplayOpts::FailOnError => {
+                    curl.set_fail_on_error(false);
+                }
                 DisplayOpts::Verbose => {
-                    self.command.as_mut().unwrap().set_verbose();
+                    curl.set_verbose(false);
+                }
+                DisplayOpts::RecDownload(_) => {}
+                DisplayOpts::Response(_) => {
+                    curl.set_response("");
                 }
                 DisplayOpts::SaveCommand => {
-                    self.command.as_mut().unwrap().save_command(false);
+                    curl.save_command(false);
                 }
-                DisplayOpts::SaveToken => match self.command.as_mut().unwrap() {
-                    Command::Curl(curl) => curl.save_token(false),
-                    _ => {}
-                },
-                DisplayOpts::URL(_) => self.command.as_mut().unwrap().set_url(""),
-                DisplayOpts::Headers(..) => self
-                    .command
-                    .as_mut()
-                    .unwrap()
-                    .remove_headers(vec![opt.get_value()]),
-                DisplayOpts::Outfile(_) => self.command.as_mut().unwrap().set_outfile(""),
-                DisplayOpts::Response(_) => self.response = None,
+                DisplayOpts::SaveToken => {
+                    curl.save_token(false);
+                }
+            },
+            AppCmd::WgetCmd(wget) => match opt {
+                DisplayOpts::URL(_) => {
+                    wget.set_url("");
+                }
+                DisplayOpts::Outfile(_) => {
+                    wget.set_outfile("");
+                }
                 DisplayOpts::RecDownload(_) => {
-                    self.command.as_mut().unwrap().set_rec_download_level(0)
+                    wget.set_rec_download_level(0);
                 }
-                DisplayOpts::UnixSocket(_) => self.command.as_mut().unwrap().set_unix_socket(""),
-                DisplayOpts::Auth(_) => self
-                    .command
-                    .as_mut()
-                    .unwrap()
-                    .set_auth(crate::request::curl::AuthKind::None),
-            }
+                _ => {}
+            },
         }
-        self.opts
-            .retain(|x| std::mem::discriminant(x) != std::mem::discriminant(opt));
     }
-
+    // Need a button to reset everything
     pub fn remove_all_display_options(&mut self) {
         self.opts.clear();
+        match self.command.as_ref().unwrap() {
+            AppCmd::CurlCmd(_) => {
+                self.command = Some(AppCmd::CurlCmd(Box::new(Curl::new())));
+            }
+            AppCmd::WgetCmd(_) => {
+                self.command = Some(AppCmd::WgetCmd(Box::new(crate::request::wget::Wget::new())));
+            }
+        }
     }
+
     // Display option is some state that requires us to display the users
     // current selection on the screen so they know what they have selected
     // Lorenzo - Changing this because I dont think its doing what I want it to do.
@@ -452,6 +369,21 @@ impl<'a> App<'a> {
                         return true;
                     }
                 }
+                DisplayOpts::EnableHeaders => {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
+                DisplayOpts::ProgressBar => {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
+                DisplayOpts::FailOnError => {
+                    if mem::discriminant(opt) == mem::discriminant(element) {
+                        return true;
+                    }
+                }
             }
         }
         // Otherwise, its not there.
@@ -475,21 +407,25 @@ impl<'a> App<'a> {
             DisplayOpts::Auth(_) => !self.has_display_option(opt),        // Auth should be replaced
             DisplayOpts::SaveToken => !self.has_display_option(opt), // Save token should be toggled
             DisplayOpts::UnixSocket(_) => !self.has_display_option(opt), // Unix socket should be replaced
+            DisplayOpts::EnableHeaders => !self.has_display_option(opt), // Enable headers should be toggled
+            DisplayOpts::ProgressBar => !self.has_display_option(opt), // Progress bar should be toggled
+            DisplayOpts::FailOnError => !self.has_display_option(opt),
         }
     }
 
     pub fn set_response(&mut self, response: String) {
         self.response = Some(response.clone());
-        if let Some(cmd) = &mut self.command {
-            cmd.set_response(&response);
-        }
+        self.command.as_mut().unwrap().set_response(&response);
     }
 
     fn should_toggle(&self, opt: &DisplayOpts) -> bool {
         match opt {
-            DisplayOpts::Verbose => true,
-            DisplayOpts::SaveCommand => true,
-            DisplayOpts::SaveToken => true,
+            DisplayOpts::Verbose
+            | DisplayOpts::FailOnError
+            | DisplayOpts::ProgressBar
+            | DisplayOpts::SaveCommand
+            | DisplayOpts::SaveToken
+            | DisplayOpts::EnableHeaders => true,
             _ => false,
         }
     }
@@ -499,16 +435,70 @@ impl<'a> App<'a> {
             self.remove_display_option(&opt);
             return;
         }
-        let will_save_cmd = self.will_save_command();
         match opt.clone() {
-            DisplayOpts::Verbose => {
-                self.command.as_mut().unwrap().set_verbose();
+            DisplayOpts::URL(_) => {
+                self.command.as_mut().unwrap().set_url("");
+                return;
             }
-            DisplayOpts::SaveCommand => {
-                self.save_command(!will_save_cmd);
-                println!("Saving Command: {}", !will_save_cmd);
+            DisplayOpts::RecDownload(_) => {
+                self.command.as_mut().unwrap().set_rec_download_level(0);
+                return;
             }
-            DisplayOpts::SaveToken => self.save_token(),
+            DisplayOpts::Outfile(_) => {
+                self.command.as_mut().unwrap().set_outfile("");
+                return;
+            }
+            _ => {}
+        }
+        match self.command.as_ref().unwrap() {
+            AppCmd::CurlCmd(curl) => {
+                let will_save_cmd = curl.will_save_command();
+                match opt.clone() {
+                    DisplayOpts::Verbose => match self.command.as_mut().unwrap() {
+                        AppCmd::CurlCmd(curl) => {
+                            curl.set_verbose(true);
+                        }
+                        _ => {}
+                    },
+                    DisplayOpts::EnableHeaders => match self.command.as_mut().unwrap() {
+                        AppCmd::CurlCmd(curl) => {
+                            curl.enable_response_headers(true);
+                        }
+                        _ => {}
+                    },
+                    DisplayOpts::ProgressBar => match self.command.as_mut().unwrap() {
+                        AppCmd::CurlCmd(curl) => {
+                            curl.enable_progress_bar(true);
+                        }
+                        _ => {}
+                    },
+                    DisplayOpts::SaveCommand => {
+                        match self.command.as_mut().unwrap() {
+                            AppCmd::CurlCmd(curl) => {
+                                curl.save_command(will_save_cmd);
+                            }
+                            _ => {}
+                        };
+                    }
+                    DisplayOpts::SaveToken => {
+                        match self.command.as_mut().unwrap() {
+                            AppCmd::CurlCmd(curl) => {
+                                curl.save_token(true);
+                            }
+                            _ => {}
+                        };
+                    }
+                    DisplayOpts::FailOnError => {
+                        match self.command.as_mut().unwrap() {
+                            AppCmd::CurlCmd(curl) => {
+                                curl.set_fail_on_error(true);
+                            }
+                            _ => {}
+                        };
+                    }
+                    _ => {}
+                }
+            }
             _ => {}
         }
         self.opts.push(opt.clone());
@@ -525,43 +515,76 @@ impl<'a> App<'a> {
 
         if self.should_add_option(&opt) {
             self.opts.push(opt.clone());
-            match opt {
-                DisplayOpts::Headers((key, value)) => {
-                    // Push Header To Shareable Command
-                    self.command
-                        .as_mut()
-                        .unwrap()
-                        .add_headers(vec![format!("{}:{}", key, value)]);
-                }
-                DisplayOpts::URL(url) => {
-                    self.set_url(&url);
-                }
-                DisplayOpts::Outfile(outfile) => {
-                    self.command.as_mut().unwrap().set_outfile(&outfile);
-                }
-                DisplayOpts::UnixSocket(socket) => {
-                    self.command.as_mut().unwrap().set_unix_socket(&socket);
-                }
-
-                _ => {
-                    // Nothing
-                }
+            match self.command.as_mut().unwrap() {
+                AppCmd::CurlCmd(curl) => match opt {
+                    DisplayOpts::UnixSocket(socket) => curl.set_unix_socket(&socket),
+                    DisplayOpts::Headers(value) => curl.add_headers(value),
+                    DisplayOpts::URL(url) => curl.set_url(&url),
+                    DisplayOpts::Auth(_) => {}
+                    DisplayOpts::FailOnError => curl.set_fail_on_error(true),
+                    DisplayOpts::EnableHeaders => curl.enable_response_headers(true),
+                    DisplayOpts::ProgressBar => curl.enable_progress_bar(true),
+                    DisplayOpts::Outfile(outfile) => curl.set_outfile(&outfile),
+                    DisplayOpts::RecDownload(_) => {}
+                    DisplayOpts::Response(_) => {}
+                    _ => {}
+                },
+                AppCmd::WgetCmd(wget) => match opt {
+                    DisplayOpts::URL(url) => wget.set_url(&url),
+                    DisplayOpts::Outfile(outfile) => wget.set_outfile(&outfile),
+                    DisplayOpts::RecDownload(level) => wget.set_rec_download_level(level),
+                    DisplayOpts::Response(_) => {}
+                    _ => {}
+                },
             }
         } else {
-            // We Should Replace An Option
-
+            // We Should Replace An Option, so we iterate over all the opts and replace the value
+            // with the new value.
             for option in self.opts.iter_mut() {
                 match option {
                     DisplayOpts::URL(_) => {
-                        option.replace_value(opt.get_value());
-                        self.command.as_mut().unwrap().set_url(&opt.get_value());
+                        if let DisplayOpts::URL(ref url) = opt {
+                            option.replace_value(url.clone());
+                        }
                     }
-                    DisplayOpts::Headers(..) => option.replace_value(opt.get_value()),
-                    DisplayOpts::Outfile(_) => option.replace_value(opt.get_value()),
-                    DisplayOpts::Response(_) => option.replace_value(opt.get_value()),
-                    DisplayOpts::RecDownload(_) => option.replace_value(opt.get_value()),
-                    DisplayOpts::Auth(_) => option.replace_value(opt.get_value()),
-                    DisplayOpts::UnixSocket(_) => option.replace_value(opt.get_value()),
+                    DisplayOpts::Outfile(_) => {
+                        if let DisplayOpts::Outfile(ref outfile) = opt {
+                            option.replace_value(outfile.clone());
+                            self.command.as_mut().unwrap().set_outfile(&outfile);
+                        }
+                    }
+                    DisplayOpts::Response(_) => {
+                        if let DisplayOpts::Response(ref response) = opt {
+                            option.replace_value(opt.clone().get_value());
+                            self.command.as_mut().unwrap().set_response(&response);
+                        }
+                    }
+                    DisplayOpts::SaveCommand => {
+                        if let DisplayOpts::SaveCommand = opt {
+                            *option = DisplayOpts::SaveCommand;
+                        }
+                    }
+                    DisplayOpts::RecDownload(_) => {
+                        if let DisplayOpts::RecDownload(level) = opt {
+                            option.replace_value(level.to_string());
+                        }
+                    }
+                    DisplayOpts::Auth(_) => {
+                        if let DisplayOpts::Auth(ref auth) = opt {
+                            option.replace_value(String::from(auth));
+                        }
+                    }
+                    DisplayOpts::UnixSocket(_) => {
+                        if let DisplayOpts::UnixSocket(ref socket) = opt {
+                            *option = DisplayOpts::UnixSocket(String::from(socket));
+                            match self.command.as_mut().unwrap() {
+                                AppCmd::CurlCmd(curl) => {
+                                    curl.set_unix_socket(&socket);
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -574,13 +597,13 @@ mod tests {
 
     use super::App;
     use crate::display::DisplayOpts;
-    use crate::request::command::Command;
+    use crate::request::command::{AppCmd, CmdOpts};
     use crate::request::curl::Curl;
 
     // helper return app instance with curl command
     fn return_app_cmd() -> App<'static> {
         let mut app = App::default();
-        app.set_command(Command::Curl(Curl::new()));
+        app.set_command(AppCmd::CurlCmd(Box::new(Curl::new())));
         app
     }
 

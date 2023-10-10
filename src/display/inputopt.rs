@@ -15,6 +15,7 @@ pub enum InputOpt {
     Execute,
     ApiKey,
     UnixSocket,
+    UserAgent,
 }
 
 impl Display for InputOpt {
@@ -30,6 +31,7 @@ impl Display for InputOpt {
             InputOpt::Execute => write!(f, "| Execute"),
             InputOpt::ApiKey => write!(f, "| API Key"),
             InputOpt::UnixSocket => write!(f, "| Unix Socket"),
+            InputOpt::UserAgent => write!(f, "| User Agent"),
         }
     }
 }

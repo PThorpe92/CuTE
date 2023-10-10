@@ -1,8 +1,9 @@
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, CUTE_LOGO, DEFAULT_MENU_PARAGRAPH,
-    DEFAULT_MENU_TITLE, DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE, INPUT_MENU_TITLE,
-    SAVED_COMMANDS_TITLE, SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
+    DEFAULT_MENU_TITLE, DISPLAY_OPT_COMMAND_SAVED, DISPLAY_OPT_HEADERS, DISPLAY_OPT_PROGRESS_BAR,
+    DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_VERBOSE, DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE,
+    INPUT_MENU_TITLE, SAVED_COMMANDS_TITLE, SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
 };
 use crate::display::DisplayOpts;
 use crate::screens::input::input::handle_default_input_screen;
@@ -46,26 +47,44 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         let mut display_opts = String::new();
         app.opts.iter().for_each(|opt| match opt {
             DisplayOpts::Verbose => {
-                display_opts.push_str("- Verbose\n");
+                display_opts.push_str(DISPLAY_OPT_VERBOSE);
+                display_opts.push('\n');
             }
             DisplayOpts::URL(url) => {
-                let url_str = format!("- URL: {}\n", &url);
+                let url_str = format!("- URL: {}", &url);
                 display_opts.push_str(url_str.as_str());
+                display_opts.push('\n');
             }
             DisplayOpts::RecDownload(num) => {
-                let rec_str = format!("- Recursive Download depth: {}\n", num);
+                let rec_str = format!("- Recursive Download depth: {}", num);
                 display_opts.push_str(rec_str.as_str());
+                display_opts.push('\n');
             }
             DisplayOpts::SaveCommand => {
-                display_opts.push_str("- Command will be saved\n");
+                display_opts.push_str(DISPLAY_OPT_COMMAND_SAVED);
+                display_opts.push('\n');
             }
             DisplayOpts::Auth(auth) => {
-                let auth_str = format!("- Auth: {}\n", auth);
+                let auth_str = format!("- Auth: {}", auth);
                 display_opts.push_str(auth_str.as_str());
+                display_opts.push('\n');
             }
             DisplayOpts::SaveToken => {
-                let auth_str = format!("- API Token will be saved\n");
-                display_opts.push_str(auth_str.as_str());
+                display_opts.push_str(DISPLAY_OPT_TOKEN_SAVED);
+                display_opts.push('\n');
+            }
+            DisplayOpts::UnixSocket(socket) => {
+                let socket_str = format!("- Unix Socket: {}", socket);
+                display_opts.push_str(socket_str.as_str());
+                display_opts.push('\n');
+            }
+            DisplayOpts::ProgressBar => {
+                display_opts.push_str(DISPLAY_OPT_PROGRESS_BAR);
+                display_opts.push('\n');
+            }
+            DisplayOpts::EnableHeaders => {
+                display_opts.push_str(DISPLAY_OPT_HEADERS);
+                display_opts.push('\n');
             }
             _ => {}
         });
@@ -85,7 +104,11 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         {
             let logo = Paragraph::new("Press 'x' to delete a saved item.")
                 .block(Block::default())
-                .style(Style::default().fg(Color::Cyan).bg(Color::Gray));
+                .style(
+                    Style::default()
+                        .fg(app.config.get_fg_color())
+                        .bg(app.config.get_bg_color()),
+                );
             frame.render_widget(logo, small_rect(frame.size()));
         }
         let area = small_rect(frame.size());
@@ -112,6 +135,14 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     }
     // We pass this off where we match on the current screen and render what we need to
     handle_screen(app, frame, app.current_screen.clone());
+}
+
+fn determine_line_size(count: &mut usize, line: &mut String) {
+    match count {
+        0 => {}
+        num if !num.is_power_of_two() => line.push_str("\t\t"),
+        _ => line.push_str("\n"),
+    }
 }
 
 pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
