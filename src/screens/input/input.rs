@@ -138,6 +138,27 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.add_display_option(DisplayOpts::Outfile(message.clone()));
             app.goto_screen(Screen::Downloads);
         }
+        InputOpt::Cookie => {
+            app.add_display_option(DisplayOpts::Cookie(message.clone()));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
+        InputOpt::Referrer => {
+            app.add_display_option(DisplayOpts::Referrer(message.clone()));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
+        InputOpt::CaPath => {
+            app.add_display_option(DisplayOpts::CaPath(message.clone()));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
+        InputOpt::UserAgent => {
+            app.add_display_option(DisplayOpts::UserAgent(message.clone()));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
+        InputOpt::MaxRedirects => {
+            let num = message.parse::<usize>().unwrap();
+            app.add_display_option(DisplayOpts::MaxRedirects(num));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
             match app.command.as_mut().unwrap() {

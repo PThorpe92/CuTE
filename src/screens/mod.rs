@@ -15,6 +15,8 @@ pub mod request;
 // Response Screen
 pub mod response;
 
+pub mod more_flags;
+
 // All Input Type Screens
 pub mod input;
 

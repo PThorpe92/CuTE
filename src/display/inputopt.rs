@@ -12,10 +12,17 @@ pub enum InputOpt {
     RequestBody,
     RecursiveDownload,
     Auth(AuthType),
+    VerifyPeer,
+    Referrer,
     Execute,
     ApiKey,
     UnixSocket,
     UserAgent,
+    MaxRedirects,
+    Cookie,
+    FtpAccount,
+    CaPath,
+    CaCert,
 }
 
 impl Display for InputOpt {
@@ -24,6 +31,7 @@ impl Display for InputOpt {
             InputOpt::URL(url) => write!(f, "|- URL - {}", url),
             InputOpt::Headers => write!(f, "| Headers"),
             InputOpt::Output => write!(f, "| Output"),
+            InputOpt::Referrer => write!(f, "| Referrer"),
             InputOpt::Verbose => write!(f, "| Verbose"),
             InputOpt::RequestBody => write!(f, "| Request Body"),
             InputOpt::RecursiveDownload => write!(f, "Recursive Download"),
@@ -32,6 +40,12 @@ impl Display for InputOpt {
             InputOpt::ApiKey => write!(f, "| API Key"),
             InputOpt::UnixSocket => write!(f, "| Unix Socket"),
             InputOpt::UserAgent => write!(f, "| User Agent"),
+            InputOpt::MaxRedirects => write!(f, "| Max Redirects"),
+            InputOpt::Cookie => write!(f, "| Cookie"),
+            InputOpt::CaPath => write!(f, "| Ca Path"),
+            InputOpt::CaCert => write!(f, "| Ca Cert"),
+            InputOpt::VerifyPeer => write!(f, "| Verify Peer DNS-Over-HTTPS"),
+            InputOpt::FtpAccount => write!(f, "| FTP Account"),
         }
     }
 }

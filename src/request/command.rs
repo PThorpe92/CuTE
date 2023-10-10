@@ -78,12 +78,17 @@ pub trait CmdOpts {
 }
 
 pub trait CurlOpts {
+    fn add_cookie(&mut self, cookie: String);
+    fn set_follow_redirects(&mut self, opt: bool);
+    fn set_proxy_tunnel(&mut self, opt: bool);
+    fn match_wildcard(&mut self, opt: bool);
     fn write_output(&mut self) -> Result<(), std::io::Error>;
     fn set_method(&mut self, method: String);
     fn set_auth(&mut self, auth: AuthKind);
     fn add_headers(&mut self, headers: String);
     fn enable_response_headers(&mut self, opt: bool);
     fn enable_progress_bar(&mut self, opt: bool);
+    fn set_cert_info(&mut self, opt: bool);
     fn set_fail_on_error(&mut self, opt: bool);
     fn save_command(&mut self, opt: bool);
     fn set_headers(&mut self, headers: Vec<String>);
@@ -93,4 +98,10 @@ pub trait CurlOpts {
     fn get_token(&self) -> Option<String>;
     fn remove_headers(&mut self, headers: String);
     fn will_save_command(&self) -> bool;
+    fn set_tcp_keepalive(&mut self, opt: bool);
+    fn set_unrestricted_auth(&mut self, opt: bool);
+    fn set_referrer(&mut self, referrer: &str);
+    fn set_max_redirects(&mut self, redirects: usize);
+    fn set_ca_path(&mut self, path: &str);
+    fn set_user_agent(&mut self, ua: &str);
 }

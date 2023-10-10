@@ -43,9 +43,8 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
             app.add_display_option(DisplayOpts::SaveToken);
             app.selected = None;
         }
-        Some(9) => app.goto_screen(Screen::MoreFlags),
         // Execute command
-        Some(10) => match app.execute_command() {
+        Some(9) => match app.execute_command() {
             Ok(()) => {
                 match app.command.as_ref().unwrap() {
                     AppCmd::CurlCmd(curl) => {
@@ -60,7 +59,7 @@ pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'
                 app.goto_screen(Screen::Error(e.to_string()));
             }
         },
-        Some(11) => app.goto_screen(Screen::MoreFlags),
+        Some(10) => app.goto_screen(Screen::MoreFlags),
         _ => {}
     }
 }

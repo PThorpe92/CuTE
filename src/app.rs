@@ -1,10 +1,10 @@
 use crate::database::db;
+use crate::database::db::DB;
 use crate::display::DisplayOpts;
 use crate::request::command::{AppCmd, CmdOpts};
 use crate::request::curl::Curl;
 use crate::screens::screen::{determine_line_size, Screen};
 use crate::Config;
-use crate::{database::db::DB};
 use dirs::config_dir;
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
@@ -61,7 +61,7 @@ impl<'a> Default for App<'a> {
             state: None,
             current_screen: Screen::Home,
             response: None,
-            db: None,
+            db: Some(Box::new(DB::new().unwrap())),
         }
     }
 }
@@ -282,6 +282,39 @@ impl<'a> App<'a> {
                 DisplayOpts::SaveToken => {
                     curl.save_token(false);
                 }
+                DisplayOpts::FollowRedirects => {
+                    curl.set_follow_redirects(false);
+                }
+                DisplayOpts::UnrestrictedAuth => {
+                    curl.set_unrestricted_auth(false);
+                }
+                DisplayOpts::TcpKeepAlive => {
+                    curl.set_tcp_keepalive(false);
+                }
+                DisplayOpts::ProxyTunnel => {
+                    curl.set_proxy_tunnel(false);
+                }
+                DisplayOpts::CertInfo => {
+                    curl.set_cert_info(false);
+                }
+                DisplayOpts::MatchWildcard => {
+                    curl.match_wildcard(false);
+                }
+                DisplayOpts::CaPath(_) => {
+                    curl.set_ca_path("");
+                }
+                DisplayOpts::MaxRedirects(_) => {
+                    curl.set_max_redirects(0);
+                }
+                DisplayOpts::Cookie(_) => {
+                    curl.remove_headers(opt.get_value());
+                }
+                DisplayOpts::UserAgent(_) => {
+                    curl.set_user_agent("");
+                }
+                DisplayOpts::Referrer(_) => {
+                    curl.set_referrer("");
+                }
             },
             AppCmd::WgetCmd(wget) => match opt {
                 DisplayOpts::URL(_) => {
@@ -317,99 +350,18 @@ impl<'a> App<'a> {
         for element in self.opts.iter() {
             // I only care if its the same KIND of option, not the same value
             // This is annoying, I tried to do this an easier way
-
-            match *element {
-                DisplayOpts::URL(_) => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::Headers(_) => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::Outfile(_) => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::Response(_) => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::SaveCommand => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::Verbose => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::RecDownload(_) => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::Auth(_) => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::SaveToken => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::UnixSocket(_) => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::EnableHeaders => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::ProgressBar => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
-                DisplayOpts::FailOnError => {
-                    if mem::discriminant(opt) == mem::discriminant(element) {
-                        return true;
-                    }
-                }
+            if mem::discriminant(opt) == mem::discriminant(element) {
+                return true;
             }
         }
         // Otherwise, its not there.
         false
     }
 
-    // Lorenzo - Im adding this function as a slightly more
-    // robust version of has_display_option, to test if we should be replacing a value or adding a new one
     fn should_add_option(&self, opt: &DisplayOpts) -> bool {
-        // Lets match the type of display option
-        // We know that only 1 URL should ever be added,
-        // So if we're adding a URL we should replace it if it already exists
         match opt {
-            DisplayOpts::URL(_) => !self.has_display_option(opt), // URL should be replaced if exists
             DisplayOpts::Headers(_) => true, // Headers should be "pushed" or added
-            DisplayOpts::Outfile(_) => !self.has_display_option(opt), // Outfile should be replaced
-            DisplayOpts::Verbose => !self.has_display_option(opt), // Verbose should be toggled
-            DisplayOpts::SaveCommand => !self.has_display_option(opt), // Save command should be toggled
-            DisplayOpts::Response(_) => !self.has_display_option(opt), // Response should be replaced
-            DisplayOpts::RecDownload(_) => !self.has_display_option(opt), // Recursive download depth should be replaced
-            DisplayOpts::Auth(_) => !self.has_display_option(opt),        // Auth should be replaced
-            DisplayOpts::SaveToken => !self.has_display_option(opt), // Save token should be toggled
-            DisplayOpts::UnixSocket(_) => !self.has_display_option(opt), // Unix socket should be replaced
-            DisplayOpts::EnableHeaders => !self.has_display_option(opt), // Enable headers should be toggled
-            DisplayOpts::ProgressBar => !self.has_display_option(opt), // Progress bar should be toggled
-            DisplayOpts::FailOnError => !self.has_display_option(opt),
+            _ => self.has_display_option(opt) == false,
         }
     }
 
@@ -436,6 +388,7 @@ impl<'a> App<'a> {
             return;
         }
         match opt.clone() {
+            // these are the options that work with both commands
             DisplayOpts::URL(_) => {
                 self.command.as_mut().unwrap().set_url("");
                 return;
@@ -450,55 +403,23 @@ impl<'a> App<'a> {
             }
             _ => {}
         }
-        match self.command.as_ref().unwrap() {
-            AppCmd::CurlCmd(curl) => {
-                let will_save_cmd = curl.will_save_command();
-                match opt.clone() {
-                    DisplayOpts::Verbose => match self.command.as_mut().unwrap() {
-                        AppCmd::CurlCmd(curl) => {
-                            curl.set_verbose(true);
-                        }
-                        _ => {}
-                    },
-                    DisplayOpts::EnableHeaders => match self.command.as_mut().unwrap() {
-                        AppCmd::CurlCmd(curl) => {
-                            curl.enable_response_headers(true);
-                        }
-                        _ => {}
-                    },
-                    DisplayOpts::ProgressBar => match self.command.as_mut().unwrap() {
-                        AppCmd::CurlCmd(curl) => {
-                            curl.enable_progress_bar(true);
-                        }
-                        _ => {}
-                    },
-                    DisplayOpts::SaveCommand => {
-                        match self.command.as_mut().unwrap() {
-                            AppCmd::CurlCmd(curl) => {
-                                curl.save_command(will_save_cmd);
-                            }
-                            _ => {}
-                        };
-                    }
-                    DisplayOpts::SaveToken => {
-                        match self.command.as_mut().unwrap() {
-                            AppCmd::CurlCmd(curl) => {
-                                curl.save_token(true);
-                            }
-                            _ => {}
-                        };
-                    }
-                    DisplayOpts::FailOnError => {
-                        match self.command.as_mut().unwrap() {
-                            AppCmd::CurlCmd(curl) => {
-                                curl.set_fail_on_error(true);
-                            }
-                            _ => {}
-                        };
-                    }
-                    _ => {}
-                }
-            }
+        match self.command.as_mut().unwrap() {
+            AppCmd::CurlCmd(curl) => match opt.clone() {
+                DisplayOpts::Verbose => curl.set_verbose(true),
+                DisplayOpts::EnableHeaders => curl.enable_response_headers(true),
+                DisplayOpts::ProgressBar => curl.enable_progress_bar(true),
+                DisplayOpts::FailOnError => curl.set_fail_on_error(true),
+                DisplayOpts::MatchWildcard => curl.match_wildcard(true),
+                DisplayOpts::CertInfo => curl.set_cert_info(true),
+                DisplayOpts::ProxyTunnel => curl.set_proxy_tunnel(true),
+                DisplayOpts::SaveCommand => curl.save_command(true),
+                DisplayOpts::FollowRedirects => curl.set_follow_redirects(true),
+                DisplayOpts::UnrestrictedAuth => curl.set_unrestricted_auth(true),
+                DisplayOpts::TcpKeepAlive => curl.set_tcp_keepalive(true),
+
+                DisplayOpts::SaveToken => curl.save_token(true),
+                _ => {}
+            },
             _ => {}
         }
         self.opts.push(opt.clone());
@@ -521,10 +442,8 @@ impl<'a> App<'a> {
                     DisplayOpts::Headers(value) => curl.add_headers(value),
                     DisplayOpts::URL(url) => curl.set_url(&url),
                     DisplayOpts::Auth(_) => {}
-                    DisplayOpts::FailOnError => curl.set_fail_on_error(true),
-                    DisplayOpts::EnableHeaders => curl.enable_response_headers(true),
-                    DisplayOpts::ProgressBar => curl.enable_progress_bar(true),
                     DisplayOpts::Outfile(outfile) => curl.set_outfile(&outfile),
+                    DisplayOpts::Cookie(cookie) => curl.add_cookie(cookie),
                     DisplayOpts::RecDownload(_) => {}
                     DisplayOpts::Response(_) => {}
                     _ => {}
@@ -572,6 +491,31 @@ impl<'a> App<'a> {
                     DisplayOpts::Auth(_) => {
                         if let DisplayOpts::Auth(ref auth) = opt {
                             option.replace_value(String::from(auth));
+                        }
+                    }
+                    DisplayOpts::UserAgent(_) => {
+                        if let DisplayOpts::UserAgent(ref agent) = opt {
+                            option.replace_value(String::from(agent));
+                        }
+                    }
+                    DisplayOpts::Referrer(_) => {
+                        if let DisplayOpts::Referrer(ref referrer) = opt {
+                            option.replace_value(String::from(referrer));
+                        }
+                    }
+                    DisplayOpts::Cookie(_) => {
+                        if let DisplayOpts::Cookie(ref cookie) = opt {
+                            option.replace_value(String::from(cookie));
+                        }
+                    }
+                    DisplayOpts::CaPath(_) => {
+                        if let DisplayOpts::CaPath(ref ca_path) = opt {
+                            option.replace_value(String::from(ca_path));
+                        }
+                    }
+                    DisplayOpts::MaxRedirects(_) => {
+                        if let DisplayOpts::MaxRedirects(ref max_redirects) = opt {
+                            option.replace_value(max_redirects.to_string());
                         }
                     }
                     DisplayOpts::UnixSocket(_) => {

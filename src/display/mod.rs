@@ -27,9 +27,20 @@ pub enum DisplayOpts {
     Auth(String),
     SaveToken,
     UnixSocket(String),
+    FollowRedirects,
+    Cookie(String),
     EnableHeaders,
     ProgressBar,
     FailOnError,
+    ProxyTunnel,
+    CaPath(String),
+    CertInfo,
+    UserAgent(String),
+    Referrer(String),
+    MatchWildcard,
+    TcpKeepAlive,
+    UnrestrictedAuth,
+    MaxRedirects(usize),
 }
 
 impl DisplayOpts {
@@ -56,6 +67,22 @@ impl DisplayOpts {
             DisplayOpts::UnixSocket(socket) => {
                 *socket = val;
             }
+            DisplayOpts::Cookie(cookie) => {
+                *cookie = val;
+            }
+            DisplayOpts::Referrer(referrer) => {
+                *referrer = val;
+            }
+            DisplayOpts::CaPath(ca_cert) => {
+                *ca_cert = val;
+            }
+            DisplayOpts::MaxRedirects(max_redirects) => {
+                *max_redirects = val.parse::<usize>().unwrap();
+            }
+            DisplayOpts::UserAgent(ua) => {
+                *ua = val;
+            }
+
             _ => {}
         }
     }
@@ -75,6 +102,17 @@ impl DisplayOpts {
             DisplayOpts::EnableHeaders => String::from("--include"),
             DisplayOpts::ProgressBar => String::from("--progress-bar"),
             DisplayOpts::FailOnError => String::from("--fail"),
+            DisplayOpts::ProxyTunnel => String::from("--proxy-tunnel"),
+            DisplayOpts::UserAgent(ua) => ua.clone(),
+            DisplayOpts::MaxRedirects(max_redirects) => max_redirects.to_string(),
+            DisplayOpts::Cookie(cookie) => cookie.clone(),
+            DisplayOpts::Referrer(referrer) => referrer.clone(),
+            DisplayOpts::CaPath(path) => path.clone(),
+            DisplayOpts::CertInfo => String::from("--cert-info"),
+            DisplayOpts::FollowRedirects => String::from("--location"),
+            DisplayOpts::MatchWildcard => String::from("--glob"),
+            DisplayOpts::TcpKeepAlive => String::from("--tcp-keepalive"),
+            DisplayOpts::UnrestrictedAuth => String::from("--unrestricted-auth"),
         }
     }
 }

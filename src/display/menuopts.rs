@@ -98,13 +98,17 @@ pub const CUTE_LOGO2: &str = "
  :: :: :'  : :  :      :     : :: ::   
                                        ";
 
-pub const DISPLAY_OPT_VERBOSE: &str = "- Verbose";
-pub const DISPLAY_OPT_COMMAND_SAVED: &str = "- Command will be saved";
-pub const DISPLAY_OPT_HEADERS: &str = "- Response headers included";
-pub const DISPLAY_OPT_PROGRESS_BAR: &str = "- Progress Bar will be displayed";
-pub const DISPLAY_OPT_FAIL_ON_ERROR: &str = "- Fail on error";
-pub const DISPLAY_OPT_TOKEN_SAVED: &str = "- Token will be saved";
-
+pub const DISPLAY_OPT_VERBOSE: &str = " Verbose";
+pub const DISPLAY_OPT_COMMAND_SAVED: &str = " Command will be saved  ";
+pub const DISPLAY_OPT_HEADERS: &str = " Response headers included 󱈝 ";
+pub const DISPLAY_OPT_PROGRESS_BAR: &str = " Enable Progress Bar 󰦖 ";
+pub const DISPLAY_OPT_FAIL_ON_ERROR: &str = " Fail on error  ";
+pub const DISPLAY_OPT_TOKEN_SAVED: &str = " Token will be saved  ";
+pub const DISPLAY_OPT_FOLLOW_REDIRECTS: &str = " Follow redirects 󱀀 ";
+pub const DISPLAY_OPT_UNRESTRICTED_AUTH: &str = "- Send auth to hosts if redirected";
+pub const DISPLAY_OPT_PROXY_TUNNEL: &str = " Enable HTTP Proxy-Tunnel 󱠾 ";
+pub const DISPLAY_OPT_MATCH_WILDCARD: &str = "  Match glob wildcard 󰛄 ";
+pub const DISPLAY_OPT_CERT_INFO: &str = "  Request certificate info 󰄤 ";
 lazy_static! {
     pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
         "Build and send an HTTP request 󰖟 ",
@@ -131,12 +135,13 @@ lazy_static! {
         "Specify output filepath  ",
         "Begin Download  ",
     ];
-    pub static ref METHOD_MENU_OPTIONS: [&'static str; 6] = [
+    pub static ref METHOD_MENU_OPTIONS: [&'static str; 7] = [
         "GET",
         "POST",
         "PUT",
         "DELETE",
         "PATCH",
+        "HEAD",
         "OTHER (custom command)"
     ];
     pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 8] = [
@@ -149,21 +154,20 @@ lazy_static! {
         "Kerberos",
         "SPNEGO",
     ];
-    pub static ref MORE_FLAGS_MENU: [&'static str; 14] = [
-        "Follow Redirects (-L)",
-        "Specify Max redirects (--max-redirs)",
-        "Add Cookie (-b)",
-        "Add Proxy-Tunnel (--proxy-tunnel)",
-        "Specify Socks5 Proxy (--socks5)",
-        "Add FTP Account  (--ftp-account)",
-        "Add FTP SSL (--ftp-ssl)",
-        "Specify Referrer (-e)",
-        "Data URL Encode (--data-urlencode)",
-        "Add Trace (--trace)",
-        "Add Ca-Cert (--cacert)",
-        "Add Ca-Native (--ca-native)",
-        "Specify Ca-Path (--capath)",
-        "Add Progress Bar (--progress-bar)",
+    pub static ref MORE_FLAGS_MENU: [&'static str; 13] = [
+        "Follow Redirects ",
+        "Specify Max redirects ",
+        "Add Cookie ",
+        "Enable HTTP Proxy-Tunnel ",
+        "Unrestricted Auth",
+        "Specify Referrer ",
+        "Specify SSL Certificate path",
+        "Request Certificate Info ",
+        "Add Progress Bar ",
+        "Fail on Error ",
+        "Match wildcard",
+        "Specify User-Agent",
+        "Enable TCP keepalive",
     ];
     pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 4] = [
         "Write to file? 󱇧 ",
