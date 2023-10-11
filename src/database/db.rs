@@ -161,7 +161,7 @@ impl Display for SavedCommand {
 
 impl Display for SavedKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ID: {} | Key: {}", self.id, self.key)
+        write!(f, " ID: {} | Key: {}", self.id, self.key)
     }
 }
 

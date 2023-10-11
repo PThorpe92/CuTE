@@ -3,9 +3,8 @@ use crate::display::menuopts::{
     INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER, INPUT_OPT_BASIC,
     INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD,
 };
-use crate::display::DisplayOpts;
+use crate::display::AppOptions;
 use crate::request::cmdtype::CmdType;
-use crate::request::command::AppCmd;
 use crate::request::curl::AuthKind;
 use crate::screens::auth::AuthType;
 use crate::screens::Screen;
@@ -112,11 +111,11 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         InputOpt::URL(opt) => {
             match opt {
                 CmdType::Wget => {
-                    app.add_display_option(DisplayOpts::URL(message));
+                    app.add_app_option(AppOptions::URL(message));
                     app.goto_screen(Screen::Downloads);
                 }
                 CmdType::Curl => {
-                    app.add_display_option(DisplayOpts::URL(message));
+                    app.add_app_option(AppOptions::URL(message));
                     app.goto_screen(Screen::RequestMenu(String::new()));
                 }
             };
@@ -126,52 +125,47 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.goto_screen(Screen::SavedKeys);
         }
         InputOpt::UnixSocket => {
-            app.add_display_option(DisplayOpts::UnixSocket(message.clone()));
+            app.add_app_option(AppOptions::UnixSocket(message.clone()));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::Headers => {
-            app.add_display_option(DisplayOpts::Headers(message.clone()));
+            app.add_app_option(AppOptions::Headers(message.clone()));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         // Only downloads let you specify the output file prior to execution of the command
         InputOpt::Output => {
-            app.add_display_option(DisplayOpts::Outfile(message.clone()));
+            app.add_app_option(AppOptions::Outfile(message.clone()));
             app.goto_screen(Screen::Downloads);
         }
         InputOpt::Cookie => {
-            app.add_display_option(DisplayOpts::Cookie(message.clone()));
+            app.add_app_option(AppOptions::Cookie(message.clone()));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::Referrer => {
-            app.add_display_option(DisplayOpts::Referrer(message.clone()));
+            app.add_app_option(AppOptions::Referrer(message.clone()));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::CaPath => {
-            app.add_display_option(DisplayOpts::CaPath(message.clone()));
+            app.add_app_option(AppOptions::CaPath(message.clone()));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::UserAgent => {
-            app.add_display_option(DisplayOpts::UserAgent(message.clone()));
+            app.add_app_option(AppOptions::UserAgent(message.clone()));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::MaxRedirects => {
             let num = message.parse::<usize>().unwrap();
-            app.add_display_option(DisplayOpts::MaxRedirects(num));
+            app.add_app_option(AppOptions::MaxRedirects(num));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
-            match app.command.as_mut().unwrap() {
-                AppCmd::CurlCmd(curl) => {
-                    curl.set_outfile(&message);
-                    curl.write_output().unwrap();
-                }
-                _ => {}
-            }
+            app.command.as_mut().unwrap().set_outfile(&message);
+            app.command.as_mut().unwrap().write_output();
         }
         InputOpt::RecursiveDownload => {
             let recursion_level = message.parse::<usize>().unwrap();
-            app.add_display_option(DisplayOpts::RecDownload(recursion_level));
+            app.add_app_option(AppOptions::RecDownload(recursion_level));
             app.goto_screen(Screen::Downloads);
         }
         InputOpt::Auth(auth) => {
@@ -201,38 +195,19 @@ fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) 
 }
 
 fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
-    if app.has_display_option(&DisplayOpts::Auth(String::new())) {
-        app.remove_display_option(&DisplayOpts::Auth(String::new()));
+    if app.has_app_option(&AppOptions::Auth(String::new())) {
+        app.remove_app_option(&AppOptions::Auth(String::new()));
     }
-    match app.command.as_mut().unwrap() {
-        AppCmd::CurlCmd(curl) => match auth {
-            AuthType::Basic => {
-                curl.set_auth(AuthKind::Basic(String::from(message)));
-            }
-            AuthType::Bearer => {
-                curl.set_auth(AuthKind::Bearer(String::from(message)));
-            }
-            AuthType::Digest => {
-                curl.set_auth(AuthKind::Digest(String::from(message)));
-            }
-            AuthType::AWSSignatureV4 => {
-                curl.set_auth(AuthKind::AwsSigv4(String::from(message)));
-            }
-            AuthType::SPNEGO => {
-                curl.set_auth(AuthKind::Spnego(String::from(message)));
-            }
-            AuthType::Kerberos => {
-                curl.set_auth(AuthKind::Kerberos(String::from(message)));
-            }
-            AuthType::NTLM => {
-                curl.set_auth(AuthKind::Ntlm(String::from(message)));
-            }
-            AuthType::NTLMWB => {
-                curl.set_auth(AuthKind::NtlmWb(String::from(message)));
-            }
-        },
-        _ => {}
-    }
-    app.add_display_option(DisplayOpts::Auth(String::from(message)));
+    app.command.as_mut().unwrap().set_auth(match auth {
+        AuthType::Basic => AuthKind::Basic(String::from(message)),
+        AuthType::Bearer => AuthKind::Bearer(String::from(message)),
+        AuthType::Digest => AuthKind::Digest(String::from(message)),
+        AuthType::AWSSignatureV4 => AuthKind::AwsSigv4(String::from(message)),
+        AuthType::SPNEGO => AuthKind::Spnego(String::from(message)),
+        AuthType::Kerberos => AuthKind::Kerberos(String::from(message)),
+        AuthType::NTLM => AuthKind::Ntlm(String::from(message)),
+        AuthType::NTLMWB => AuthKind::NtlmWb(String::from(message)),
+    });
+    app.add_app_option(AppOptions::Auth(String::from(message)));
     app.goto_screen(Screen::RequestMenu(String::new()));
 }

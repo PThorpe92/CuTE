@@ -6,6 +6,7 @@ use crate::screens::auth::AuthType;
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputOpt {
     URL(CmdType),
+    UploadFile,
     Headers,
     Output,
     Verbose,
@@ -32,6 +33,7 @@ impl Display for InputOpt {
             InputOpt::Headers => write!(f, "| Headers"),
             InputOpt::Output => write!(f, "| Output"),
             InputOpt::Referrer => write!(f, "| Referrer"),
+            InputOpt::UploadFile => write!(f, "| Upload File"),
             InputOpt::Verbose => write!(f, "| Verbose"),
             InputOpt::RequestBody => write!(f, "| Request Body"),
             InputOpt::RecursiveDownload => write!(f, "Recursive Download"),

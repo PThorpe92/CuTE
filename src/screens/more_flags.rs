@@ -3,7 +3,7 @@ use tui::Frame;
 
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
-use crate::display::DisplayOpts;
+use crate::display::AppOptions;
 use crate::screens::screen::Screen;
 
 use super::render::handle_screen_defaults;
@@ -13,7 +13,7 @@ pub fn handle_more_flags_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_,
     match app.selected {
         // follow redirects
         Some(0) => {
-            app.add_display_option(DisplayOpts::FollowRedirects);
+            app.add_app_option(AppOptions::FollowRedirects);
         }
         // specify max redirects
         Some(1) => {
@@ -25,11 +25,11 @@ pub fn handle_more_flags_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_,
         }
         // proxy tunnel
         Some(3) => {
-            app.add_display_option(DisplayOpts::ProxyTunnel);
+            app.add_app_option(AppOptions::ProxyTunnel);
         }
         // Send auth to hosts if redirected
         Some(4) => {
-            app.add_display_option(DisplayOpts::UnrestrictedAuth);
+            app.add_app_option(AppOptions::UnrestrictedAuth);
         }
         // specify referrer
         Some(5) => {
@@ -41,27 +41,26 @@ pub fn handle_more_flags_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_,
         }
         // Request certificate info
         Some(7) => {
-            app.add_display_option(DisplayOpts::CertInfo);
+            app.add_app_option(AppOptions::CertInfo);
         }
         // add progress bar
         Some(8) => {
-            app.add_display_option(DisplayOpts::ProgressBar);
+            app.add_app_option(AppOptions::ProgressBar);
         }
         // fail on error
         Some(9) => {
-            app.add_display_option(DisplayOpts::FailOnError);
+            app.add_app_option(AppOptions::FailOnError);
         }
         // wildcard match
         Some(10) => {
-            app.add_display_option(DisplayOpts::MatchWildcard);
+            app.add_app_option(AppOptions::MatchWildcard);
         }
         // user agent
         Some(11) => {
             app.goto_screen(Screen::InputMenu(InputOpt::UserAgent));
         }
         // enable tcp keepalive
-        Some(12) => app.add_display_option(DisplayOpts::TcpKeepAlive),
-
+        Some(12) => app.add_app_option(AppOptions::TcpKeepAlive),
         _ => {}
     }
 }

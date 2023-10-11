@@ -1,7 +1,7 @@
 use crate::database::db;
 use crate::database::db::DB;
-use crate::display::DisplayOpts;
-use crate::request::command::{AppCmd, CmdOpts};
+use crate::display::AppOptions;
+use crate::request::command::{CmdOpts, CMD};
 use crate::request::curl::Curl;
 use crate::screens::screen::{determine_line_size, Screen};
 use crate::Config;
@@ -26,9 +26,9 @@ pub struct App<'a> {
     pub cursor: usize,
     pub current_screen: Screen,
     pub screen_stack: Vec<Screen>,
-    pub command: Option<AppCmd>,
     pub selected: Option<usize>,
-    pub opts: Vec<DisplayOpts>,
+    pub command: Option<Box<dyn CMD>>,
+    pub opts: Vec<AppOptions>,
     pub input: Input,
     pub messages: Vec<String>,
     pub input_mode: InputMode,
@@ -71,7 +71,7 @@ impl<'a> App<'a> {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn set_command(&mut self, command: AppCmd) {
+    pub fn set_command(&mut self, command: Box<dyn CMD>) {
         self.command = Some(command);
     }
 
@@ -218,9 +218,6 @@ impl<'a> App<'a> {
     }
 
     pub fn get_saved_keys(&mut self) -> Result<Vec<String>, String> {
-        if self.db.is_none() {
-            self.db = Some(Box::new(DB::new().unwrap()));
-        }
         let db = self.db.as_ref().unwrap();
         let keys = db.get_keys().unwrap();
         let mut saved_keys = Vec::new();
@@ -231,137 +228,125 @@ impl<'a> App<'a> {
     }
 
     pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
-        if self.db.is_none() {
-            self.db = Some(Box::new(DB::new().unwrap()));
-        }
         match self.db.as_mut().unwrap().add_key(&key) {
             Ok(_) => {
                 return Ok(());
             }
-            Err(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
-    pub fn remove_display_option(&mut self, opt: &DisplayOpts) {
-        match self.command.as_mut().unwrap() {
-            AppCmd::CurlCmd(curl) => match opt {
-                DisplayOpts::URL(_) => {
-                    curl.set_url("");
-                }
-                DisplayOpts::Headers(_) => {
-                    curl.remove_headers(opt.get_value());
-                }
-                DisplayOpts::Outfile(_) => {
-                    curl.set_outfile("");
-                }
-                DisplayOpts::Auth(_) => {
-                    curl.set_auth(crate::request::curl::AuthKind::None);
-                }
-                DisplayOpts::UnixSocket(_) => {
-                    curl.set_unix_socket("");
-                }
-                DisplayOpts::EnableHeaders => {
-                    curl.enable_response_headers(false);
-                }
-                DisplayOpts::ProgressBar => {
-                    curl.enable_progress_bar(false);
-                }
-                DisplayOpts::FailOnError => {
-                    curl.set_fail_on_error(false);
-                }
-                DisplayOpts::Verbose => {
-                    curl.set_verbose(false);
-                }
-                DisplayOpts::RecDownload(_) => {}
-                DisplayOpts::Response(_) => {
-                    curl.set_response("");
-                }
-                DisplayOpts::SaveCommand => {
-                    curl.save_command(false);
-                }
-                DisplayOpts::SaveToken => {
-                    curl.save_token(false);
-                }
-                DisplayOpts::FollowRedirects => {
-                    curl.set_follow_redirects(false);
-                }
-                DisplayOpts::UnrestrictedAuth => {
-                    curl.set_unrestricted_auth(false);
-                }
-                DisplayOpts::TcpKeepAlive => {
-                    curl.set_tcp_keepalive(false);
-                }
-                DisplayOpts::ProxyTunnel => {
-                    curl.set_proxy_tunnel(false);
-                }
-                DisplayOpts::CertInfo => {
-                    curl.set_cert_info(false);
-                }
-                DisplayOpts::MatchWildcard => {
-                    curl.match_wildcard(false);
-                }
-                DisplayOpts::CaPath(_) => {
-                    curl.set_ca_path("");
-                }
-                DisplayOpts::MaxRedirects(_) => {
-                    curl.set_max_redirects(0);
-                }
-                DisplayOpts::Cookie(_) => {
-                    curl.remove_headers(opt.get_value());
-                }
-                DisplayOpts::UserAgent(_) => {
-                    curl.set_user_agent("");
-                }
-                DisplayOpts::Referrer(_) => {
-                    curl.set_referrer("");
-                }
-            },
-            AppCmd::WgetCmd(wget) => match opt {
-                DisplayOpts::URL(_) => {
-                    wget.set_url("");
-                }
-                DisplayOpts::Outfile(_) => {
-                    wget.set_outfile("");
-                }
-                DisplayOpts::RecDownload(_) => {
-                    wget.set_rec_download_level(0);
-                }
-                _ => {}
-            },
+    pub fn remove_app_option(&mut self, opt: &AppOptions) {
+        match opt {
+            AppOptions::URL(_) => {
+                self.command.as_mut().unwrap().set_url("");
+            }
+            AppOptions::Headers(_) => {
+                self.command
+                    .as_mut()
+                    .unwrap()
+                    .remove_headers(opt.get_value());
+            }
+            AppOptions::Outfile(_) => {
+                self.command.as_mut().unwrap().set_outfile("");
+            }
+            AppOptions::Auth(_) => {
+                self.command
+                    .as_mut()
+                    .unwrap()
+                    .set_auth(crate::request::curl::AuthKind::None);
+            }
+            AppOptions::UnixSocket(_) => {
+                self.command.as_mut().unwrap().set_unix_socket("");
+            }
+            AppOptions::EnableHeaders => {
+                self.command
+                    .as_mut()
+                    .unwrap()
+                    .enable_response_headers(false);
+            }
+            AppOptions::ProgressBar => {
+                self.command.as_mut().unwrap().enable_progress_bar(false);
+            }
+            AppOptions::FailOnError => {
+                self.command.as_mut().unwrap().set_fail_on_error(false);
+            }
+            AppOptions::Verbose => {
+                self.command.as_mut().unwrap().set_verbose(false);
+            }
+            AppOptions::Response(_) => {
+                self.command.as_mut().unwrap().set_response("");
+            }
+            AppOptions::SaveCommand => {
+                self.command.as_mut().unwrap().save_command(false);
+            }
+            AppOptions::SaveToken => {
+                self.command.as_mut().unwrap().save_token(false);
+            }
+            AppOptions::FollowRedirects => {
+                self.command.as_mut().unwrap().set_follow_redirects(false);
+            }
+            AppOptions::UnrestrictedAuth => {
+                self.command.as_mut().unwrap().set_unrestricted_auth(false);
+            }
+            AppOptions::TcpKeepAlive => {
+                self.command.as_mut().unwrap().set_tcp_keepalive(false);
+            }
+            AppOptions::ProxyTunnel => {
+                self.command.as_mut().unwrap().set_proxy_tunnel(false);
+            }
+            AppOptions::CertInfo => {
+                self.command.as_mut().unwrap().set_cert_info(false);
+            }
+            AppOptions::MatchWildcard => {
+                self.command.as_mut().unwrap().match_wildcard(false);
+            }
+            AppOptions::CaPath(_) => {
+                self.command.as_mut().unwrap().set_ca_path("");
+            }
+            AppOptions::MaxRedirects(_) => {
+                self.command.as_mut().unwrap().set_max_redirects(0);
+            }
+            AppOptions::Cookie(_) => {
+                self.command
+                    .as_mut()
+                    .unwrap()
+                    .remove_headers(opt.get_value());
+            }
+            AppOptions::UserAgent(_) => {
+                self.command.as_mut().unwrap().set_user_agent("");
+            }
+            AppOptions::Referrer(_) => {
+                self.command.as_mut().unwrap().set_referrer("");
+            }
+            AppOptions::RecDownload(_) => {
+                self.command.as_mut().unwrap().set_rec_download_level(0);
+            }
         }
+        self.opts
+            .retain(|x| mem::discriminant(x) != mem::discriminant(&opt));
     }
+
     // Need a button to reset everything
-    pub fn remove_all_display_options(&mut self) {
+    pub fn remove_all_app_options(&mut self) {
         self.opts.clear();
-        match self.command.as_ref().unwrap() {
-            AppCmd::CurlCmd(_) => {
-                self.command = Some(AppCmd::CurlCmd(Box::new(Curl::new())));
-            }
-            AppCmd::WgetCmd(_) => {
-                self.command = Some(AppCmd::WgetCmd(Box::new(crate::request::wget::Wget::new())));
-            }
-        }
+        self.command = Some(Box::new(Curl::new()));
     }
 
-    // Display option is some state that requires us to display the users
-    // current selection on the screen so they know what they have selected
-    // Lorenzo - Changing this because I dont think its doing what I want it to do.
-    pub fn has_display_option(&self, opt: &DisplayOpts) -> bool {
+    pub fn has_app_option(&self, opt: &AppOptions) -> bool {
         for element in self.opts.iter() {
-            // I only care if its the same KIND of option, not the same value
-            // This is annoying, I tried to do this an easier way
             if mem::discriminant(opt) == mem::discriminant(element) {
                 return true;
             }
         }
-        // Otherwise, its not there.
         false
     }
 
-    fn should_add_option(&self, opt: &DisplayOpts) -> bool {
+    fn should_add_option(&self, opt: &AppOptions) -> bool {
         match opt {
-            DisplayOpts::Headers(_) => true, // Headers should be "pushed" or added
-            _ => self.has_display_option(opt) == false,
+            // Header are the only item that should be added multiple times
+            AppOptions::Headers(_) => true,
+            _ => !self.has_app_option(opt),
         }
     }
 
@@ -370,167 +355,181 @@ impl<'a> App<'a> {
         self.command.as_mut().unwrap().set_response(&response);
     }
 
-    fn should_toggle(&self, opt: &DisplayOpts) -> bool {
+    fn should_toggle(&self, opt: &AppOptions) -> bool {
         match opt {
-            DisplayOpts::Verbose
-            | DisplayOpts::FailOnError
-            | DisplayOpts::ProgressBar
-            | DisplayOpts::SaveCommand
-            | DisplayOpts::SaveToken
-            | DisplayOpts::EnableHeaders => true,
+            // Any displayOpt with no value should be toggled (bool)
+            AppOptions::Verbose
+            | AppOptions::FollowRedirects
+            | AppOptions::UnrestrictedAuth
+            | AppOptions::TcpKeepAlive
+            | AppOptions::ProxyTunnel
+            | AppOptions::CertInfo
+            | AppOptions::MatchWildcard
+            | AppOptions::FailOnError
+            | AppOptions::ProgressBar
+            | AppOptions::SaveCommand
+            | AppOptions::SaveToken
+            | AppOptions::EnableHeaders => true,
             _ => false,
         }
     }
 
-    pub fn toggle_display_option(&mut self, opt: DisplayOpts) {
-        if self.has_display_option(&opt) {
-            self.remove_display_option(&opt);
+    fn toggle_app_option(&mut self, opt: AppOptions) {
+        if self.has_app_option(&opt) {
+            self.remove_app_option(&opt);
             return;
         }
-        match opt.clone() {
+        match opt {
             // these are the options that work with both commands
-            DisplayOpts::URL(_) => {
+            AppOptions::URL(_) => {
                 self.command.as_mut().unwrap().set_url("");
                 return;
             }
-            DisplayOpts::RecDownload(_) => {
+            AppOptions::RecDownload(_) => {
                 self.command.as_mut().unwrap().set_rec_download_level(0);
                 return;
             }
-            DisplayOpts::Outfile(_) => {
+            AppOptions::Outfile(_) => {
                 self.command.as_mut().unwrap().set_outfile("");
                 return;
             }
+            AppOptions::Verbose => self.command.as_mut().unwrap().set_verbose(true),
+            AppOptions::EnableHeaders => {
+                self.command.as_mut().unwrap().enable_response_headers(true)
+            }
+            AppOptions::ProgressBar => self.command.as_mut().unwrap().enable_progress_bar(true),
+            AppOptions::FailOnError => self.command.as_mut().unwrap().set_fail_on_error(true),
+            AppOptions::MatchWildcard => self.command.as_mut().unwrap().match_wildcard(true),
+            AppOptions::CertInfo => self.command.as_mut().unwrap().set_cert_info(true),
+            AppOptions::ProxyTunnel => self.command.as_mut().unwrap().set_proxy_tunnel(true),
+            AppOptions::SaveCommand => self.command.as_mut().unwrap().save_command(true),
+            AppOptions::FollowRedirects => {
+                self.command.as_mut().unwrap().set_follow_redirects(true)
+            }
+            AppOptions::UnrestrictedAuth => {
+                self.command.as_mut().unwrap().set_unrestricted_auth(true)
+            }
+            AppOptions::TcpKeepAlive => self.command.as_mut().unwrap().set_tcp_keepalive(true),
+            AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(true),
             _ => {}
         }
-        match self.command.as_mut().unwrap() {
-            AppCmd::CurlCmd(curl) => match opt.clone() {
-                DisplayOpts::Verbose => curl.set_verbose(true),
-                DisplayOpts::EnableHeaders => curl.enable_response_headers(true),
-                DisplayOpts::ProgressBar => curl.enable_progress_bar(true),
-                DisplayOpts::FailOnError => curl.set_fail_on_error(true),
-                DisplayOpts::MatchWildcard => curl.match_wildcard(true),
-                DisplayOpts::CertInfo => curl.set_cert_info(true),
-                DisplayOpts::ProxyTunnel => curl.set_proxy_tunnel(true),
-                DisplayOpts::SaveCommand => curl.save_command(true),
-                DisplayOpts::FollowRedirects => curl.set_follow_redirects(true),
-                DisplayOpts::UnrestrictedAuth => curl.set_unrestricted_auth(true),
-                DisplayOpts::TcpKeepAlive => curl.set_tcp_keepalive(true),
-
-                DisplayOpts::SaveToken => curl.save_token(true),
-                _ => {}
-            },
-            _ => {}
-        }
-        self.opts.push(opt.clone());
     }
 
-    pub fn add_display_option(&mut self, opt: DisplayOpts) {
-        // We either add the option or we replace the existing one
-
-        // first we look and see if its an option we are going to toggle..
+    pub fn add_app_option(&mut self, opt: AppOptions) {
         if self.should_toggle(&opt) {
-            self.toggle_display_option(opt);
+            self.toggle_app_option(opt);
             return;
         }
 
         if self.should_add_option(&opt) {
             self.opts.push(opt.clone());
-            match self.command.as_mut().unwrap() {
-                AppCmd::CurlCmd(curl) => match opt {
-                    DisplayOpts::UnixSocket(socket) => curl.set_unix_socket(&socket),
-                    DisplayOpts::Headers(value) => curl.add_headers(value),
-                    DisplayOpts::URL(url) => curl.set_url(&url),
-                    DisplayOpts::Auth(_) => {}
-                    DisplayOpts::Outfile(outfile) => curl.set_outfile(&outfile),
-                    DisplayOpts::Cookie(cookie) => curl.add_cookie(cookie),
-                    DisplayOpts::RecDownload(_) => {}
-                    DisplayOpts::Response(_) => {}
-                    _ => {}
-                },
-                AppCmd::WgetCmd(wget) => match opt {
-                    DisplayOpts::URL(url) => wget.set_url(&url),
-                    DisplayOpts::Outfile(outfile) => wget.set_outfile(&outfile),
-                    DisplayOpts::RecDownload(level) => wget.set_rec_download_level(level),
-                    DisplayOpts::Response(_) => {}
-                    _ => {}
-                },
+            match opt {
+                AppOptions::UnixSocket(socket) => {
+                    self.command.as_mut().unwrap().set_unix_socket(&socket)
+                }
+                AppOptions::Headers(value) => self.command.as_mut().unwrap().add_headers(value),
+                AppOptions::URL(url) => self.command.as_mut().unwrap().set_url(&url),
+                AppOptions::Outfile(outfile) => {
+                    self.command.as_mut().unwrap().set_outfile(&outfile)
+                }
+                AppOptions::Cookie(cookie) => self.command.as_mut().unwrap().add_cookie(cookie),
+                AppOptions::RecDownload(i) => {
+                    self.command.as_mut().unwrap().set_rec_download_level(i);
+                }
+                AppOptions::Response(resp) => {
+                    self.command.as_mut().unwrap().set_response(&resp);
+                }
+                AppOptions::Referrer(referrer) => {
+                    self.command.as_mut().unwrap().set_referrer(&referrer);
+                }
+                AppOptions::UserAgent(agent) => {
+                    self.command.as_mut().unwrap().set_user_agent(&agent);
+                }
+                AppOptions::CaPath(ca_path) => {
+                    self.command.as_mut().unwrap().set_ca_path(&ca_path);
+                }
+                AppOptions::MaxRedirects(max_redirects) => {
+                    self.command
+                        .as_mut()
+                        .unwrap()
+                        .set_max_redirects(max_redirects);
+                }
+                _ => {}
             }
         } else {
             // We Should Replace An Option, so we iterate over all the opts and replace the value
             // with the new value.
-            for option in self.opts.iter_mut() {
-                match option {
-                    DisplayOpts::URL(_) => {
-                        if let DisplayOpts::URL(ref url) = opt {
-                            option.replace_value(url.clone());
-                        }
+            self.handle_replace(opt.clone());
+        }
+    }
+    fn handle_replace(&mut self, mut opt: AppOptions) {
+        for option in self.opts.iter_mut() {
+            match option {
+                AppOptions::URL(_) => {
+                    if let AppOptions::URL(ref url) = opt {
+                        self.command.as_mut().unwrap().set_url(&url);
+                        option.replace_value(url.clone());
                     }
-                    DisplayOpts::Outfile(_) => {
-                        if let DisplayOpts::Outfile(ref outfile) = opt {
-                            option.replace_value(outfile.clone());
-                            self.command.as_mut().unwrap().set_outfile(&outfile);
-                        }
-                    }
-                    DisplayOpts::Response(_) => {
-                        if let DisplayOpts::Response(ref response) = opt {
-                            option.replace_value(opt.clone().get_value());
-                            self.command.as_mut().unwrap().set_response(&response);
-                        }
-                    }
-                    DisplayOpts::SaveCommand => {
-                        if let DisplayOpts::SaveCommand = opt {
-                            *option = DisplayOpts::SaveCommand;
-                        }
-                    }
-                    DisplayOpts::RecDownload(_) => {
-                        if let DisplayOpts::RecDownload(level) = opt {
-                            option.replace_value(level.to_string());
-                        }
-                    }
-                    DisplayOpts::Auth(_) => {
-                        if let DisplayOpts::Auth(ref auth) = opt {
-                            option.replace_value(String::from(auth));
-                        }
-                    }
-                    DisplayOpts::UserAgent(_) => {
-                        if let DisplayOpts::UserAgent(ref agent) = opt {
-                            option.replace_value(String::from(agent));
-                        }
-                    }
-                    DisplayOpts::Referrer(_) => {
-                        if let DisplayOpts::Referrer(ref referrer) = opt {
-                            option.replace_value(String::from(referrer));
-                        }
-                    }
-                    DisplayOpts::Cookie(_) => {
-                        if let DisplayOpts::Cookie(ref cookie) = opt {
-                            option.replace_value(String::from(cookie));
-                        }
-                    }
-                    DisplayOpts::CaPath(_) => {
-                        if let DisplayOpts::CaPath(ref ca_path) = opt {
-                            option.replace_value(String::from(ca_path));
-                        }
-                    }
-                    DisplayOpts::MaxRedirects(_) => {
-                        if let DisplayOpts::MaxRedirects(ref max_redirects) = opt {
-                            option.replace_value(max_redirects.to_string());
-                        }
-                    }
-                    DisplayOpts::UnixSocket(_) => {
-                        if let DisplayOpts::UnixSocket(ref socket) = opt {
-                            *option = DisplayOpts::UnixSocket(String::from(socket));
-                            match self.command.as_mut().unwrap() {
-                                AppCmd::CurlCmd(curl) => {
-                                    curl.set_unix_socket(&socket);
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    _ => {}
                 }
+                AppOptions::Outfile(_) => {
+                    if let AppOptions::Outfile(ref outfile) = opt {
+                        option.replace_value(outfile.clone());
+                        self.command.as_mut().unwrap().set_outfile(&outfile);
+                    }
+                }
+                AppOptions::Response(_) => {
+                    if let AppOptions::Response(ref response) = opt {
+                        option.replace_value(opt.clone().get_value());
+                        self.command.as_mut().unwrap().set_response(&response);
+                    }
+                }
+                AppOptions::RecDownload(_) => {
+                    if let AppOptions::RecDownload(level) = opt {
+                        option.replace_value(level.to_string());
+                        self.command.as_mut().unwrap().set_rec_download_level(level);
+                    }
+                }
+                AppOptions::Auth(_) => {} // This is handled by the screen
+                AppOptions::UserAgent(_) => {
+                    if let AppOptions::UserAgent(ref agent) = opt {
+                        option.replace_value(String::from(agent));
+                        self.command.as_mut().unwrap().set_user_agent(&agent);
+                    }
+                }
+                AppOptions::Referrer(_) => {
+                    if let AppOptions::Referrer(ref referrer) = opt {
+                        option.replace_value(String::from(referrer));
+                        self.command.as_mut().unwrap().set_referrer(&referrer);
+                    }
+                }
+                AppOptions::Cookie(_) => {
+                    if let AppOptions::Cookie(ref mut cookie) = opt {
+                        option.replace_value(String::from(cookie.clone()));
+                        self.command.as_mut().unwrap().add_cookie(cookie.clone());
+                    }
+                }
+                AppOptions::CaPath(_) => {
+                    if let AppOptions::CaPath(ref ca_path) = opt {
+                        option.replace_value(String::from(ca_path));
+                        self.command.as_mut().unwrap().set_ca_path(&ca_path);
+                    }
+                }
+                AppOptions::MaxRedirects(_) => {
+                    if let AppOptions::MaxRedirects(ref max_redirects) = opt {
+                        option.replace_value(max_redirects.to_string());
+                        self.command
+                            .as_mut()
+                            .unwrap()
+                            .set_max_redirects(*max_redirects);
+                    }
+                }
+                AppOptions::UnixSocket(_) => {
+                    if let AppOptions::UnixSocket(ref mut socket) = opt {
+                        option.replace_value(socket.clone());
+                        self.command.as_mut().unwrap().set_unix_socket(&socket);
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -540,22 +539,22 @@ impl<'a> App<'a> {
 mod tests {
 
     use super::App;
-    use crate::display::DisplayOpts;
-    use crate::request::command::{AppCmd, CmdOpts};
+    use crate::display::AppOptions;
+    use crate::request::command::{Cmd, CmdOpts};
     use crate::request::curl::Curl;
 
     // helper return app instance with curl command
     fn return_app_cmd() -> App<'static> {
         let mut app = App::default();
-        app.set_command(AppCmd::CurlCmd(Box::new(Curl::new())));
+        app.set_command(Box::new(Cmd::Curl(Curl::new())));
         app
     }
 
     #[test]
-    fn test_add_display_option() {
+    fn test_add_app_option() {
         let mut app = return_app_cmd();
         let url = "https://www.google.com";
-        app.add_display_option(DisplayOpts::URL(String::from(url)));
+        app.add_app_option(AppOptions::URL(String::from(url)));
         assert!(app.command.as_ref().unwrap().get_url() == url);
     }
 
@@ -563,30 +562,30 @@ mod tests {
     fn test_toggle_verbose() {
         let mut app = return_app_cmd();
         // Add one.
-        app.add_display_option(crate::display::DisplayOpts::Verbose);
-        assert!(app.has_display_option(&DisplayOpts::Verbose));
+        app.add_app_option(crate::display::AppOptions::Verbose);
+        assert!(app.has_app_option(&AppOptions::Verbose));
         // this should toggle
-        app.add_display_option(DisplayOpts::Verbose);
-        assert!(!app.has_display_option(&DisplayOpts::Verbose));
+        app.add_app_option(AppOptions::Verbose);
+        assert!(!app.has_app_option(&AppOptions::Verbose));
     }
 
     #[test]
-    fn test_replace_display_opt() {
+    fn test_replace_app_opt() {
         let mut app = return_app_cmd();
         let url = "https://www.google.com".to_string();
-        app.add_display_option(DisplayOpts::URL(url.clone()));
+        app.add_app_option(AppOptions::URL(url.clone()));
         assert!(app.command.as_ref().unwrap().get_url() == url);
         // overwrite the url
         let new_url = "https://www.github.com".to_string();
-        app.add_display_option(DisplayOpts::URL(new_url.clone()));
+        app.add_app_option(AppOptions::URL(new_url.clone()));
         assert!(app.command.as_ref().unwrap().get_url() == new_url);
     }
 
     #[test]
-    fn test_remove_display_option() {
+    fn test_remove_app_option() {
         let mut app = return_app_cmd();
         let url = "https://www.google.com";
-        app.add_display_option(DisplayOpts::URL(String::from(url)));
-        app.remove_display_option(&DisplayOpts::URL(String::from(url)));
+        app.add_app_option(AppOptions::URL(String::from(url)));
+        app.remove_app_option(&AppOptions::URL(String::from(url)));
     }
 }

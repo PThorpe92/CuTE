@@ -11,9 +11,9 @@ use std::{
     io::Write,
 };
 
-use super::command::{CmdOpts, CombinedOpts, CurlOpts};
+use super::command::{CmdOpts, CurlOpts, CMD};
 
-pub static DEFAULT_CMD: &str = "curl ";
+pub static DEFAULT_CMD: &str = "curl";
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
 struct Collector(Vec<u8>);
 
@@ -286,8 +286,7 @@ impl Display for AuthKind {
         }
     }
 }
-
-impl CombinedOpts for Curl<'_> {}
+impl<'a> CMD for Curl<'a> {}
 
 impl<'a> Default for Curl<'a> {
     fn default() -> Self {
@@ -461,6 +460,7 @@ impl<'a> CurlOpts for Curl<'a> {
     }
 
     fn set_proxy_tunnel(&mut self, opt: bool) {
+        println!("Setting proxy tunnel");
         if opt {
             self.add_flag(CurlFlag::ProxyTunnel(
                 CurlFlagType::ProxyTunnel.get_value(),
@@ -960,29 +960,25 @@ impl<'a> Curl<'a> {
     }
 
     fn build_command_str(&mut self) {
+        let mut cmd: Vec<String> = vec![self.cmd.clone()];
         if let Some(ref method) = &self.method {
-            self.cmd.push_str("-X ");
-            self.cmd.push_str(method.to_string().as_str());
-            self.cmd.push_str(" ");
+            cmd.push(String::from("-X"));
+            cmd.push(method.to_string());
         }
-        self.cmd.push_str(self.url.as_str());
-        self.cmd.push_str(" ");
+        cmd.push(self.url.clone());
         for flag in &self.opts {
-            self.cmd.push_str(flag.get_value());
-            self.cmd.push(' ');
+            cmd.push(flag.get_value().to_string());
             if let Some(arg) = &flag.get_arg() {
-                self.cmd.push_str(arg.as_str());
-                self.cmd.push(' ');
+                cmd.push(arg.to_owned());
             }
         }
         if self.headers.is_some() {
             self.headers.as_ref().unwrap().iter().for_each(|h| {
-                self.cmd.push_str("-H ");
-                self.cmd.push_str(h.as_str());
-                self.cmd.push(' ');
+                cmd.push(String::from("-H"));
+                cmd.push(h.clone());
             });
         }
-        self.cmd = self.cmd.trim().to_string();
+        self.cmd = cmd.join(" ").trim().to_string();
     }
 
     pub fn handle_auth_exec(&mut self, list: &mut List) -> bool {
@@ -1047,7 +1043,7 @@ impl<'a> Curl<'a> {
     }
 
     pub fn add_flag(&mut self, flag: CurlFlag<'a>) {
-        self.opts.push(flag.clone());
+        self.opts.push(flag);
     }
 }
 

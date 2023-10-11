@@ -19,7 +19,7 @@ pub const SAVED_COMMANDS_TITLE: &str = "My Saved cURL Commands";
 pub const DEFAULT_MENU_TITLE: &str = "** CuTE **";
 pub const AUTH_MENU_TITLE: &str = "** CuTE ** Authentication Menu 󰌋";
 pub const VIEW_BODY_TITLE: &str = "** CuTE ** View Response Body";
-pub const INPUT_MENU_TITLE: &str = "** CuTE ** Input **";
+pub const INPUT_MENU_TITLE: &str = "** Press i to enter Insert mode **";
 pub const DOWNLOAD_MENU_TITLE: &str = "* CuTE ** Downloads *";
 pub const ERROR_MENU_TITLE: &str = "* CuTE ** Error! *";
 pub const SUCCESS_MENU_TITLE: &str = "* CuTE ** Success! *";
@@ -36,54 +36,20 @@ pub const INPUT_OPT_BASIC: &str = "Enter a value and press Enter";
 pub const OPTION_PADDING_MAX: &str = "\n\n\n\n";
 pub const OPTION_PADDING_MID: &str = "\n\n\n";
 pub const OPTION_PADDING_MIN: &str = "\n\n";
-/*
-* define_curl_flags! {
-    Verbose("-v"),
-    Output("-o"),
-    User("-u"),
-    Bearer("-H"),
-    Headers("-H"),
-    Digest("--digest"),
-    Basic("-H"),
-    AnyAuth("--any-auth"),
-    UnixSocket("--unix-socket"),
-    UploadFile("--upload-file"),
-    Ntlm("--ntlm"),
-    NtlmWb("--ntlm-wb"),
-    Proxy("-x"),
-    AwsSigv4("--aws-sigv4"),
-    ProxyTunnel("--proxy-tunnel"),
-    Socks5("--socks5"),
-    File("-F"),
-    FtpAccount("--ftp-account"),
-    FtpSsl("--ftp-ssl"),
-    Trace("--trace"),
-    DataUrlEncode("--data-urlencode"),
-    DumpHeaders("--dump-headers"),
-    Referrer("-e"),
-    Insecure("--insecure"),
-    PreventDefaultConfig("-q"),
-    CaCert("--cacert"),
-    CaNative("--ca-native"),
-    CaPath("--capath"),
-    SpnegoAuth("--negotiate"),
-    Kerberos("--krb"),
-    Progress("--progress-bar"),
-}
-*/
+pub const NEWLINE: &str = "\n";
 #[rustfmt::skip]
 // Yeah... if this is normal here, it f**ks up when we try to center it on the screen
 pub const CUTE_LOGO: &str =
-"   . . . . . . . .  .  .  .  . . .    . .p  o  w .. e  r e  d.  . ..b.y ..
-      ***************` *;;;;;;;  ;;;;;, $$####################$`****************``l
-     %%%%%%%%%%%%%%%` %%%%%``|  #####``%%%%%%%%%%%%%%%%%%%%%% '%%%%%%%%%%%%%%%%``i
-      %%%%#``;;;;;;;`  %%%%%``|  %%%%#``| **`;; %%%%&*+`` **;;| %%%%%%`   %%%%%%``b
-         %%%%#``| *.      %%%%%``|  %%%%#``| ~   ` %%%%$*+`  ` i   %%%%%%`===#####``  _*_
-        %%%%#``| `   ___ %%%%%``|  %%%%#``| _*_   %%%%$*+`   -*-  %%%%%%%%%%####``    *
-      %%%%#``````%%%```%%%%%`/;; %%%%#```|      %%%%$*+`        %%%%%%`   _____`c 
- _*_  %%%%%%%%%%%%%%``|%%%%%=====%%%%#$`|       %%%%&*+``*      %%%%%%``` %%%%%#`u 
-  *   %%%%%%%%%%%%%%`/; %%%%%%%%%%%%%%%%/      *%%%%%%**`       %%%%%%$####%%%%%``r
-      ***************l...**********$  **`... .. .***.... . . ...****************'.l
+"    . . . . . . .  .  .  .  . . .    . .p  o  w .. e  r e  d.  . ..b.y ..
+     ***************` *;;;;;;;  ;;;;;, $$####################$`****************``l             *&%&*   *&%&*
+    %%%%%%%%%%%%%%%` %%%%%``|  #####``%%%%%%%%%%%%%%%%%%%%%% '%%%%%%%%%%%%%%%%``i   **       *&%&*   *&%&*
+     %%%%#``;;;;;;;`  %%%%%``|  %%%%#``| **`;; %%%%&*+`` **;;| %%%%%%`   %%%%%%``b  *%%*     *&%&*   *&%&*
+     %%%%#``| *.      %%%%%``|  %%%%#``| ~   ` %%%%$*+`  ` i   %%%%%%`===#####``     **     *&%&*   *&%&*
+     %%%%#``| `   ___ %%%%%``|  %%%%#``| _*_   %%%%$*+`   -*-  %%%%%%%%%%####``            *&%&*   *&%&*
+     %%%%#``````%%%```%%%%%`/;; %%%%#```|      %%%%$*+`        %%%%%%`   _____`c     **   *&%&*   *&%&*
+ _*_ %%%%%%%%%%%%%%``|%%%%%=====%%%%#$`|       %%%%&*+``*      %%%%%%``` %%%%%#`u   *%%* *&%&*   *&%&*
+  *  %%%%%%%%%%%%%%`/; %%%%%%%%%%%%%%%%/      *%%%%%%**`       %%%%%%$####%%%%%``r   ** *&%&*   *&%&*
+     ***************l...**********$  **`... .. .***.... . . ...****************'.l     *&%&*   *&%&*
 ";
 pub const CUTE_LOGO2: &str = "
  @@@@@@@. @@@  @@@  @@@@@@@  @@@@@@@@  
@@ -116,7 +82,7 @@ lazy_static! {
         "View my stored API keys 󱂛  ",
         "View or execute my saved commands  ",
     ];
-    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 11] = [
+    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 12] = [
         "Add a URL 󰖟 ",
         "Add Unix Socket address 󰟩 ",
         "Add Authentication 󰯄 ",
@@ -128,6 +94,7 @@ lazy_static! {
         "Save your API token or login information  ",
         "Execute command  ",
         "More Options  ",
+        "Clear all options  ",
     ];
     pub static ref DOWNLOAD_MENU_OPTIONS: [&'static str; 4] = [
         "Specify recursive depth 󰆙 ",
@@ -154,20 +121,21 @@ lazy_static! {
         "Kerberos",
         "SPNEGO",
     ];
-    pub static ref MORE_FLAGS_MENU: [&'static str; 13] = [
-        "Follow Redirects ",
-        "Specify Max redirects ",
-        "Add Cookie ",
-        "Enable HTTP Proxy-Tunnel ",
-        "Unrestricted Auth",
-        "Specify Referrer ",
-        "Specify SSL Certificate path",
-        "Request Certificate Info ",
-        "Add Progress Bar ",
-        "Fail on Error ",
-        "Match wildcard",
-        "Specify User-Agent",
-        "Enable TCP keepalive",
+    pub static ref MORE_FLAGS_MENU: [&'static str; 14] = [
+        "Specify filepath (for uploads)  ",
+        "Follow Redirects 󱀀 ",
+        "Specify Max redirects 󱀀 ",
+        "Add Cookie  󰆘 ",
+        "Enable HTTP Proxy-Tunnel  󱠾 ",
+        "Unrestricted Auth  ",
+        "Specify Referrer  󰆽 ",
+        "Specify SSL Certificate path 󰄤 ",
+        "Request Certificate Info 󰄤 ",
+        "Add Progress Bar 󰦖 ",
+        "Fail on Error  ",
+        "Match wildcard 󰛄 ",
+        "Specify User-Agent  󰖟 ",
+        "Enable TCP keepalive 󰗶 ",
     ];
     pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 4] = [
         "Write to file? 󱇧 ",
