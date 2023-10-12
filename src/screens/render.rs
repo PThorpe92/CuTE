@@ -1,17 +1,20 @@
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, CUTE_LOGO, DEFAULT_MENU_PARAGRAPH,
-    DEFAULT_MENU_TITLE, DISPLAY_OPT_COMMAND_SAVED, DISPLAY_OPT_HEADERS, DISPLAY_OPT_PROGRESS_BAR,
-    DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_VERBOSE, DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE,
-    INPUT_MENU_TITLE, SAVED_COMMANDS_TITLE, SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
+    DEFAULT_MENU_TITLE, DISPLAY_OPT_CERT_INFO, DISPLAY_OPT_COMMAND_SAVED,
+    DISPLAY_OPT_FAIL_ON_ERROR, DISPLAY_OPT_FOLLOW_REDIRECTS, DISPLAY_OPT_HEADERS,
+    DISPLAY_OPT_PROGRESS_BAR, DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_TOKEN_SAVED,
+    DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_VERBOSE, DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE,
+    INPUT_MENU_TITLE, NEWLINE, SAVED_COMMANDS_TITLE, SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
 };
-use crate::display::DisplayOpts;
+use crate::display::AppOptions;
 use crate::screens::input::input::handle_default_input_screen;
 
 use super::auth::handle_authentication_screen;
 use super::downloads::handle_downloads_screen;
 use super::home::handle_home_screen;
 use super::method::handle_method_select_screen;
+use super::more_flags::handle_more_flags_screen;
 use super::request::handle_request_menu_screen;
 use super::response::handle_response_screen;
 use super::saved_commands::handle_saved_commands_screen;
@@ -46,55 +49,83 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         // that were added to app.opts in the previous screen and add them here.
         let mut display_opts = String::new();
         app.opts.iter().for_each(|opt| match opt {
-            DisplayOpts::Verbose => {
-                display_opts.push_str(DISPLAY_OPT_VERBOSE);
-                display_opts.push('\n');
+            AppOptions::Verbose => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_VERBOSE, NEWLINE).as_str());
             }
-            DisplayOpts::URL(url) => {
-                let url_str = format!("- URL: {}", &url);
+            AppOptions::URL(url) => {
+                let url_str = format!("- URL: {}{}", &url, NEWLINE);
                 display_opts.push_str(url_str.as_str());
-                display_opts.push('\n');
             }
-            DisplayOpts::RecDownload(num) => {
-                let rec_str = format!("- Recursive Download depth: {}", num);
+            AppOptions::RecDownload(num) => {
+                let rec_str = format!("- Recursive Download depth: {}{}", num, NEWLINE);
                 display_opts.push_str(rec_str.as_str());
-                display_opts.push('\n');
             }
-            DisplayOpts::SaveCommand => {
-                display_opts.push_str(DISPLAY_OPT_COMMAND_SAVED);
-                display_opts.push('\n');
+            AppOptions::SaveCommand => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_COMMAND_SAVED, NEWLINE).as_str());
             }
-            DisplayOpts::Auth(auth) => {
-                let auth_str = format!("- Auth: {}", auth);
+            AppOptions::Auth(auth) => {
+                let auth_str = format!("- Auth: {}{}", auth, NEWLINE);
                 display_opts.push_str(auth_str.as_str());
-                display_opts.push('\n');
             }
-            DisplayOpts::SaveToken => {
-                display_opts.push_str(DISPLAY_OPT_TOKEN_SAVED);
-                display_opts.push('\n');
+            AppOptions::SaveToken => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_TOKEN_SAVED, NEWLINE).as_str());
             }
-            DisplayOpts::UnixSocket(socket) => {
-                let socket_str = format!("- Unix Socket: {}", socket);
+            AppOptions::UnixSocket(socket) => {
+                let socket_str = format!("- Unix Socket: {}{}", socket, NEWLINE);
                 display_opts.push_str(socket_str.as_str());
-                display_opts.push('\n');
             }
-            DisplayOpts::ProgressBar => {
-                display_opts.push_str(DISPLAY_OPT_PROGRESS_BAR);
-                display_opts.push('\n');
+            AppOptions::ProgressBar => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_PROGRESS_BAR, NEWLINE).as_str());
             }
-            DisplayOpts::EnableHeaders => {
-                display_opts.push_str(DISPLAY_OPT_HEADERS);
-                display_opts.push('\n');
+            AppOptions::EnableHeaders => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_HEADERS, NEWLINE).as_str());
+            }
+            AppOptions::Cookie(cookie) => {
+                let cookie_str = format!("- Cookie: {}{}", cookie, NEWLINE);
+                display_opts.push_str(cookie_str.as_str());
+            }
+            AppOptions::FailOnError => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_FAIL_ON_ERROR, NEWLINE).as_str());
+            }
+            AppOptions::ProxyTunnel => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_PROXY_TUNNEL, NEWLINE).as_str());
+            }
+            AppOptions::UnrestrictedAuth => {
+                display_opts
+                    .push_str(format!("{}{}", DISPLAY_OPT_UNRESTRICTED_AUTH, NEWLINE).as_str());
+            }
+            AppOptions::CaPath(path) => {
+                let path_str = format!("- CA Path: {}{}", path, NEWLINE);
+                display_opts.push_str(path_str.as_str());
+            }
+            AppOptions::UserAgent(ua) => {
+                let ua_str = format!("- User Agent: {}{}", ua, NEWLINE);
+                display_opts.push_str(ua_str.as_str());
+            }
+            AppOptions::MaxRedirects(num) => {
+                let num_str = format!("- Max Redirects: {}{}", num, NEWLINE);
+                display_opts.push_str(num_str.as_str());
+            }
+            AppOptions::Referrer(referrer) => {
+                let referrer_str = format!("- Referrer: {}{}", referrer, NEWLINE);
+                display_opts.push_str(referrer_str.as_str());
+            }
+            AppOptions::FollowRedirects => {
+                display_opts
+                    .push_str(format!("{}{}", DISPLAY_OPT_FOLLOW_REDIRECTS, NEWLINE).as_str());
+            }
+            AppOptions::CertInfo => {
+                display_opts.push_str(format!("{}{}", DISPLAY_OPT_CERT_INFO, NEWLINE).as_str());
             }
             _ => {}
         });
         if app.current_screen == Screen::Home {
-            let logo = Paragraph::new(CUTE_LOGO)
+            let logo = Paragraph::new(app.config.get_logo())
                 .block(Block::default())
                 .style(
                     Style::default()
-                        .fg(Color::Cyan)
-                        .bg(Color::Gray)
+                        .fg(app.config.get_fg_color())
+                        .bg(app.config.get_bg_color())
                         .add_modifier(tui::style::Modifier::BOLD),
                 )
                 .alignment(Alignment::Center);
@@ -135,14 +166,6 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     }
     // We pass this off where we match on the current screen and render what we need to
     handle_screen(app, frame, app.current_screen.clone());
-}
-
-fn determine_line_size(count: &mut usize, line: &mut String) {
-    match count {
-        0 => {}
-        num if !num.is_power_of_two() => line.push_str("\t\t"),
-        _ => line.push_str("\n"),
-    }
 }
 
 pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -217,6 +240,9 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         }
         Screen::Error(e) => {
             handle_response_screen(app, frame, e.to_string());
+        }
+        Screen::MoreFlags => {
+            handle_more_flags_screen(app, frame);
         }
         Screen::SavedKeys => {
             handle_screen_defaults(app, frame);

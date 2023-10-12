@@ -1,7 +1,10 @@
 #![allow(non_snake_case)]
+use std::fmt::Display;
+
 // Purpose: Main library file for the application.
 // ********************************************************************
 use crate::display::menuopts::CUTE_LOGO;
+use display::menuopts::CUTE_LOGO2;
 use serde::{Deserialize, Serialize};
 
 // Application.
@@ -28,8 +31,9 @@ pub mod tui_cute;
 pub struct Config {
     colors: Colors,
     logo: Logo,
-    db_path: String,
+    db_path: Option<String>,
 }
+
 impl Config {
     pub fn get_fg_color(&self) -> tui::style::Color {
         self.colors.get_fg()
@@ -37,11 +41,21 @@ impl Config {
     pub fn get_bg_color(&self) -> tui::style::Color {
         self.colors.get_bg()
     }
-    pub fn get_logo(&self) -> &Logo {
-        &self.logo
+    pub fn get_logo(&self) -> String {
+        self.logo.to_string()
     }
-    pub fn get_db_path(&self) -> &String {
-        &self.db_path
+    pub fn get_db_path(&self) -> String {
+        self.db_path
+            .as_ref()
+            .unwrap_or(&String::from(
+                dirs::data_local_dir()
+                    .unwrap_or(dirs::home_dir().unwrap())
+                    .join("CuTE")
+                    .into_os_string()
+                    .to_str()
+                    .unwrap(),
+            ))
+            .to_string()
     }
 }
 impl Default for Config {
@@ -51,24 +65,32 @@ impl Default for Config {
                 fg: ConfigColor::Cyan,
                 bg: ConfigColor::Gray,
             },
-            logo: Logo::Logo1(String::from(CUTE_LOGO)),
-            db_path: String::from(
+            logo: Logo::Default,
+            db_path: Some(String::from(
                 dirs::data_local_dir()
                     .expect("Failed to get local data directory")
                     .join("CuTE")
                     .into_os_string()
                     .to_str()
                     .unwrap(),
-            ),
+            )),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Logo {
-    Logo1(String),
-    Logo2(String),
+    Default,
     None,
+}
+
+impl Display for Logo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Logo::Default => write!(f, "{}", CUTE_LOGO),
+            Logo::None => write!(f, ""),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -11,9 +11,10 @@ use std::{
     io::Write,
 };
 
-use super::command::{CmdOpts, CombinedOpts, CurlOpts};
+use super::command::{CmdOpts, CurlOpts, CMD};
 
-pub static DEFAULT_CMD: &str = "curl ";
+pub static DEFAULT_CMD: &str = "curl";
+
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
 struct Collector(Vec<u8>);
 
@@ -59,6 +60,7 @@ pub enum Method {
     Put,
     Patch,
     Delete,
+    Head,
 }
 impl Display for Method {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -68,6 +70,7 @@ impl Display for Method {
             Method::Put => write!(f, "PUT"),
             Method::Patch => write!(f, "PATCH"),
             Method::Delete => write!(f, "DELETE"),
+            Method::Head => write!(f, "HEAD"),
         }
     }
 }
@@ -189,6 +192,7 @@ impl<'a> Clone for Curl<'a> {
             Some(Method::Put) => curl.set_put_method(),
             Some(Method::Patch) => curl.set_patch_method(),
             Some(Method::Delete) => curl.set_delete_method(),
+            Some(Method::Head) => curl.set_head_method(),
             None => {}
         }
         if let Some(ref res) = self.resp {
@@ -283,8 +287,7 @@ impl Display for AuthKind {
         }
     }
 }
-
-impl CombinedOpts for Curl<'_> {}
+impl<'a> CMD for Curl<'a> {}
 
 impl<'a> Default for Curl<'a> {
     fn default() -> Self {
@@ -292,7 +295,7 @@ impl<'a> Default for Curl<'a> {
             curl: Easy2::new(Collector(Vec::new())),
             method: None,
             auth: AuthKind::None,
-            cmd: String::from("curl "),
+            cmd: String::from(DEFAULT_CMD),
             url: String::new(),
             opts: Vec::new(),
             headers: None,
@@ -319,9 +322,7 @@ impl<'a> CmdOpts for Curl<'a> {
     // this is only called after execution, we need to
     // find out if its been built already
     fn get_command_string(&mut self) -> String {
-        if self.will_save_command() {
-            self.build_command_str();
-        }
+        self.build_command_str();
         self.cmd.clone()
     }
 
@@ -435,8 +436,44 @@ impl<'a> CurlOpts for Curl<'a> {
             "PUT" => self.set_put_method(),
             "PATCH" => self.set_patch_method(),
             "DELETE" => self.set_delete_method(),
+            "HEAD" => self.set_head_method(),
             _ => {}
         }
+    }
+    fn set_cert_info(&mut self, opt: bool) {
+        if opt {
+            self.add_flag(CurlFlag::CertInfo(CurlFlagType::CertInfo.get_value(), None));
+        } else {
+            self.remove_flag(CurlFlag::CertInfo(CurlFlagType::CertInfo.get_value(), None));
+        }
+        self.curl.certinfo(opt).unwrap();
+    }
+
+    fn set_referrer(&mut self, referrer: &str) {
+        if self.opts.contains(&CurlFlag::Referrer(
+            CurlFlagType::Referrer.get_value(),
+            None,
+        )) {
+            self.remove_flag(CurlFlag::Referrer(CurlFlagType::Referrer.get_value(), None));
+        }
+        self.add_flag(CurlFlag::Referrer(CurlFlagType::Referrer.get_value(), None));
+        self.curl.referer(referrer).unwrap();
+    }
+
+    fn set_proxy_tunnel(&mut self, opt: bool) {
+        println!("Setting proxy tunnel");
+        if opt {
+            self.add_flag(CurlFlag::ProxyTunnel(
+                CurlFlagType::ProxyTunnel.get_value(),
+                None,
+            ));
+        } else {
+            self.remove_flag(CurlFlag::ProxyTunnel(
+                CurlFlagType::ProxyTunnel.get_value(),
+                None,
+            ));
+        }
+        self.curl.http_proxy_tunnel(opt).unwrap();
     }
 
     fn will_save_command(&self) -> bool {
@@ -455,6 +492,7 @@ impl<'a> CurlOpts for Curl<'a> {
             self.headers = Some(headers.clone());
         }
     }
+
     fn set_fail_on_error(&mut self, fail: bool) {
         if fail {
             self.add_flag(CurlFlag::FailOnError(
@@ -462,9 +500,10 @@ impl<'a> CurlOpts for Curl<'a> {
                 None,
             ));
         } else {
-            self.opts.retain(|x| {
-                *x != CurlFlag::FailOnError(CurlFlagType::FailOnError.get_value(), None)
-            });
+            self.remove_flag(CurlFlag::FailOnError(
+                CurlFlagType::FailOnError.get_value(),
+                None,
+            ));
         }
         self.curl.fail_on_error(fail).unwrap();
     }
@@ -473,8 +512,10 @@ impl<'a> CurlOpts for Curl<'a> {
             CurlFlagType::UnixSocket.get_value(),
             None,
         )) {
-            self.opts
-                .retain(|x| *x != CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None));
+            self.remove_flag(CurlFlag::UnixSocket(
+                CurlFlagType::UnixSocket.get_value(),
+                None,
+            ));
         }
         self.add_flag(CurlFlag::UnixSocket(
             CurlFlagType::UnixSocket.get_value(),
@@ -510,6 +551,7 @@ impl<'a> CurlOpts for Curl<'a> {
     fn get_token(&self) -> Option<String> {
         self.auth.get_token()
     }
+
     fn remove_headers(&mut self, headers: String) {
         if self.headers.is_some() {
             self.headers
@@ -517,6 +559,115 @@ impl<'a> CurlOpts for Curl<'a> {
                 .unwrap()
                 .retain(|x| !headers.contains(x));
         }
+    }
+    fn match_wildcard(&mut self, opt: bool) {
+        if opt {
+            self.add_flag(CurlFlag::MatchWildcard(
+                CurlFlagType::MatchWildcard.get_value(),
+                None,
+            ));
+        } else {
+            self.remove_flag(CurlFlag::MatchWildcard(
+                CurlFlagType::MatchWildcard.get_value(),
+                None,
+            ));
+        }
+        self.curl.wildcard_match(opt).unwrap();
+    }
+
+    fn set_unrestricted_auth(&mut self, opt: bool) {
+        if opt {
+            self.add_flag(CurlFlag::AnyAuth(CurlFlagType::AnyAuth.get_value(), None));
+        } else {
+            self.remove_flag(CurlFlag::AnyAuth(CurlFlagType::AnyAuth.get_value(), None));
+        }
+        self.curl.unrestricted_auth(opt).unwrap();
+    }
+
+    fn set_user_agent(&mut self, ua: &str) {
+        if self.opts.contains(&CurlFlag::User(
+            CurlFlagType::User.get_value(),
+            Some(String::from(ua)),
+        )) {
+            self.remove_flag(CurlFlag::User(CurlFlagType::User.get_value(), None));
+            self.curl.useragent("").unwrap();
+            return;
+        }
+        self.add_flag(CurlFlag::User(
+            CurlFlagType::User.get_value(),
+            Some(String::from(ua)),
+        ));
+        self.curl.useragent(ua).unwrap();
+    }
+
+    fn set_max_redirects(&mut self, redirects: usize) {
+        if self.has_flag(CurlFlag::MaxRedirects(
+            CurlFlagType::MaxRedirects.get_value(),
+            Some(redirects.to_string()),
+        )) {
+            self.remove_flag(CurlFlag::MaxRedirects(
+                CurlFlagType::MaxRedirects.get_value(),
+                Some(redirects.to_string()),
+            ));
+            return;
+        }
+        self.add_flag(CurlFlag::MaxRedirects(
+            CurlFlagType::MaxRedirects.get_value(),
+            Some(redirects.to_string()),
+        ));
+        self.curl.max_redirections(redirects as u32).unwrap();
+    }
+
+    fn set_ca_path(&mut self, ca_path: &str) {
+        self.add_flag(CurlFlag::CaPath(
+            CurlFlagType::CaPath.get_value(),
+            Some(String::from(ca_path)),
+        ));
+        self.curl.cainfo(ca_path).unwrap();
+    }
+
+    fn set_tcp_keepalive(&mut self, opt: bool) {
+        if opt {
+            self.add_flag(CurlFlag::TcpKeepAlive(
+                CurlFlagType::TcpKeepAlive.get_value(),
+                None,
+            ));
+        } else {
+            self.remove_flag(CurlFlag::TcpKeepAlive(
+                CurlFlagType::TcpKeepAlive.get_value(),
+                None,
+            ));
+        }
+        self.curl.tcp_keepalive(opt).unwrap();
+    }
+
+    fn set_follow_redirects(&mut self, opt: bool) {
+        if opt {
+            self.add_flag(CurlFlag::FollowRedirects(
+                CurlFlagType::FollowRedirects.get_value(),
+                None,
+            ));
+        } else {
+            self.remove_flag(CurlFlag::FollowRedirects(
+                CurlFlagType::FollowRedirects.get_value(),
+                None,
+            ));
+        }
+        self.curl.follow_location(opt).unwrap();
+    }
+
+    fn add_cookie(&mut self, cookie: String) {
+        // we are removing it
+        if self.has_flag(CurlFlag::Cookie(CurlFlagType::Cookie.get_value(), None)) {
+            self.remove_flag(CurlFlag::Cookie(CurlFlagType::Cookie.get_value(), None));
+            self.curl.cookie("").unwrap();
+            return;
+        }
+        self.add_flag(CurlFlag::Cookie(
+            CurlFlagType::Cookie.get_value(),
+            Some(cookie.clone()),
+        ));
+        self.curl.cookie(cookie.as_str()).unwrap();
     }
 
     fn write_output(&mut self) -> Result<(), std::io::Error> {
@@ -556,12 +707,15 @@ impl<'a> Curl<'a> {
         Self::default()
     }
 
-    fn has_auth(&self) -> bool {
-        self.auth != AuthKind::None
-    }
-
     fn will_save_token(&self) -> bool {
         self.save_auth
+    }
+    fn has_flag(&self, flag: CurlFlag<'a>) -> bool {
+        self.opts
+            .iter()
+            .filter(|has| std::mem::discriminant(*has) == std::mem::discriminant(&flag))
+            .count()
+            > 0
     }
 
     // This is a hack because when we deseialize from the DB, we get a curl struct with no curl::Easy
@@ -576,6 +730,7 @@ impl<'a> Curl<'a> {
                 Method::Put => self.set_put_method(),
                 Method::Patch => self.set_patch_method(),
                 Method::Delete => self.set_delete_method(),
+                Method::Head => self.curl.nobody(true).unwrap(),
             }
         }
         for opt in opts {
@@ -586,6 +741,14 @@ impl<'a> Curl<'a> {
                     if let Some(val) = opt.get_arg() {
                         self.set_outfile(&val);
                     }
+                }
+                CurlFlag::Cookie(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.add_cookie(val);
+                    }
+                }
+                CurlFlag::MatchWildcard(..) => {
+                    self.curl.wildcard_match(true).unwrap();
                 }
                 CurlFlag::User(..) => {}
                 CurlFlag::Bearer(..) => {
@@ -644,32 +807,34 @@ impl<'a> Curl<'a> {
                         self.show_headers(val.as_str());
                     }
                 }
+                CurlFlag::CaPath(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_ca_path(val.as_str());
+                    }
+                }
+                CurlFlag::MaxRedirects(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_max_redirects(val.parse::<usize>().unwrap());
+                    }
+                }
+                CurlFlag::CertInfo(..) => self.set_cert_info(true),
                 CurlFlag::FailOnError(..) => self.set_fail_on_error(true),
                 CurlFlag::Proxy(..) => {}
-                CurlFlag::ProxyTunnel(..) => {}
-                CurlFlag::Socks5(..) => {}
+                CurlFlag::ProxyTunnel(..) => self.set_proxy_tunnel(true),
                 CurlFlag::File(..) => {}
-                CurlFlag::FtpAccount(..) => {}
-                CurlFlag::FtpSsl(..) => {}
-                CurlFlag::Trace(..) => {}
                 CurlFlag::DataUrlEncode(..) => {}
                 CurlFlag::Referrer(..) => {}
+                CurlFlag::FollowRedirects(..) => self.set_follow_redirects(true),
+                CurlFlag::TcpKeepAlive(..) => self.set_tcp_keepalive(true),
                 CurlFlag::PreventDefaultConfig(..) => {}
-                CurlFlag::CaCert(..) => {}
-                CurlFlag::CaNative(..) => {}
-                CurlFlag::CaPath(..) => {}
                 CurlFlag::Progress(..) => {}
             }
         }
     }
 
     pub fn remove_flag(&mut self, flag: CurlFlag<'a>) {
-        self.opts.retain(|x| *x != flag);
-    }
-
-    fn has_verbose(&self) -> bool {
         self.opts
-            .contains(&CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None))
+            .retain(|x| std::mem::discriminant(x) != std::mem::discriminant(&flag));
     }
 
     pub fn set_any_auth(&mut self) {
@@ -683,6 +848,14 @@ impl<'a> Curl<'a> {
             Some(login.to_string()),
         ));
         self.auth = AuthKind::Basic(login);
+    }
+
+    pub fn set_head_method(&mut self) {
+        if self.method.is_some() {
+            self.curl.reset();
+        }
+        self.method = Some(Method::Head);
+        self.curl.nobody(true).unwrap();
     }
 
     pub fn set_digest_auth(&mut self, info: &str) {
@@ -788,29 +961,25 @@ impl<'a> Curl<'a> {
     }
 
     fn build_command_str(&mut self) {
+        let mut cmd: Vec<String> = vec![self.cmd.clone()];
         if let Some(ref method) = &self.method {
-            self.cmd.push_str("-X ");
-            self.cmd.push_str(method.to_string().as_str());
-            self.cmd.push_str(" ");
+            cmd.push(String::from("-X"));
+            cmd.push(method.to_string());
         }
-        self.cmd.push_str(self.url.as_str());
-        self.cmd.push_str(" ");
+        cmd.push(self.url.clone());
         for flag in &self.opts {
-            self.cmd.push_str(flag.get_value());
-            self.cmd.push(' ');
+            cmd.push(flag.get_value().to_string());
             if let Some(arg) = &flag.get_arg() {
-                self.cmd.push_str(arg.as_str());
-                self.cmd.push(' ');
+                cmd.push(arg.to_owned());
             }
         }
         if self.headers.is_some() {
             self.headers.as_ref().unwrap().iter().for_each(|h| {
-                self.cmd.push_str("-H ");
-                self.cmd.push_str(h.as_str());
-                self.cmd.push(' ');
+                cmd.push(String::from("-H"));
+                cmd.push(h.clone());
             });
         }
-        self.cmd = self.cmd.trim().to_string();
+        self.cmd = cmd.join(" ").trim().to_string();
     }
 
     pub fn handle_auth_exec(&mut self, list: &mut List) -> bool {
@@ -875,7 +1044,7 @@ impl<'a> Curl<'a> {
     }
 
     pub fn add_flag(&mut self, flag: CurlFlag<'a>) {
-        self.opts.push(flag.clone());
+        self.opts.push(flag);
     }
 }
 
@@ -931,9 +1100,11 @@ macro_rules! define_curl_flags {
 // Define the CurlFlag enum using the macro.
 define_curl_flags! {
     Verbose("-v"),
+    Cookie("-b"),
     Output("-o"),
     User("-u"),
     Bearer("-H"),
+    CertInfo("--certinfo"),
     Headers("-H"),
     Digest("--digest"),
     Basic("-H"),
@@ -945,18 +1116,17 @@ define_curl_flags! {
     Proxy("-x"),
     AwsSigv4("--aws-sigv4"),
     ProxyTunnel("--proxy-tunnel"),
-    Socks5("--socks5"),
     File("-F"),
-    FtpAccount("--ftp-account"),
-    FtpSsl("--ftp-ssl"),
-    Trace("--trace"),
     DataUrlEncode("--data-urlencode"),
     DumpHeaders("--dump-headers"),
     Referrer("-e"),
+    MatchWildcard("--glob"),
     FailOnError("--fail"),
+    FollowRedirects("-L"),
+    MaxRedirects("--max-redirs"),
     PreventDefaultConfig("-q"),
-    CaCert("--cacert"),
-    CaNative("--ca-native"),
+    // is default on CLI, so flag has no value
+    TcpKeepAlive(" "),
     CaPath("--capath"),
     SpnegoAuth("--negotiate"),
     Kerberos("--krb"),

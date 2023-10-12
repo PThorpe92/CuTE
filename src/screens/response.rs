@@ -1,7 +1,7 @@
 use super::{default_rect, small_alert_box};
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
-use crate::request::command::AppCmd;
+use crate::request::command::Cmd;
 use crate::request::response::Response;
 use crate::screens::screen::Screen;
 use clipboard::{ClipboardContext, ClipboardProvider};
@@ -48,20 +48,13 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                 app.goto_screen(Screen::ViewBody);
             }
             // Copy to clipboard
-            3 => match app.command.as_mut().unwrap() {
-                AppCmd::CurlCmd(ref mut curl) => {
-                    match copy_to_clipboard(curl.get_command_string().as_str()) {
-                        Ok(_) => app.goto_screen(Screen::Success),
-                        Err(e) => app.goto_screen(Screen::Error(e.to_string())),
-                    }
+            3 => {
+                match copy_to_clipboard(app.command.as_mut().unwrap().get_command_string().as_str())
+                {
+                    Ok(_) => app.goto_screen(Screen::Success),
+                    Err(e) => app.goto_screen(Screen::Error(e.to_string())),
                 }
-                AppCmd::WgetCmd(ref mut wget) => {
-                    match copy_to_clipboard(wget.get_command_string().as_str()) {
-                        Ok(_) => app.goto_screen(Screen::Success),
-                        Err(e) => app.goto_screen(Screen::Error(e.to_string())),
-                    }
-                }
-            },
+            }
             _ => {}
         },
         None => {}
