@@ -263,6 +263,9 @@ impl<'a> App<'a> {
                     .unwrap()
                     .enable_response_headers(false);
             }
+            AppOptions::UploadFile(_) => {
+                self.command.as_mut().unwrap().set_upload_file("");
+            }
             AppOptions::ProgressBar => {
                 self.command.as_mut().unwrap().enable_progress_bar(false);
             }
@@ -411,6 +414,7 @@ impl<'a> App<'a> {
             AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(true),
             _ => {}
         }
+        self.opts.push(opt);
     }
 
     pub fn add_app_option(&mut self, opt: AppOptions) {

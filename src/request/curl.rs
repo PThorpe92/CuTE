@@ -360,20 +360,18 @@ impl<'a> CmdOpts for Curl<'a> {
                 .map(|h| list.append(h.as_str()).unwrap());
         }
         if self.will_save_command() {
-            db.as_mut()
-                .unwrap()
-                .add_command(
-                    &self.get_command_string(),
-                    serde_json::to_string(&self)
-                        .unwrap_or(String::from("Error serializing command")),
-                )
-                .unwrap();
+            if let Ok(_) = db.as_mut().unwrap().add_command(
+                &self.get_command_string(),
+                serde_json::to_string(&self).unwrap_or(String::from("Error serializing command")),
+            ) {
+                println!("Saved command");
+            }
         }
         if self.will_save_token() {
             let _ = db
                 .as_mut()
                 .unwrap()
-                .add_key(&self.auth.get_token().unwrap());
+                .add_key(&self.auth.get_token().unwrap_or(String::new()));
         }
         // We have to append the list of headers all at once
         // but if we never appended to the list, we skip this
@@ -670,6 +668,15 @@ impl<'a> CurlOpts for Curl<'a> {
         self.curl.cookie(cookie.as_str()).unwrap();
     }
 
+    fn set_upload_file(&mut self, file: &str) {
+        self.add_flag(CurlFlag::UploadFile(
+            CurlFlagType::UploadFile.get_value(),
+            Some(file.to_string()),
+        ));
+        self.upload_file = Some(file.to_string());
+        self.curl.upload(true).unwrap();
+    }
+
     fn write_output(&mut self) -> Result<(), std::io::Error> {
         println!("{}", self.outfile.as_ref().unwrap().clone());
         match self.outfile {
@@ -949,15 +956,6 @@ impl<'a> Curl<'a> {
             Some(login.to_string()),
         ));
         self.auth = AuthKind::Kerberos(login.to_string());
-    }
-
-    pub fn set_upload_file(&mut self, file: &str) {
-        self.add_flag(CurlFlag::UploadFile(
-            CurlFlagType::UploadFile.get_value(),
-            Some(file.to_string()),
-        ));
-        self.upload_file = Some(file.to_string());
-        self.curl.upload(true).unwrap();
     }
 
     fn build_command_str(&mut self) {

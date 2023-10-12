@@ -104,13 +104,13 @@ lazy_static! {
         "Begin Download  ",
     ];
     pub static ref METHOD_MENU_OPTIONS: [&'static str; 7] = [
+        "OTHER (custom command)",
         "GET",
         "POST",
         "PUT",
         "DELETE",
         "PATCH",
         "HEAD",
-        "OTHER (custom command)"
     ];
     pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 8] = [
         "Basic",
@@ -122,8 +122,7 @@ lazy_static! {
         "Kerberos",
         "SPNEGO",
     ];
-    pub static ref MORE_FLAGS_MENU: [&'static str; 14] = [
-        "Specify filepath (for uploads)  ",
+    pub static ref MORE_FLAGS_MENU: [&'static str; 13] = [
         "Follow Redirects 󱀀 ",
         "Specify Max redirects 󱀀 ",
         "Add Cookie  󰆘 ",

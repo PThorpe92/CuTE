@@ -40,46 +40,50 @@ pub enum AppOptions {
     TcpKeepAlive,
     UnrestrictedAuth,
     MaxRedirects(usize),
+    UploadFile(String),
 }
 
 impl AppOptions {
     pub fn replace_value(&mut self, val: String) {
         match self {
-            AppOptions::Headers(key) => {
+            AppOptions::Headers(ref mut key) => {
                 *key = val;
             }
-            AppOptions::URL(url) => {
+            AppOptions::URL(ref mut url) => {
                 *url = val;
             }
-            AppOptions::Outfile(outfile) => {
+            AppOptions::Outfile(ref mut outfile) => {
                 *outfile = val;
             }
-            AppOptions::Response(response) => {
+            AppOptions::Response(ref mut response) => {
                 *response = val;
             }
-            AppOptions::RecDownload(level) => {
+            AppOptions::RecDownload(ref mut level) => {
                 *level = val.parse::<usize>().unwrap();
             }
-            AppOptions::Auth(auth) => {
+            AppOptions::Auth(ref mut auth) => {
                 *auth = val;
             }
-            AppOptions::UnixSocket(socket) => {
+            AppOptions::UnixSocket(ref mut socket) => {
                 *socket = val;
             }
-            AppOptions::Cookie(cookie) => {
+            AppOptions::Cookie(ref mut cookie) => {
                 *cookie = val;
             }
-            AppOptions::Referrer(referrer) => {
+            AppOptions::Referrer(ref mut referrer) => {
                 *referrer = val;
             }
-            AppOptions::CaPath(ca_cert) => {
+            AppOptions::CaPath(ref mut ca_cert) => {
                 *ca_cert = val;
             }
-            AppOptions::MaxRedirects(max_redirects) => {
+            AppOptions::MaxRedirects(ref mut max_redirects) => {
                 *max_redirects = val.parse::<usize>().unwrap();
             }
-            AppOptions::UserAgent(ua) => {
+            AppOptions::UserAgent(ref mut ua) => {
                 *ua = val;
+            }
+            AppOptions::UploadFile(ref mut file) => {
+                *file = val;
             }
 
             _ => {}
@@ -112,6 +116,7 @@ impl AppOptions {
             AppOptions::MatchWildcard => String::from("--glob"),
             AppOptions::TcpKeepAlive => String::from("--tcp-keepalive"),
             AppOptions::UnrestrictedAuth => String::from("--unrestricted-auth"),
+            AppOptions::UploadFile(file) => file.clone(),
         }
     }
 }

@@ -158,6 +158,10 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.add_app_option(AppOptions::MaxRedirects(num));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
+        InputOpt::UploadFile => {
+            app.add_app_option(AppOptions::UploadFile(message));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
             app.command.as_mut().unwrap().set_outfile(&message);
