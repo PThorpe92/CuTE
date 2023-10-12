@@ -40,12 +40,10 @@ pub struct App<'a> {
 
 impl<'a> Default for App<'a> {
     fn default() -> Self {
-        let mut app_config = Config::default();
         let base_config_dir = config_dir().unwrap();
-        let config_dir = base_config_dir.join("cute.toml");
-        if let Ok(file_str) = std::fs::read_to_string(config_dir) {
-            app_config = toml::from_str(&file_str).unwrap();
-        }
+        let config_dir = base_config_dir.join("CuTE").join("config.toml");
+        let toml_str = std::fs::read_to_string(config_dir).unwrap();
+        let app_config: Config = toml::from_str(&toml_str).unwrap_or_default();
         Self {
             config: app_config,
             running: true,

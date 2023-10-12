@@ -14,6 +14,7 @@ use std::{
 use super::command::{CmdOpts, CurlOpts, CMD};
 
 pub static DEFAULT_CMD: &str = "curl";
+
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
 struct Collector(Vec<u8>);
 
@@ -294,7 +295,7 @@ impl<'a> Default for Curl<'a> {
             curl: Easy2::new(Collector(Vec::new())),
             method: None,
             auth: AuthKind::None,
-            cmd: String::from("curl "),
+            cmd: String::from(DEFAULT_CMD),
             url: String::new(),
             opts: Vec::new(),
             headers: None,

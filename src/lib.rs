@@ -33,6 +33,7 @@ pub struct Config {
     logo: Logo,
     db_path: Option<String>,
 }
+
 impl Config {
     pub fn get_fg_color(&self) -> tui::style::Color {
         self.colors.get_fg()
@@ -64,7 +65,7 @@ impl Default for Config {
                 fg: ConfigColor::Cyan,
                 bg: ConfigColor::Gray,
             },
-            logo: Logo::Logo1,
+            logo: Logo::Default,
             db_path: Some(String::from(
                 dirs::data_local_dir()
                     .expect("Failed to get local data directory")
@@ -79,16 +80,14 @@ impl Default for Config {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Logo {
-    Logo1,
-    Logo2,
+    Default,
     None,
 }
 
 impl Display for Logo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Logo::Logo1 => write!(f, "{}", CUTE_LOGO),
-            Logo::Logo2 => write!(f, "{}", CUTE_LOGO2),
+            Logo::Default => write!(f, "{}", CUTE_LOGO),
             Logo::None => write!(f, ""),
         }
     }

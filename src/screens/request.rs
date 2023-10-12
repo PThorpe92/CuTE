@@ -12,6 +12,7 @@ use super::render::handle_screen_defaults;
 pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     handle_screen_defaults(app, frame);
     match app.selected {
+        // Add file to upload
         Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::UploadFile)),
         // Add a URL,
         Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::URL(CmdType::Curl))),
