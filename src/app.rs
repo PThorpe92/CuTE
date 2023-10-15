@@ -1,5 +1,6 @@
 use crate::database::db;
 use crate::database::db::DB;
+use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::AppOptions;
 use crate::request::command::{CmdOpts, CMD};
 use crate::request::curl::Curl;
@@ -35,7 +36,7 @@ pub struct App<'a> {
     pub items: Vec<ListItem<'a>>,
     pub state: Option<ListState>,
     pub response: Option<String>,
-    pub db: Option<Box<DB>>,
+    pub db: Box<DB>,
 }
 
 impl<'a> Default for App<'a> {
@@ -59,7 +60,7 @@ impl<'a> Default for App<'a> {
             state: None,
             current_screen: Screen::Home,
             response: None,
-            db: Some(Box::new(DB::new().unwrap())),
+            db: Box::new(DB::new().unwrap()),
         }
     }
 }
@@ -86,7 +87,7 @@ impl<'a> App<'a> {
                     .get_saved_keys()
                     .unwrap_or(vec![])
                     .iter()
-                    .map(|key| ListItem::new(format!("{}{}", key, determine_line_size())))
+                    .map(|key| ListItem::new(format!("{:?}{:?}", key, OPTION_PADDING_MID)))
                     .collect();
                 self.selected = None;
                 return;
@@ -96,7 +97,7 @@ impl<'a> App<'a> {
                     .get_saved_command_strings()
                     .unwrap_or(vec![])
                     .iter()
-                    .map(|cmd| ListItem::new(format!("{}{}", cmd, determine_line_size())))
+                    .map(|cmd| ListItem::new(format!("{:?}{:?}", cmd, OPTION_PADDING_MID)))
                     .collect();
                 self.selected = None;
                 return;
@@ -152,28 +153,41 @@ impl<'a> App<'a> {
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        if self.db.is_none() {
-            self.db = Some(Box::new(db::DB::new().unwrap()));
+        if let Ok(_) = self.command.as_mut().unwrap().execute(Some(&mut self.db)) {
+            Ok(())
+        } else {
+            Err("Failed to execute command".to_string())
         }
-        self.command.as_mut().unwrap().execute(self.db.as_mut());
-        Ok(())
     }
 
-    pub fn get_saved_command_strings(&mut self) -> Result<Vec<String>, String> {
-        if self.db.is_none() {
-            self.db = Some(Box::new(DB::new().unwrap()));
-        }
-        let db = self.db.as_ref().unwrap();
+    pub fn get_saved_command_strings(&self) -> Result<Vec<String>, String> {
+        let db = self.db.as_ref();
         let commands = db.get_commands().unwrap();
         let saved_commands = commands.iter().map(|cmd| cmd.get_command()).collect();
         Ok(saved_commands)
     }
 
-    pub fn get_saved_command_json(&mut self) -> Result<Vec<String>, String> {
-        if self.db.is_none() {
-            self.db = Some(Box::new(DB::new().unwrap()));
+    pub fn get_saved_keys(&self) -> Result<Vec<String>, String> {
+        let db = self.db.as_ref();
+        let keys = db.get_keys().unwrap();
+        let mut saved_keys = Vec::new();
+        for key in keys {
+            saved_keys.push(format!("{}", key));
         }
-        let commands = self.db.as_ref().unwrap().get_commands().unwrap();
+        Ok(saved_keys)
+    }
+
+    pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
+        match self.db.as_ref().add_key(&key) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn get_saved_command_json(&self) -> Result<Vec<String>, String> {
+        let commands = self.db.as_ref().get_commands().unwrap();
         let saved_commands = commands
             .iter()
             .map(|cmd| cmd.get_curl_json())
@@ -193,18 +207,30 @@ impl<'a> App<'a> {
         self.goto_screen(Screen::Response(self.response.clone().unwrap()));
     }
 
-    pub fn delete_saved_command(&mut self, index: usize) {
-        let saved_commands = self.get_saved_command_strings().unwrap();
-        let command = saved_commands.get(index).unwrap();
-        self.db.as_mut().unwrap().delete_command(command).unwrap();
-        self.goto_screen(Screen::SavedCommands);
+    pub fn copy_cmd_to_clipboard(&self, index: usize) -> Result<(), String> {
+        let saved_commands = self.get_saved_command_json().unwrap();
+        let cmd = saved_commands.get(index).unwrap();
+        if let Ok(_) = terminal_clipboard::set_string(cmd) {
+            Ok(())
+        } else {
+            Err(String::from("Failed to copy to clipboard"))
+        }
     }
 
-    pub fn delete_saved_key(&mut self, index: usize) {
+    pub fn get_response(&self) -> &str {
+        self.response.as_ref().unwrap().as_str()
+    }
+
+    pub fn delete_saved_command(&self, index: usize) {
+        let saved_commands = self.get_saved_command_strings().unwrap();
+        let command = saved_commands.get(index).unwrap();
+        self.db.as_ref().delete_command(command).unwrap();
+    }
+
+    pub fn delete_saved_key(&self, index: usize) {
         let saved_keys = self.get_saved_keys().unwrap();
         let key = saved_keys.get(index).unwrap();
-        self.db.as_mut().unwrap().delete_key(key).unwrap();
-        self.goto_screen(Screen::SavedKeys);
+        self.db.as_ref().delete_key(key).unwrap();
     }
 
     pub fn delete_item(&mut self, index: usize) {
@@ -212,25 +238,6 @@ impl<'a> App<'a> {
             Screen::SavedCommands => self.delete_saved_command(index),
             Screen::SavedKeys => self.delete_saved_key(index),
             _ => {}
-        }
-    }
-
-    pub fn get_saved_keys(&mut self) -> Result<Vec<String>, String> {
-        let db = self.db.as_ref().unwrap();
-        let keys = db.get_keys().unwrap();
-        let mut saved_keys = Vec::new();
-        for key in keys {
-            saved_keys.push(format!("{}", key));
-        }
-        Ok(saved_keys)
-    }
-
-    pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
-        match self.db.as_mut().unwrap().add_key(&key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => Err(e),
         }
     }
 
@@ -345,7 +352,7 @@ impl<'a> App<'a> {
 
     fn should_add_option(&self, opt: &AppOptions) -> bool {
         match opt {
-            // Header are the only item that should be added multiple times
+            // push headers, reset everything else
             AppOptions::Headers(_) => true,
             _ => !self.has_app_option(opt),
         }
@@ -353,7 +360,9 @@ impl<'a> App<'a> {
 
     pub fn set_response(&mut self, response: String) {
         self.response = Some(response.clone());
-        self.command.as_mut().unwrap().set_response(&response);
+        if self.command.is_some() {
+            self.command.as_mut().unwrap().set_response(&response);
+        }
     }
 
     fn should_toggle(&self, opt: &AppOptions) -> bool {
@@ -464,6 +473,7 @@ impl<'a> App<'a> {
             self.handle_replace(opt.clone());
         }
     }
+
     fn handle_replace(&mut self, mut opt: AppOptions) {
         for option in self.opts.iter_mut() {
             match option {
@@ -542,7 +552,7 @@ mod tests {
 
     use super::App;
     use crate::display::AppOptions;
-    use crate::request::command::{Cmd, CmdOpts};
+    use crate::request::command::Cmd;
     use crate::request::curl::Curl;
 
     // helper return app instance with curl command

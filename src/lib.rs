@@ -4,7 +4,7 @@ use std::fmt::Display;
 // Purpose: Main library file for the application.
 // ********************************************************************
 use crate::display::menuopts::CUTE_LOGO;
-use display::menuopts::CUTE_LOGO2;
+
 use serde::{Deserialize, Serialize};
 
 // Application.

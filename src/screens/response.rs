@@ -1,7 +1,7 @@
 use super::{default_rect, small_alert_box};
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
-use crate::request::command::Cmd;
+
 use crate::request::response::Response;
 use crate::screens::screen::Screen;
 use clipboard::{ClipboardContext, ClipboardProvider};
@@ -49,10 +49,27 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
             }
             // Copy to clipboard
             3 => {
-                match copy_to_clipboard(app.command.as_mut().unwrap().get_command_string().as_str())
-                {
-                    Ok(_) => app.goto_screen(Screen::Success),
-                    Err(e) => app.goto_screen(Screen::Error(e.to_string())),
+                if app.command.is_some() {
+                    match copy_to_clipboard(
+                        app.command.as_mut().unwrap().get_command_string().as_str(),
+                    ) {
+                        Ok(_) => app.goto_screen(Screen::Success),
+                        Err(e) => app.goto_screen(Screen::Error(e.to_string())),
+                    }
+                } else {
+                    if let Ok(_) = terminal_clipboard::set_string(
+                        app.response
+                            .as_ref()
+                            .unwrap_or(&"Command failed to save".to_string()),
+                    ) {
+                        app.goto_screen(Screen::Success);
+                    } else {
+                        app.goto_screen(Screen::Error("Failed to copy to clipboard".to_string()));
+                    }
+                    match copy_to_clipboard(resp.as_str()) {
+                        Ok(_) => app.goto_screen(Screen::Success),
+                        Err(e) => app.goto_screen(Screen::Error(e.to_string())),
+                    }
                 }
             }
             _ => {}

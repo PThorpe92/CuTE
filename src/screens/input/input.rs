@@ -9,6 +9,7 @@ use crate::request::curl::AuthKind;
 use crate::screens::auth::AuthType;
 use crate::screens::Screen;
 use crate::{app::InputMode, display::inputopt::InputOpt};
+use std::path::Path;
 use tui::prelude::Line;
 use tui::style::Color;
 use tui::widgets::Paragraph;
@@ -106,6 +107,27 @@ pub fn handle_default_input_screen<B: Backend>(
     }
 }
 
+fn is_valid_unix_socket_path(path: &str) -> Result<(), String> {
+    let path = Path::new(path);
+
+    if path.is_absolute() || path.starts_with("~") {
+        // Ensure it's a Unix socket file (ends with `.sock` or has no extension)
+        if let Some(file_name) = path.file_name() {
+            if let Some(file_name_str) = file_name.to_str() {
+                if file_name_str.ends_with(".sock") || !file_name_str.contains('.') {
+                    return Ok(());
+                }
+            }
+        }
+        Err(
+            "Error: Invalid socket file path. Please use an absolute path or a valid relative path."
+                .to_string(),
+        )
+    } else {
+        Err("Error: Path must be absolute or start with ~ (for home directory) and point to a valid socket file.".to_string())
+    }
+}
+
 fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
         InputOpt::URL(opt) => {
@@ -125,8 +147,12 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.goto_screen(Screen::SavedKeys);
         }
         InputOpt::UnixSocket => {
-            app.add_app_option(AppOptions::UnixSocket(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            if let Err(e) = is_valid_unix_socket_path(&message) {
+                app.goto_screen(Screen::RequestMenu(e));
+            } else {
+                app.add_app_option(AppOptions::UnixSocket(message.clone()));
+                app.goto_screen(Screen::RequestMenu(String::new()));
+            }
         }
         InputOpt::Headers => {
             app.add_app_option(AppOptions::Headers(message.clone()));
@@ -165,7 +191,11 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
             app.command.as_mut().unwrap().set_outfile(&message);
-            app.command.as_mut().unwrap().write_output();
+            if let Err(e) = app.command.as_mut().unwrap().write_output() {
+                app.goto_screen(Screen::Error(e.to_string()));
+            } else {
+                app.goto_screen(Screen::Response(String::from(app.get_response())));
+            }
         }
         InputOpt::RecursiveDownload => {
             let recursion_level = message.parse::<usize>().unwrap();
