@@ -4,7 +4,7 @@ use crate::app::App;
 use tui::backend::Backend;
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, List, ListItem, ListState};
+use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
 pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
@@ -52,15 +52,25 @@ pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cm
         .block(Block::default())
         .highlight_style(
             Style::default()
-                .bg(Color::LightBlue)
+                .bg(Color::White)
                 .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
-    app.items = items;
-    app.state = Some(list_state.clone());
-    app.selected = None;
-    app.cursor = 0;
+    let cmd_str = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(alert_box)[1];
+    let show = app
+        .get_saved_command_strings()
+        .unwrap()
+        .get(cmd)
+        .unwrap()
+        .clone();
+    let paragraph = Paragraph::new(show)
+        .block(Block::default().borders(Borders::ALL).title("Command"))
+        .alignment(tui::layout::Alignment::Center);
+    frame.render_widget(paragraph, cmd_str);
     frame.render_widget(alert_text_chunk, alert_box);
     frame.render_stateful_widget(list, options_box, &mut list_state);
     match app.selected {
