@@ -1,11 +1,8 @@
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, CUTE_LOGO, DEFAULT_MENU_PARAGRAPH,
-    DEFAULT_MENU_TITLE, DISPLAY_OPT_CERT_INFO, DISPLAY_OPT_COMMAND_SAVED,
-    DISPLAY_OPT_FAIL_ON_ERROR, DISPLAY_OPT_FOLLOW_REDIRECTS, DISPLAY_OPT_HEADERS,
-    DISPLAY_OPT_PROGRESS_BAR, DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_TOKEN_SAVED,
-    DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_VERBOSE, DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE,
-    INPUT_MENU_TITLE, NEWLINE, SAVED_COMMANDS_TITLE, SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
+    API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, DEFAULT_MENU_PARAGRAPH, DEFAULT_MENU_TITLE,
+    DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE, INPUT_MENU_TITLE, NEWLINE, SAVED_COMMANDS_TITLE,
+    SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
 };
 use crate::display::AppOptions;
 use crate::screens::input::input::handle_default_input_screen;
@@ -17,16 +14,18 @@ use super::method::handle_method_select_screen;
 use super::more_flags::handle_more_flags_screen;
 use super::request::handle_request_menu_screen;
 use super::response::handle_response_screen;
-use super::saved_commands::handle_saved_commands_screen;
+use super::saved_commands::{handle_alert_menu, handle_saved_commands_screen};
 use crate::{app::App, display::menuopts::SAVED_COMMANDS_PARAGRAPH};
-
+use tui::style::Stylize;
+use tui::text::Line;
 use tui::widgets::ListState;
+use tui::widgets::{Block, Borders};
 use tui::{
     backend::Backend,
     layout::Alignment,
     style::{Color, Style},
     text::Text,
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{BorderType, Paragraph},
     Frame,
 };
 
@@ -34,91 +33,12 @@ use super::{centered_rect, default_rect, small_rect, Screen};
 
 /// Renders the user interface widgets.
 pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    // This is where you add new widgets.
-    // See the following resources:
-    // - https://docs.rs/ratatui/latest/ratatui/widgets/index.html
-    // - https://github.com/ratatui-org/ratatui/tree/master/examples
-    //
-    // If we already have a response, we render that instead of the opts
     if app.response.is_none() {
-        //
         // Render Display Options *******************************************
         // This is the box of options the user has selected so far in their current
         // command. This is rendered on the bottom of the screen. Each time we change
         // app.current_screen, this function is called so we check for any display options
         // that were added to app.opts in the previous screen and add them here.
-        let mut display_opts = String::new();
-        app.opts.iter().for_each(|opt| match opt {
-            AppOptions::Verbose => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_VERBOSE, NEWLINE).as_str());
-            }
-            AppOptions::URL(url) => {
-                let url_str = format!("- URL: {}{}", &url, NEWLINE);
-                display_opts.push_str(url_str.as_str());
-            }
-            AppOptions::RecDownload(num) => {
-                let rec_str = format!("- Recursive Download depth: {}{}", num, NEWLINE);
-                display_opts.push_str(rec_str.as_str());
-            }
-            AppOptions::SaveCommand => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_COMMAND_SAVED, NEWLINE).as_str());
-            }
-            AppOptions::Auth(auth) => {
-                let auth_str = format!("- Auth: {}{}", auth, NEWLINE);
-                display_opts.push_str(auth_str.as_str());
-            }
-            AppOptions::SaveToken => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_TOKEN_SAVED, NEWLINE).as_str());
-            }
-            AppOptions::UnixSocket(socket) => {
-                let socket_str = format!("- Unix Socket: {}{}", socket, NEWLINE);
-                display_opts.push_str(socket_str.as_str());
-            }
-            AppOptions::ProgressBar => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_PROGRESS_BAR, NEWLINE).as_str());
-            }
-            AppOptions::EnableHeaders => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_HEADERS, NEWLINE).as_str());
-            }
-            AppOptions::Cookie(cookie) => {
-                let cookie_str = format!("- Cookie: {}{}", cookie, NEWLINE);
-                display_opts.push_str(cookie_str.as_str());
-            }
-            AppOptions::FailOnError => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_FAIL_ON_ERROR, NEWLINE).as_str());
-            }
-            AppOptions::ProxyTunnel => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_PROXY_TUNNEL, NEWLINE).as_str());
-            }
-            AppOptions::UnrestrictedAuth => {
-                display_opts
-                    .push_str(format!("{}{}", DISPLAY_OPT_UNRESTRICTED_AUTH, NEWLINE).as_str());
-            }
-            AppOptions::CaPath(path) => {
-                let path_str = format!("- CA Path: {}{}", path, NEWLINE);
-                display_opts.push_str(path_str.as_str());
-            }
-            AppOptions::UserAgent(ua) => {
-                let ua_str = format!("- User Agent: {}{}", ua, NEWLINE);
-                display_opts.push_str(ua_str.as_str());
-            }
-            AppOptions::MaxRedirects(num) => {
-                let num_str = format!("- Max Redirects: {}{}", num, NEWLINE);
-                display_opts.push_str(num_str.as_str());
-            }
-            AppOptions::Referrer(referrer) => {
-                let referrer_str = format!("- Referrer: {}{}", referrer, NEWLINE);
-                display_opts.push_str(referrer_str.as_str());
-            }
-            AppOptions::FollowRedirects => {
-                display_opts
-                    .push_str(format!("{}{}", DISPLAY_OPT_FOLLOW_REDIRECTS, NEWLINE).as_str());
-            }
-            AppOptions::CertInfo => {
-                display_opts.push_str(format!("{}{}", DISPLAY_OPT_CERT_INFO, NEWLINE).as_str());
-            }
-            _ => {}
-        });
         if app.current_screen == Screen::Home {
             let logo = Paragraph::new(app.config.get_logo())
                 .block(Block::default())
@@ -129,12 +49,15 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         .add_modifier(tui::style::Modifier::BOLD),
                 )
                 .alignment(Alignment::Center);
-            frame.render_widget(logo, small_rect(frame.size()));
+            frame.render_widget(
+                logo,
+                small_rect(frame.size()).intersection(default_rect(frame.size())),
+            );
         } else if app.current_screen == Screen::SavedCommands
             || app.current_screen == Screen::SavedKeys
         {
             let logo = Paragraph::new("Press 'x' to delete a saved item.")
-                .block(Block::default())
+                .block(Block::default().border_type(BorderType::Rounded))
                 .style(
                     Style::default()
                         .fg(app.config.get_fg_color())
@@ -143,18 +66,16 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             frame.render_widget(logo, small_rect(frame.size()));
         }
         let area = small_rect(frame.size());
-        let final_opts = display_opts.clone();
-        let opts = Paragraph::new(final_opts.as_str())
-            .block(
-                Block::default()
-                    .title("Selected Options")
-                    .title_alignment(Alignment::Left)
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded),
-            )
-            .style(Style::default().fg(Color::Cyan).bg(Color::Gray))
-            .alignment(Alignment::Left);
-        frame.render_widget(opts, area);
+        let opts = app.opts.clone();
+        let display_opts = handle_display_options(&opts);
+        frame.render_widget(
+            Paragraph::new(display_opts)
+                .fg(app.config.get_fg_color())
+                .bg(app.config.get_bg_color())
+                .style(Style::default())
+                .alignment(Alignment::Left),
+            area.union(default_rect(frame.size())),
+        );
         // ******************************************************************
     } else {
         let area = small_rect(frame.size());
@@ -219,7 +140,13 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         Screen::Downloads => handle_downloads_screen(app, frame),
         //
         // REQUEST MENU *********************************************************
-        Screen::RequestMenu(_) => handle_request_menu_screen(app, frame),
+        Screen::RequestMenu(e) => {
+            if is_error(&e) {
+                handle_request_menu_screen(app, frame, e);
+            } else {
+                handle_request_menu_screen(app, frame, "".to_string());
+            }
+        }
         // AUTHENTICATION SCREEN ************************************************
         Screen::Authentication => {
             handle_authentication_screen(app, frame);
@@ -247,6 +174,9 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         Screen::SavedKeys => {
             handle_screen_defaults(app, frame);
         }
+        Screen::AlertMenu(cmd) => {
+            handle_alert_menu(app, frame, cmd);
+        }
         _ => {}
     }
 }
@@ -265,6 +195,16 @@ pub fn handle_api_key_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>
         Some(2) => app.goto_screen(Screen::SavedKeys),
         _ => {}
     }
+}
+
+fn is_error(e: &str) -> bool {
+    e.to_lowercase().contains("error")
+}
+
+fn handle_display_options(opts: &Vec<AppOptions>) -> Vec<Line> {
+    opts.iter()
+        .map(|x| Line::from(format!("{:?}", x)))
+        .collect::<Vec<Line>>()
 }
 
 pub fn render_header_paragraph(para: &'static str, title: &'static str) -> Paragraph<'static> {

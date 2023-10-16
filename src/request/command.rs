@@ -77,6 +77,12 @@ impl<'a> CurlOpts for Cmd<'a> {
             _ => {}
         }
     }
+    fn set_upload_file(&mut self, file: &str) {
+        match self {
+            Cmd::Curl(curl) => curl.set_upload_file(file),
+            _ => {}
+        }
+    }
     fn set_follow_redirects(&mut self, opt: bool) {
         match self {
             Cmd::Curl(curl) => curl.set_follow_redirects(opt),
@@ -242,6 +248,7 @@ pub trait CmdOpts {
 }
 
 pub trait CurlOpts {
+    fn set_upload_file(&mut self, file: &str);
     fn add_cookie(&mut self, cookie: String);
     fn set_follow_redirects(&mut self, opt: bool);
     fn set_proxy_tunnel(&mut self, opt: bool);

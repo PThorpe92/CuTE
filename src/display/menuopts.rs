@@ -37,8 +37,8 @@ pub const OPTION_PADDING_MAX: &str = "\n\n\n\n";
 pub const OPTION_PADDING_MID: &str = "\n\n\n";
 pub const OPTION_PADDING_MIN: &str = "\n\n";
 pub const NEWLINE: &str = "\n";
-#[rustfmt::skip]
 // Yeah... if this is normal here, it f**ks up when we try to center it on the screen
+#[rustfmt::skip]
 pub const CUTE_LOGO: &str =
 "    . . . . . . .  .  .  .  . . .    . .p  o  w .. e  r e  d.  . ..b.y ..
      ***************` ......      ..., $$####################$`****************``l             *&%&*   *&%&*
@@ -51,13 +51,14 @@ pub const CUTE_LOGO: &str =
   *  %%%%%%%%%%%%%%`/; %%%%%%%%%%%%%%%%/      *%%%%%%**`       %%%%%%$####%%%%%``r   ** *&%&*   *&%&*
      ***************l...**********$  **`. .  . .***.. .   . . .****************'.l     *&%&*   *&%&*
 ";
+#[rustfmt::skip]
 pub const CUTE_LOGO2: &str = "
  @@@@@@@. @@@  @@@  @@@@@@@  @@@@@@@@  
 @@@@@@@@. @@@  @@@  @@@@@@@  @@@@@@@@  
 !@@ ````  @@!  @@@    @@!    @@!       
-   !@!'       !@!  @!@    !@!    !@!       
-  !@!'      @!@  !@!    @!!    @!!!:!    
- !!!'      !@!  !!!    !!!    !!!!!:    
+!@!'      !@!  @!@    !@!    !@!       
+!@!'      @!@  !@!    @!!    @!!!:!    
+ !!'      !@!  !!!    !!!    !!!!!:    
 :!!'      !!:  !!!    !!:    !!:       
 :!:'.. .  :!:  !:!    :!:    :!:       
  ::: :::' ::::: ::     ::     :: ::::  
@@ -72,9 +73,21 @@ pub const DISPLAY_OPT_FAIL_ON_ERROR: &str = " Fail on error  ";
 pub const DISPLAY_OPT_TOKEN_SAVED: &str = " Token will be saved  ";
 pub const DISPLAY_OPT_FOLLOW_REDIRECTS: &str = " Follow redirects 󱀀 ";
 pub const DISPLAY_OPT_UNRESTRICTED_AUTH: &str = "- Send auth to hosts if redirected";
-pub const DISPLAY_OPT_PROXY_TUNNEL: &str = " Enable HTTP Proxy-Tunnel 󱠾 ";
+pub const DISPLAY_OPT_MAX_REDIRECTS: &str = " Max redirects: ";
+pub const DISPLAY_OPT_UNIX_SOCKET: &str = "  Unix Socket: ";
+pub const DISPLAY_OPT_CA_PATH: &str = "  󰄤 SSL Certificate path: ";
+pub const DISPLAY_OPT_AUTH: &str = "  Authentication: ";
 pub const DISPLAY_OPT_MATCH_WILDCARD: &str = "  Match glob wildcard 󰛄 ";
 pub const DISPLAY_OPT_CERT_INFO: &str = "  Request certificate info 󰄤 ";
+pub const DISPLAY_OPT_UPLOAD: &str = "  Upload file: ";
+pub const DISPLAY_OPT_TCP_KEEPALIVE: &str = "  Enable TCP keepalive 󰗶 ";
+pub const DISPLAY_OPT_MAX_REC: &str = "  Specify recursive depth: ";
+pub const DISPLAY_OPT_OUTFILE: &str = "  Specify output filepath: ";
+pub const DISPLAY_OPT_REFERRER: &str = "  Specify Referrer: ";
+pub const DISPLAY_OPT_COOKIE: &str = "  Add Cookie: ";
+pub const DISPLAY_OPT_USERAGENT: &str = "  Specify User-Agent: ";
+pub const DISPLAY_OPT_PROXY_TUNNEL: &str = "  Enable HTTP Proxy-Tunnel 󱠾 ";
+pub const DISPLAY_OPT_URL: &str = "  Request URL: ";
 lazy_static! {
     pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
         "Build and send an HTTP request 󰖟 ",
@@ -104,13 +117,13 @@ lazy_static! {
         "Begin Download  ",
     ];
     pub static ref METHOD_MENU_OPTIONS: [&'static str; 7] = [
+        "OTHER (custom command)",
         "GET",
         "POST",
         "PUT",
         "DELETE",
         "PATCH",
         "HEAD",
-        "OTHER (custom command)"
     ];
     pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 8] = [
         "Basic",
@@ -122,8 +135,7 @@ lazy_static! {
         "Kerberos",
         "SPNEGO",
     ];
-    pub static ref MORE_FLAGS_MENU: [&'static str; 14] = [
-        "Specify filepath (for uploads)  ",
+    pub static ref MORE_FLAGS_MENU: [&'static str; 13] = [
         "Follow Redirects 󱀀 ",
         "Specify Max redirects 󱀀 ",
         "Add Cookie  󰆘 ",

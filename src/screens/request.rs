@@ -1,16 +1,23 @@
-use tui::backend::Backend;
-use tui::Frame;
-
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
 use crate::request::cmdtype::CmdType;
+use crate::screens::error_alert_box;
 use crate::screens::screen::Screen;
+use tui::backend::Backend;
+use tui::Frame;
 
 use super::render::handle_screen_defaults;
 
-pub fn handle_request_menu_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_request_menu_screen<B: Backend>(
+    app: &mut App,
+    frame: &mut Frame<'_, B>,
+    err: String,
+) {
     handle_screen_defaults(app, frame);
+    if !err.is_empty() {
+        error_alert_box(frame, &err);
+    }
     match app.selected {
         // Add file to upload
         Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::UploadFile)),
