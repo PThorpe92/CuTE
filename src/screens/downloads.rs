@@ -1,7 +1,6 @@
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
-use crate::request::cmdtype::CmdType;
-use crate::request::command::Cmd;
+use crate::request::command::{Cmd, CmdType};
 use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
 use tui::backend::Backend;

@@ -4,7 +4,7 @@ use crate::display::menuopts::{
     INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD,
 };
 use crate::display::AppOptions;
-use crate::request::cmdtype::CmdType;
+use crate::request::command::CmdType;
 use crate::request::curl::AuthKind;
 use crate::screens::auth::AuthType;
 use crate::screens::Screen;
@@ -23,7 +23,7 @@ use tui::{
 
 // Takes the current option and returns a prompt for that screen
 pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
-    return match opt {
+    match opt {
         InputOpt::URL(opt) => {
             let fmtstr = format!("Enter a URL for your {}\n and press Enter", opt);
             Text::from(Line::from(fmtstr))
@@ -36,7 +36,7 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
         _ => Text::from(INPUT_OPT_BASIC),
-    };
+    }
 }
 
 pub fn handle_default_input_screen<B: Backend>(
@@ -62,7 +62,7 @@ pub fn handle_default_input_screen<B: Backend>(
                 Span::raw("Press h"),
                 Span::raw("to go back."),
                 Span::styled("Press i", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to start editing."),
+                Span::raw("to start editing."),
             ],
             Style::default().add_modifier(Modifier::RAPID_BLINK),
         ),

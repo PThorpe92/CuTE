@@ -39,9 +39,8 @@ impl CmdOpts for Wget {
         if self.has_rec() {
             cmdstr.push(format!("-r {}", self.rec_level.unwrap()));
         }
-        match self.auth.clone() {
-            Some(ref auth) => cmdstr.push(auth.clone()),
-            None => (),
+        if let Some(ref auth) = self.auth {
+            cmdstr.push(auth.clone());
         }
         if self.has_output() {
             cmdstr.push(format!("-O {}", self.output));
@@ -70,7 +69,7 @@ impl CmdOpts for Wget {
     }
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn add_basic_auth(&mut self, info: &str) {
-        let mut split = info.split(":");
+        let mut split = info.split(':');
         let usr = split.next().unwrap();
         let pwd = split.next().unwrap();
         self.auth = Some(format!("--user={} --password={}", usr, pwd));
@@ -118,6 +117,12 @@ impl CmdOpts for Wget {
         self.response
             .clone()
             .unwrap_or(String::from("No download response"))
+    }
+}
+
+impl Default for Wget {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl Wget {
@@ -181,36 +186,27 @@ impl Wget {
         self.rec_level.is_some()
     }
 
-    fn has_auth(&self) -> bool {
-        self.auth.is_some()
-    }
-
     // This just builds a vector of strings for executing in command.arg(str)
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub fn build_command(&mut self) {
         self.cmd.push(self.url.clone());
         if self.has_rec() {
-            self.cmd.push("-depth".to_string());
+            self.cmd.push("--depth".to_string());
             if self.has_rec() {
                 self.cmd.push(self.rec_level.unwrap().to_string());
             }
         }
-        match self.auth.clone() {
-            Some(ref auth) => self.cmd.push(auth.clone()),
-            None => (),
+        if let Some(ref auth) = self.auth {
+            self.cmd.push(auth.clone());
         }
         if self.has_output() {
-            self.cmd.push(format!("-outputfile {}", self.output));
+            self.cmd.push(format!("-O {}", self.output));
         }
     }
 }
 
 mod tests {
-
-    
-    
-
-    
+    use super::*;
     use mockito::ServerGuard;
 
     fn setup() -> ServerGuard {
@@ -221,7 +217,7 @@ mod tests {
             .with_status(200)
             .with_body("Mocked Response")
             .create();
-        return ServerGuard::from(server);
+        server
     }
 
     #[test]
@@ -328,6 +324,8 @@ mod tests {
     #[test]
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     fn test_execute() {
+        use std::ops::DerefMut;
+
         let mut setup = setup();
         let url = setup.deref_mut().url().clone();
         let mut wget = Wget::new();

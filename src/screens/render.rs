@@ -1,7 +1,6 @@
-use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, DEFAULT_MENU_PARAGRAPH, DEFAULT_MENU_TITLE,
-    DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE, INPUT_MENU_TITLE, NEWLINE, SAVED_COMMANDS_TITLE,
+    DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE, INPUT_MENU_TITLE, SAVED_COMMANDS_TITLE,
     SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
 };
 use crate::display::AppOptions;
@@ -70,13 +69,20 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         let display_opts = handle_display_options(&opts);
         frame.render_widget(
             Paragraph::new(display_opts)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Double)
+                        .title_style(Style::new().bold().italic())
+                        .title(" Request Options "),
+                )
                 .fg(app.config.get_fg_color())
                 .bg(app.config.get_bg_color())
-                .style(Style::default())
+                .style(Style::default().on_gray())
                 .alignment(Alignment::Left),
-            area.union(default_rect(frame.size())),
+            area,
         );
-        // ******************************************************************
+        // ******************************************************************************************************
     } else {
         let area = small_rect(frame.size());
         let response = app.response.clone().unwrap();
@@ -93,10 +99,21 @@ pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
     let mut items: Option<Vec<String>> = None;
     match app.current_screen {
         Screen::SavedKeys => {
-            items = Some(app.get_saved_keys().unwrap_or(vec![]));
+            items = Some(
+                app.get_saved_keys()
+                    .into_iter()
+                    .map(|x| format!("{:?}", x))
+                    .collect::<Vec<String>>(),
+            );
         }
         Screen::SavedCommands => {
-            items = Some(app.get_saved_command_strings().unwrap_or(vec![]));
+            items = Some(
+                app.get_saved_commands()
+                    .unwrap()
+                    .into_iter()
+                    .map(|x| format!("{:?}", x))
+                    .collect::<Vec<String>>(),
+            );
         }
         _ => {}
     }
@@ -181,27 +198,11 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
     }
 }
 
-pub fn handle_api_key_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
-    handle_screen_defaults(app, frame);
-    match app.selected {
-        // View Saved Keys
-        Some(0) => {
-            app.goto_screen(Screen::InputMenu(InputOpt::ApiKey));
-            app.selected = None;
-        }
-        // Add Key
-        Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::ApiKey)),
-        // Delete Key
-        Some(2) => app.goto_screen(Screen::SavedKeys),
-        _ => {}
-    }
-}
-
 fn is_error(e: &str) -> bool {
     e.to_lowercase().contains("error")
 }
 
-fn handle_display_options(opts: &Vec<AppOptions>) -> Vec<Line> {
+fn handle_display_options(opts: &[AppOptions]) -> Vec<Line> {
     opts.iter()
         .map(|x| Line::from(format!("{:?}", x)))
         .collect::<Vec<Line>>()

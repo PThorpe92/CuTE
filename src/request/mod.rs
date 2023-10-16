@@ -1,4 +1,3 @@
-pub mod cmdtype;
 pub mod command;
 // Curl command builder
 pub mod curl;

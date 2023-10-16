@@ -23,7 +23,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                         }
                         KeyCode::Esc => {
                             app.go_back_screen(); // Escape Should Bring You Back
-                            if app.input.value().len() > 0 {
+                            if !app.input.value().is_empty() {
                                 app.input.reset(); // If we leave the page, we should clear the input buffer
                             }
                         }
@@ -55,7 +55,9 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                             app.go_back_screen();
                         }
                         KeyCode::Char('x') => {
-                            app.delete_item(app.cursor);
+                            if !app.items.is_empty() {
+                                app.delete_item(app.cursor);
+                            }
                         }
                         _ => {}
                     }
