@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::request::cmdtype::CmdType;
+use crate::request::command::CmdType;
 use crate::screens::auth::AuthType;
 
 #[derive(Debug, Clone, PartialEq)]

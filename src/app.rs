@@ -1,16 +1,15 @@
-use crate::database::db;
-use crate::database::db::DB;
+use crate::database::db::{SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::AppOptions;
 use crate::request::command::{CmdOpts, CMD};
 use crate::request::curl::Curl;
-use crate::screens::screen::{determine_line_size, Screen};
+use crate::screens::screen::Screen;
 use crate::Config;
 use dirs::config_dir;
+use std::io::{BufWriter, Write};
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
-/// Application result type.
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,21 +20,35 @@ pub enum InputMode {
 
 /// Application.
 pub struct App<'a> {
+    /// toml config file
     pub config: Config,
-    /// Is the application running?
+    /// is the app running
     pub running: bool,
+    /// cursor position (veritcal)
     pub cursor: usize,
+    /// current screen (stack.pop)
     pub current_screen: Screen,
+    /// screen stack
     pub screen_stack: Vec<Screen>,
+    /// index of selected item
     pub selected: Option<usize>,
+    /// command (curl or wget)
     pub command: Option<Box<dyn CMD>>,
+    /// vec of applicable options
     pub opts: Vec<AppOptions>,
+    /// Input struct for tui_input dependency
     pub input: Input,
+    /// vec for user input to push into
     pub messages: Vec<String>,
+    /// input mode (normal or editing)
     pub input_mode: InputMode,
+    /// vec of list items to select from
     pub items: Vec<ListItem<'a>>,
+    /// list state for tui
     pub state: Option<ListState>,
+    /// http response from executed command
     pub response: Option<String>,
+    /// database connection
     pub db: Box<DB>,
 }
 
@@ -66,15 +79,20 @@ impl<'a> Default for App<'a> {
 }
 
 impl<'a> App<'a> {
-    /// Constructs a new instance of [`App`].
     pub fn new() -> Self {
         Self::default()
     }
     pub fn set_command(&mut self, command: Box<dyn CMD>) {
         self.command = Some(command);
     }
-
     pub fn tick(&self) {}
+
+    pub fn redraw(&mut self) {
+        let selected = (self.selected, self.cursor);
+        self.goto_screen(self.current_screen.clone());
+        self.state.as_mut().unwrap().select(selected.0);
+        self.cursor = selected.1;
+    }
 
     pub fn goto_screen(&mut self, screen: Screen) {
         self.screen_stack.push(screen.clone());
@@ -85,7 +103,7 @@ impl<'a> App<'a> {
             Screen::SavedKeys => {
                 self.items = self
                     .get_saved_keys()
-                    .unwrap_or(vec![])
+                    .unwrap_or_default()
                     .iter()
                     .map(|key| ListItem::new(format!("{:?}{:?}", key, OPTION_PADDING_MID)))
                     .collect();
@@ -94,10 +112,12 @@ impl<'a> App<'a> {
             }
             Screen::SavedCommands => {
                 self.items = self
-                    .get_saved_command_strings()
-                    .unwrap_or(vec![])
+                    .get_saved_commands()
+                    .unwrap_or_default()
                     .iter()
-                    .map(|cmd| ListItem::new(format!("{:?}{:?}", cmd, OPTION_PADDING_MID)))
+                    .map(|cmd| {
+                        ListItem::new(format!("{}{}", cmd.get_command(), OPTION_PADDING_MID))
+                    })
                     .collect();
                 self.selected = None;
                 return;
@@ -112,7 +132,7 @@ impl<'a> App<'a> {
     pub fn go_back_screen(&mut self) {
         self.screen_stack.pop(); // current screen
         match self.screen_stack.last() {
-            Some(Screen::InputMenu(_)) => self.go_back_screen(),
+            Some(Screen::InputMenu(_)) | Some(Screen::AlertMenu(_)) => self.go_back_screen(),
             // is that recursion in prod????? o_0
             Some(screen) if screen == &self.current_screen => self.go_back_screen(),
             Some(screen) => {
@@ -153,53 +173,44 @@ impl<'a> App<'a> {
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        if let Ok(_) = self.command.as_mut().unwrap().execute(Some(&mut self.db)) {
+        if self
+            .command
+            .as_mut()
+            .unwrap()
+            .execute(Some(&mut self.db))
+            .is_ok()
+        {
             Ok(())
         } else {
             Err("Failed to execute command".to_string())
         }
     }
 
-    pub fn get_saved_command_strings(&self) -> Result<Vec<String>, String> {
-        let db = self.db.as_ref();
-        let commands = db.get_commands().unwrap();
-        let saved_commands = commands.iter().map(|cmd| cmd.get_command()).collect();
-        Ok(saved_commands)
-    }
-
-    pub fn get_saved_keys(&self) -> Result<Vec<String>, String> {
-        let db = self.db.as_ref();
-        let keys = db.get_keys().unwrap();
-        let mut saved_keys = Vec::new();
-        for key in keys {
-            saved_keys.push(format!("{}", key));
-        }
-        Ok(saved_keys)
+    pub fn get_saved_keys(&self) -> Result<Vec<SavedKey>, rusqlite::Error> {
+        self.db.as_ref().get_keys()
     }
 
     pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
         match self.db.as_ref().add_key(&key) {
-            Ok(_) => {
-                return Ok(());
-            }
+            Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
     }
 
-    pub fn get_saved_command_json(&self) -> Result<Vec<String>, String> {
-        let commands = self.db.as_ref().get_commands().unwrap();
-        let saved_commands = commands
-            .iter()
-            .map(|cmd| cmd.get_curl_json())
-            .collect::<Vec<String>>();
-        Ok(saved_commands)
+    pub fn get_saved_commands(&self) -> Result<Vec<SavedCommand>, rusqlite::Error> {
+        self.db.as_ref().get_commands()
     }
 
     pub fn execute_saved_command(&mut self, index: usize) {
-        let saved_commands = self.get_saved_command_json().unwrap();
-        let _ = saved_commands.iter().map(|x| x.clone());
-        let json = saved_commands.get(index).unwrap();
-        let mut command: Curl = serde_json::from_str(json.as_str()).unwrap();
+        let saved_commands = self.get_saved_commands().unwrap();
+        let cmd = saved_commands.get(index).unwrap();
+        let mut command: Curl = serde_json::from_str(cmd.get_curl_json()).unwrap();
+        let file = std::fs::File::create("./test.json").unwrap();
+        let mut writer = BufWriter::new(file);
+        if writer.write_all(cmd.get_curl_json().as_bytes()).is_ok() {
+            println!("write successful");
+        }
+        command.easy_from_opts();
         match command.execute(None) {
             Ok(_) => self.set_response(command.get_response().clone()),
             Err(e) => self.set_response(e.to_string()),
@@ -208,9 +219,10 @@ impl<'a> App<'a> {
     }
 
     pub fn copy_cmd_to_clipboard(&self, index: usize) -> Result<(), String> {
-        let saved_commands = self.get_saved_command_json().unwrap();
+        let saved_commands = self.get_saved_commands().unwrap();
         let cmd = saved_commands.get(index).unwrap();
-        if let Ok(_) = terminal_clipboard::set_string(cmd) {
+        println!("{cmd}");
+        if terminal_clipboard::set_string(cmd.get_command()).is_ok() {
             Ok(())
         } else {
             Err(String::from("Failed to copy to clipboard"))
@@ -221,133 +233,84 @@ impl<'a> App<'a> {
         self.response.as_ref().unwrap().as_str()
     }
 
-    pub fn delete_saved_command(&self, index: usize) {
-        let saved_commands = self.get_saved_command_strings().unwrap();
-        let command = saved_commands.get(index).unwrap();
-        self.db.as_ref().delete_command(command).unwrap();
+    pub fn delete_saved_command(&mut self, ind: i32) {
+        if let Err(e) = self.db.as_mut().delete_command(ind) {
+            println!("Error: {}", e);
+        }
+        self.goto_screen(Screen::SavedCommands);
     }
 
-    pub fn delete_saved_key(&self, index: usize) {
-        let saved_keys = self.get_saved_keys().unwrap();
-        let key = saved_keys.get(index).unwrap();
-        self.db.as_ref().delete_key(key).unwrap();
+    pub fn delete_saved_key(&self, index: i32) {
+        self.db.as_ref().delete_key(index).unwrap();
     }
 
-    pub fn delete_item(&mut self, index: usize) {
+    pub fn delete_item(&mut self, ind: i32) {
         match self.current_screen {
-            Screen::SavedCommands => self.delete_saved_command(index),
-            Screen::SavedKeys => self.delete_saved_key(index),
+            Screen::SavedCommands => self.delete_saved_command(ind),
+            Screen::SavedKeys => self.delete_saved_key(ind),
             _ => {}
         }
     }
-
+#[rustfmt::skip]
     pub fn remove_app_option(&mut self, opt: &AppOptions) {
         match opt {
-            AppOptions::URL(_) => {
-                self.command.as_mut().unwrap().set_url("");
-            }
-            AppOptions::Headers(_) => {
-                self.command
-                    .as_mut()
-                    .unwrap()
-                    .remove_headers(opt.get_value());
-            }
-            AppOptions::Outfile(_) => {
-                self.command.as_mut().unwrap().set_outfile("");
-            }
-            AppOptions::Auth(_) => {
-                self.command
-                    .as_mut()
-                    .unwrap()
-                    .set_auth(crate::request::curl::AuthKind::None);
-            }
-            AppOptions::UnixSocket(_) => {
-                self.command.as_mut().unwrap().set_unix_socket("");
-            }
-            AppOptions::EnableHeaders => {
-                self.command
-                    .as_mut()
-                    .unwrap()
-                    .enable_response_headers(false);
-            }
-            AppOptions::UploadFile(_) => {
-                self.command.as_mut().unwrap().set_upload_file("");
-            }
-            AppOptions::ProgressBar => {
-                self.command.as_mut().unwrap().enable_progress_bar(false);
-            }
-            AppOptions::FailOnError => {
-                self.command.as_mut().unwrap().set_fail_on_error(false);
-            }
-            AppOptions::Verbose => {
-                self.command.as_mut().unwrap().set_verbose(false);
-            }
-            AppOptions::Response(_) => {
-                self.command.as_mut().unwrap().set_response("");
-            }
-            AppOptions::SaveCommand => {
-                self.command.as_mut().unwrap().save_command(false);
-            }
-            AppOptions::SaveToken => {
-                self.command.as_mut().unwrap().save_token(false);
-            }
-            AppOptions::FollowRedirects => {
-                self.command.as_mut().unwrap().set_follow_redirects(false);
-            }
-            AppOptions::UnrestrictedAuth => {
-                self.command.as_mut().unwrap().set_unrestricted_auth(false);
-            }
-            AppOptions::TcpKeepAlive => {
-                self.command.as_mut().unwrap().set_tcp_keepalive(false);
-            }
-            AppOptions::ProxyTunnel => {
-                self.command.as_mut().unwrap().set_proxy_tunnel(false);
-            }
-            AppOptions::CertInfo => {
-                self.command.as_mut().unwrap().set_cert_info(false);
-            }
-            AppOptions::MatchWildcard => {
-                self.command.as_mut().unwrap().match_wildcard(false);
-            }
-            AppOptions::CaPath(_) => {
-                self.command.as_mut().unwrap().set_ca_path("");
-            }
-            AppOptions::MaxRedirects(_) => {
-                self.command.as_mut().unwrap().set_max_redirects(0);
-            }
-            AppOptions::Cookie(_) => {
-                self.command
-                    .as_mut()
-                    .unwrap()
-                    .remove_headers(opt.get_value());
-            }
-            AppOptions::UserAgent(_) => {
-                self.command.as_mut().unwrap().set_user_agent("");
-            }
-            AppOptions::Referrer(_) => {
-                self.command.as_mut().unwrap().set_referrer("");
-            }
-            AppOptions::RecDownload(_) => {
-                self.command.as_mut().unwrap().set_rec_download_level(0);
-            }
+            AppOptions::URL(_) => self.command.as_mut().unwrap().set_url(""),
+            AppOptions::Outfile(_) => self.command.as_mut().unwrap().set_outfile(""),
+            AppOptions::UploadFile(_) => self.command.as_mut().unwrap().set_upload_file(""),
+            AppOptions::UnixSocket(_) => self.command.as_mut().unwrap().set_unix_socket(""),
+            AppOptions::ProgressBar => self.command.as_mut().unwrap().enable_progress_bar(false),
+            AppOptions::FailOnError => self.command.as_mut().unwrap().set_fail_on_error(false),
+            AppOptions::Verbose => self.command.as_mut().unwrap().set_verbose(false),
+            AppOptions::Response(_) => self.command.as_mut().unwrap().set_response(""),
+            AppOptions::SaveCommand => self.command.as_mut().unwrap().save_command(false),
+            AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(false),
+            AppOptions::FollowRedirects => self.command.as_mut().unwrap().set_follow_redirects(false),
+            AppOptions::UnrestrictedAuth => self.command.as_mut().unwrap().set_unrestricted_auth(false),
+            AppOptions::TcpKeepAlive => self.command.as_mut().unwrap().set_tcp_keepalive(false),
+            AppOptions::ProxyTunnel => self.command.as_mut().unwrap().set_proxy_tunnel(false),
+            AppOptions::CertInfo => self.command.as_mut().unwrap().set_cert_info(false),
+            AppOptions::MatchWildcard => self.command.as_mut().unwrap().match_wildcard(false),
+            AppOptions::CaPath(_) => self.command.as_mut().unwrap().set_ca_path(""),
+            AppOptions::MaxRedirects(_) => self.command.as_mut().unwrap().set_max_redirects(0),
+            AppOptions::UserAgent(_) => self.command.as_mut().unwrap().set_user_agent(""),
+            AppOptions::Referrer(_) => self.command.as_mut().unwrap().set_referrer(""),
+            AppOptions::RecDownload(_) => self.command.as_mut().unwrap().set_rec_download_level(0),
+            AppOptions::Cookie(_) => self.command
+                                    .as_mut()
+                                    .unwrap()
+                                    .remove_headers(opt.get_value()),
+            AppOptions::Headers(_) => self.command
+                                    .as_mut()
+                                    .unwrap()
+                                    .remove_headers(opt.get_value()),
+
+            AppOptions::Auth(_) => self.command
+                                    .as_mut()
+                                    .unwrap()
+                                    .set_auth(crate::request::curl::AuthKind::None),
+
+            AppOptions::EnableHeaders => self.command
+                                        .as_mut()
+                                        .unwrap()
+                                        .enable_response_headers(false),
         }
         self.opts
-            .retain(|x| mem::discriminant(x) != mem::discriminant(&opt));
+            .retain(|x| mem::discriminant(x) != mem::discriminant(opt));
     }
 
     // Need a button to reset everything
     pub fn remove_all_app_options(&mut self) {
         self.opts.clear();
         self.command = Some(Box::new(Curl::new()));
+        self.goto_screen(Screen::Method);
+        self.messages.clear();
+        self.response = None;
     }
 
     pub fn has_app_option(&self, opt: &AppOptions) -> bool {
-        for element in self.opts.iter() {
-            if mem::discriminant(opt) == mem::discriminant(element) {
-                return true;
-            }
-        }
-        false
+        self.opts
+            .iter()
+            .any(|x| mem::discriminant(x) == mem::discriminant(opt))
     }
 
     fn should_add_option(&self, opt: &AppOptions) -> bool {
@@ -367,7 +330,7 @@ impl<'a> App<'a> {
 
     fn should_toggle(&self, opt: &AppOptions) -> bool {
         match opt {
-            // Any displayOpt with no value should be toggled (bool)
+            // Any Option with no string value (boolean) should be toggled
             AppOptions::Verbose
             | AppOptions::FollowRedirects
             | AppOptions::UnrestrictedAuth
@@ -384,48 +347,31 @@ impl<'a> App<'a> {
         }
     }
 
+#[rustfmt::skip]
     fn toggle_app_option(&mut self, opt: AppOptions) {
         if self.has_app_option(&opt) {
             self.remove_app_option(&opt);
             return;
         }
         match opt {
-            // these are the options that work with both commands
-            AppOptions::URL(_) => {
-                self.command.as_mut().unwrap().set_url("");
-                return;
-            }
-            AppOptions::RecDownload(_) => {
-                self.command.as_mut().unwrap().set_rec_download_level(0);
-                return;
-            }
-            AppOptions::Outfile(_) => {
-                self.command.as_mut().unwrap().set_outfile("");
-                return;
-            }
             AppOptions::Verbose => self.command.as_mut().unwrap().set_verbose(true),
-            AppOptions::EnableHeaders => {
-                self.command.as_mut().unwrap().enable_response_headers(true)
-            }
+            AppOptions::EnableHeaders =>  self.command.as_mut().unwrap().enable_response_headers(true),
             AppOptions::ProgressBar => self.command.as_mut().unwrap().enable_progress_bar(true),
             AppOptions::FailOnError => self.command.as_mut().unwrap().set_fail_on_error(true),
             AppOptions::MatchWildcard => self.command.as_mut().unwrap().match_wildcard(true),
             AppOptions::CertInfo => self.command.as_mut().unwrap().set_cert_info(true),
             AppOptions::ProxyTunnel => self.command.as_mut().unwrap().set_proxy_tunnel(true),
             AppOptions::SaveCommand => self.command.as_mut().unwrap().save_command(true),
-            AppOptions::FollowRedirects => {
-                self.command.as_mut().unwrap().set_follow_redirects(true)
-            }
-            AppOptions::UnrestrictedAuth => {
-                self.command.as_mut().unwrap().set_unrestricted_auth(true)
-            }
+            AppOptions::FollowRedirects => self.command.as_mut().unwrap().set_follow_redirects(true),
+            AppOptions::UnrestrictedAuth => self.command.as_mut().unwrap().set_unrestricted_auth(true),
             AppOptions::TcpKeepAlive => self.command.as_mut().unwrap().set_tcp_keepalive(true),
             AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(true),
             _ => {}
         }
         self.opts.push(opt);
+        self.redraw();
     }
-
+#[rustfmt::skip]
     pub fn add_app_option(&mut self, opt: AppOptions) {
         if self.should_toggle(&opt) {
             self.toggle_app_option(opt);
@@ -435,36 +381,20 @@ impl<'a> App<'a> {
         if self.should_add_option(&opt) {
             self.opts.push(opt.clone());
             match opt {
-                AppOptions::UnixSocket(socket) => {
-                    self.command.as_mut().unwrap().set_unix_socket(&socket)
-                }
+                AppOptions::UnixSocket(socket) =>  self.command.as_mut().unwrap().set_unix_socket(&socket),
                 AppOptions::Headers(value) => self.command.as_mut().unwrap().add_headers(value),
                 AppOptions::URL(url) => self.command.as_mut().unwrap().set_url(&url),
-                AppOptions::Outfile(outfile) => {
-                    self.command.as_mut().unwrap().set_outfile(&outfile)
-                }
+                AppOptions::Outfile(outfile) => self.command.as_mut().unwrap().set_outfile(&outfile),
                 AppOptions::Cookie(cookie) => self.command.as_mut().unwrap().add_cookie(cookie),
-                AppOptions::RecDownload(i) => {
-                    self.command.as_mut().unwrap().set_rec_download_level(i);
-                }
-                AppOptions::Response(resp) => {
-                    self.command.as_mut().unwrap().set_response(&resp);
-                }
-                AppOptions::Referrer(referrer) => {
-                    self.command.as_mut().unwrap().set_referrer(&referrer);
-                }
-                AppOptions::UserAgent(agent) => {
-                    self.command.as_mut().unwrap().set_user_agent(&agent);
-                }
-                AppOptions::CaPath(ca_path) => {
-                    self.command.as_mut().unwrap().set_ca_path(&ca_path);
-                }
-                AppOptions::MaxRedirects(max_redirects) => {
-                    self.command
+                AppOptions::RecDownload(i) => self.command.as_mut().unwrap().set_rec_download_level(i),
+                AppOptions::Response(resp) => self.command.as_mut().unwrap().set_response(&resp),
+                AppOptions::Referrer(referrer) => self.command.as_mut().unwrap().set_referrer(&referrer),
+                AppOptions::UserAgent(agent) => self.command.as_mut().unwrap().set_user_agent(&agent),
+                AppOptions::CaPath(ca_path) => self.command.as_mut().unwrap().set_ca_path(&ca_path),
+                AppOptions::MaxRedirects(max_redirects) => self.command
                         .as_mut()
                         .unwrap()
-                        .set_max_redirects(max_redirects);
-                }
+                        .set_max_redirects(max_redirects),
                 _ => {}
             }
         } else {
@@ -472,6 +402,7 @@ impl<'a> App<'a> {
             // with the new value.
             self.handle_replace(opt.clone());
         }
+        self.selected = None;
     }
 
     fn handle_replace(&mut self, mut opt: AppOptions) {
@@ -479,20 +410,20 @@ impl<'a> App<'a> {
             match option {
                 AppOptions::URL(_) => {
                     if let AppOptions::URL(ref url) = opt {
-                        self.command.as_mut().unwrap().set_url(&url);
+                        self.command.as_mut().unwrap().set_url(url);
                         option.replace_value(url.clone());
                     }
                 }
                 AppOptions::Outfile(_) => {
                     if let AppOptions::Outfile(ref outfile) = opt {
                         option.replace_value(outfile.clone());
-                        self.command.as_mut().unwrap().set_outfile(&outfile);
+                        self.command.as_mut().unwrap().set_outfile(outfile);
                     }
                 }
                 AppOptions::Response(_) => {
                     if let AppOptions::Response(ref response) = opt {
                         option.replace_value(opt.clone().get_value());
-                        self.command.as_mut().unwrap().set_response(&response);
+                        self.command.as_mut().unwrap().set_response(response);
                     }
                 }
                 AppOptions::RecDownload(_) => {
@@ -505,25 +436,25 @@ impl<'a> App<'a> {
                 AppOptions::UserAgent(_) => {
                     if let AppOptions::UserAgent(ref agent) = opt {
                         option.replace_value(String::from(agent));
-                        self.command.as_mut().unwrap().set_user_agent(&agent);
+                        self.command.as_mut().unwrap().set_user_agent(agent);
                     }
                 }
                 AppOptions::Referrer(_) => {
                     if let AppOptions::Referrer(ref referrer) = opt {
                         option.replace_value(String::from(referrer));
-                        self.command.as_mut().unwrap().set_referrer(&referrer);
+                        self.command.as_mut().unwrap().set_referrer(referrer);
                     }
                 }
                 AppOptions::Cookie(_) => {
                     if let AppOptions::Cookie(ref mut cookie) = opt {
-                        option.replace_value(String::from(cookie.clone()));
+                        option.replace_value(cookie.clone());
                         self.command.as_mut().unwrap().add_cookie(cookie.clone());
                     }
                 }
                 AppOptions::CaPath(_) => {
                     if let AppOptions::CaPath(ref ca_path) = opt {
                         option.replace_value(String::from(ca_path));
-                        self.command.as_mut().unwrap().set_ca_path(&ca_path);
+                        self.command.as_mut().unwrap().set_ca_path(ca_path);
                     }
                 }
                 AppOptions::MaxRedirects(_) => {
@@ -538,7 +469,7 @@ impl<'a> App<'a> {
                 AppOptions::UnixSocket(_) => {
                     if let AppOptions::UnixSocket(ref mut socket) = opt {
                         option.replace_value(socket.clone());
-                        self.command.as_mut().unwrap().set_unix_socket(&socket);
+                        self.command.as_mut().unwrap().set_unix_socket(socket);
                     }
                 }
                 _ => {}

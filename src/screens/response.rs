@@ -11,7 +11,7 @@ use tui::text::Text;
 use tui::widgets::{ListState, Paragraph};
 use tui::Frame;
 
-fn copy_to_clipboard(command: &str) -> Result<(), Box<dyn Error>> {
+pub fn copy_to_clipboard(command: &str) -> Result<(), Box<dyn Error>> {
     let mut ctx: ClipboardContext = ClipboardProvider::new()?;
     ctx.set_contents(command.to_owned())?;
     Ok(())
@@ -29,8 +29,8 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
     app.state.as_mut().unwrap().select(Some(app.cursor));
     frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
-    match app.selected {
-        Some(num) => match num {
+    if let Some(num) = app.selected {
+        match num {
             0 => {
                 app.goto_screen(Screen::InputMenu(InputOpt::Execute));
             }
@@ -57,11 +57,13 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                         Err(e) => app.goto_screen(Screen::Error(e.to_string())),
                     }
                 } else {
-                    if let Ok(_) = terminal_clipboard::set_string(
+                    if terminal_clipboard::set_string(
                         app.response
                             .as_ref()
                             .unwrap_or(&"Command failed to save".to_string()),
-                    ) {
+                    )
+                    .is_ok()
+                    {
                         app.goto_screen(Screen::Success);
                     } else {
                         app.goto_screen(Screen::Error("Failed to copy to clipboard".to_string()));
@@ -73,7 +75,6 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                 }
             }
             _ => {}
-        },
-        None => {}
+        };
     }
 }

@@ -89,6 +89,14 @@ pub const DISPLAY_OPT_USERAGENT: &str = "  Specify User-Agent: ";
 pub const DISPLAY_OPT_PROXY_TUNNEL: &str = "  Enable HTTP Proxy-Tunnel 󱠾 ";
 pub const DISPLAY_OPT_URL: &str = "  Request URL: ";
 lazy_static! {
+    pub static ref ALERT_MENU_OPTIONS_CMD: [&'static str; 4] = [
+        "Execute   ",
+        "Delete   ",
+        "Copy to Clipboard  󰅎 ",
+        "Cancel   ",
+    ];
+    pub static ref ALERT_MENU_OPTIONS_KEY: [&'static str; 3] =
+        ["Delete", "Copy to Clipboard", "Cancel"];
     pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
         "Build and send an HTTP request 󰖟 ",
         "Download a remote file or directory 󰧩 ",

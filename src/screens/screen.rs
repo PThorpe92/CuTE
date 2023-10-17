@@ -6,15 +6,16 @@ use std::fmt::{Display, Formatter};
 
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    AUTHENTICATION_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS,
-    MORE_FLAGS_MENU, OPTION_PADDING_MAX, OPTION_PADDING_MID, OPTION_PADDING_MIN,
-    REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
+    ALERT_MENU_OPTIONS_CMD, AUTHENTICATION_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, MAIN_MENU_OPTIONS,
+    METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE, OPTION_PADDING_MAX, OPTION_PADDING_MID,
+    OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
 };
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub enum Screen {
+    #[default]
     Home,
     Method,
     Downloads,
@@ -62,18 +63,14 @@ pub fn determine_line_size(len: usize) -> &'static str {
         _ => OPTION_PADDING_MIN,
     }
 }
-
 impl<'a> Screen {
-    pub fn default() -> Self {
-        Screen::Home
-    }
     pub fn get_opts(&self, items: Option<Vec<String>>) -> Vec<ListItem<'a>> {
         match &self {
             Screen::Home => {
                 let len = MAIN_MENU_OPTIONS.len();
                 return MAIN_MENU_OPTIONS
                     .iter()
-                    .map(|x| String::from(format!("{}{}", x, determine_line_size(len))))
+                    .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
@@ -81,7 +78,7 @@ impl<'a> Screen {
                 let len = METHOD_MENU_OPTIONS.len();
                 return METHOD_MENU_OPTIONS
                     .iter()
-                    .map(|x| String::from(format!("{}{}", x, determine_line_size(len))))
+                    .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
@@ -89,7 +86,7 @@ impl<'a> Screen {
                 let len = METHOD_MENU_OPTIONS.len();
                 return METHOD_MENU_OPTIONS
                     .iter()
-                    .map(|x| String::from(format!("{}{}", x, determine_line_size(len))))
+                    .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
@@ -97,7 +94,7 @@ impl<'a> Screen {
                 let len = REQUEST_MENU_OPTIONS.len();
                 return REQUEST_MENU_OPTIONS
                     .iter()
-                    .map(|x| String::from(format!("{}{}", x, determine_line_size(len))))
+                    .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
@@ -110,10 +107,9 @@ impl<'a> Screen {
                     .collect();
             }
             Screen::Response(_) => {
-                let len = RESPONSE_MENU_OPTIONS.len();
                 return RESPONSE_MENU_OPTIONS
                     .iter()
-                    .map(|x| String::from(format!("{}{}", x, determine_line_size(len))))
+                    .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
                     .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
@@ -124,7 +120,7 @@ impl<'a> Screen {
                 let len = AUTHENTICATION_MENU_OPTIONS.len();
                 return AUTHENTICATION_MENU_OPTIONS
                     .iter()
-                    .map(|x| String::from(format!("{}{}", x, determine_line_size(len))))
+                    .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
                     .collect();
             }
@@ -137,18 +133,15 @@ impl<'a> Screen {
             Screen::ViewBody => {
                 vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
             }
-            Screen::AlertMenu(_) => {
-                vec![
-                    ListItem::new("Execute Command"),
-                    ListItem::new("Copy to Clipboard"),
-                    ListItem::new("Cancel"),
-                ]
-            }
+            Screen::AlertMenu(_) => ALERT_MENU_OPTIONS_CMD
+                .iter()
+                .map(|i| ListItem::new(format!("{i}{}", NEWLINE)))
+                .collect(),
             Screen::Downloads => {
                 let len = DOWNLOAD_MENU_OPTIONS.len();
                 return DOWNLOAD_MENU_OPTIONS
                     .iter()
-                    .map(|x| String::from(format!("{}{}", x, determine_line_size(len))))
+                    .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
                     .collect();
             }

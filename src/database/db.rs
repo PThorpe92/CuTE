@@ -18,12 +18,6 @@ pub struct SavedKey {
     key: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SavedUrl {
-    id: i32,
-    url: String,
-}
-
 #[derive(Debug)]
 pub struct DB {
     pub conn: Connection,
@@ -36,7 +30,7 @@ impl DB {
         let dbpath = dir.join("CuTE.db");
 
         let conn = Connection::open_with_flags(
-            &dbpath,
+            dbpath,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_URI
@@ -62,19 +56,16 @@ impl DB {
     }
 
     pub fn add_command(&self, command: &str, json_str: String) -> Result<(), rusqlite::Error> {
-        if self.command_exists(command).unwrap() {
-            return Ok(());
-        }
-        self.conn.execute(
-            "INSERT INTO commands (command, curl_json) VALUES (?1, ?2)",
-            params![command, &json_str],
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("INSERT INTO commands (command, curl_json) VALUES (?1, ?2)")?;
+        let _ = stmt.execute(params![command, &json_str])?;
         Ok(())
     }
 
-    pub fn delete_command(&self, command: &str) -> Result<(), rusqlite::Error> {
-        self.conn
-            .execute("DELETE FROM commands WHERE command = ?1", params![command])?;
+    pub fn delete_command(&self, id: i32) -> Result<(), rusqlite::Error> {
+        let mut stmt = self.conn.prepare("DELETE FROM commands WHERE id = ?")?;
+        stmt.execute(params![id])?;
         Ok(())
     }
 
@@ -91,11 +82,7 @@ impl DB {
             .conn
             .prepare("SELECT COUNT(*) FROM commands WHERE command = ?")?;
         let count: i64 = stmt.query_row([&command], |row| row.get(0))?;
-        if count.is_positive() {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(count > 0)
     }
 
     pub fn get_commands(&self) -> Result<Vec<SavedCommand>> {
@@ -116,18 +103,18 @@ impl DB {
         Ok(commands)
     }
 
-    pub fn delete_key(&self, key: &str) -> Result<()> {
-        self.conn
-            .execute("DELETE FROM keys WHERE key = ?1", params![key])?;
+    pub fn delete_key(&self, id: i32) -> Result<()> {
+        let mut stmt = self.conn.prepare("DELETE FROM keys WHERE id = ?1")?;
+        stmt.execute(params![id])?;
         Ok(())
     }
 
     pub fn add_key(&self, key: &str) -> Result<()> {
-        if !self.key_exists(key).unwrap() {
+        if self.key_exists(key).unwrap() {
             return Ok(());
         }
-        self.conn
-            .execute("INSERT INTO keys (key) VALUES (?1)", params![key])?;
+        let mut stmt = self.conn.prepare("INSERT INTO keys (key) VALUES (?1)")?;
+        let _ = stmt.execute(params![key])?;
         Ok(())
     }
 
@@ -147,21 +134,9 @@ impl DB {
     }
 }
 
-impl Display for SavedUrl {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.url)
-    }
-}
-
 impl Display for SavedCommand {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.command)
-    }
-}
-
-impl Display for SavedKey {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, " ID: {} | Key: {}", self.id, self.key)
     }
 }
 
@@ -175,16 +150,26 @@ impl SavedCommand {
         Ok(serde_json::to_string(&self).expect("Failed to serialize"))
     }
 
+    pub fn get_id(&self) -> i32 {
+        self.id
+    }
+
     pub fn from_json(json: &str) -> Result<Self> {
         Ok(serde_json::from_str(json).expect("Failed to deserialize"))
     }
 
-    pub fn get_curl_json(&self) -> String {
-        self.curl_json.clone()
+    pub fn get_curl_json(&self) -> &str {
+        &self.curl_json
     }
 
-    pub fn get_command(&self) -> String {
-        self.command.clone()
+    pub fn get_command(&self) -> &str {
+        &self.command
+    }
+}
+
+impl Display for SavedKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, " ID: {} | Key: {}", self.id, self.key)
     }
 }
 
@@ -195,17 +180,25 @@ impl SavedKey {
             key: key.to_string(),
         }
     }
+
+    pub fn get_id(&self) -> i32 {
+        self.id
+    }
+
     pub fn is_key(&self, key: &str) -> bool {
         self.key == key
     }
+
     pub fn to_json(&self) -> Result<String> {
         Ok(serde_json::to_string(&self).expect("Failed to serialize"))
     }
+
     pub fn from_json(json: &str) -> Result<Self> {
         Ok(serde_json::from_str(json).expect("Failed to deserialize"))
     }
-    //TODO: implement encryption
 
+    //TODO: implement actual encryption
+    //
     // pub fn encrypt(&self, key: &str) -> Result<String> {
     //     let mut encrypted = encrypt(key, self.key.as_str())?;
     //     encrypted.push_str("\n");

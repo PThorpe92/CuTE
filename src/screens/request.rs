@@ -1,13 +1,12 @@
+use super::render::handle_screen_defaults;
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
-use crate::request::cmdtype::CmdType;
+use crate::request::command::CmdType;
 use crate::screens::error_alert_box;
 use crate::screens::screen::Screen;
 use tui::backend::Backend;
 use tui::Frame;
-
-use super::render::handle_screen_defaults;
 
 pub fn handle_request_menu_screen<B: Backend>(
     app: &mut App,
@@ -30,27 +29,15 @@ pub fn handle_request_menu_screen<B: Backend>(
         // Headers
         Some(4) => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
         // Verbose
-        Some(5) => {
-            app.add_app_option(AppOptions::Verbose);
-            app.selected = None;
-        }
+        Some(5) => app.add_app_option(AppOptions::Verbose),
         // Enable headers in response
         Some(6) => app.add_app_option(AppOptions::EnableHeaders),
         // Request Body
-        Some(7) => {
-            app.goto_screen(Screen::InputMenu(InputOpt::RequestBody));
-            app.selected = None;
-        }
+        Some(7) => app.goto_screen(Screen::InputMenu(InputOpt::RequestBody)),
         // Save this command
-        Some(8) => {
-            app.add_app_option(AppOptions::SaveCommand);
-            app.selected = None;
-        }
+        Some(8) => app.add_app_option(AppOptions::SaveCommand),
         // Save your token or login
-        Some(9) => {
-            app.add_app_option(AppOptions::SaveToken);
-            app.selected = None;
-        }
+        Some(9) => app.add_app_option(AppOptions::SaveToken),
         // Execute command
         Some(10) => match app.execute_command() {
             Ok(()) => {
@@ -65,11 +52,7 @@ pub fn handle_request_menu_screen<B: Backend>(
         // more options
         Some(11) => app.goto_screen(Screen::MoreFlags),
         // clear options
-        Some(12) => {
-            app.remove_all_app_options();
-            app.messages.clear();
-            app.goto_screen(Screen::Method);
-        }
+        Some(12) => app.remove_all_app_options(),
         _ => {}
     }
 }

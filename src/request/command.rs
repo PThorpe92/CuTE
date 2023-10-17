@@ -3,12 +3,27 @@ use super::{
     wget::Wget,
 };
 use crate::database::db::DB;
+use std::fmt::{Display, Error, Formatter};
 
 pub enum Cmd<'a> {
     Curl(Curl<'a>),
     Wget(Wget),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum CmdType {
+    Curl,
+    Wget,
+}
+
+impl Display for CmdType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        match self {
+            CmdType::Curl => write!(f, "HTTP Request"),
+            CmdType::Wget => write!(f, "Download"),
+        }
+    }
+}
 pub trait CMD: CurlOpts + CmdOpts {}
 
 impl<'a> CMD for Cmd<'a> {}
@@ -21,9 +36,8 @@ impl<'a> CmdOpts for Cmd<'a> {
         }
     }
     fn add_basic_auth(&mut self, info: &str) {
-        match self {
-            Cmd::Curl(curl) => curl.add_basic_auth(info),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.add_basic_auth(info);
         }
     }
     fn get_url(&self) -> String {
@@ -69,172 +83,144 @@ impl<'a> CmdOpts for Cmd<'a> {
         }
     }
 }
-
 impl<'a> CurlOpts for Cmd<'a> {
     fn add_cookie(&mut self, cookie: String) {
-        match self {
-            Cmd::Curl(curl) => curl.add_cookie(cookie),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.add_cookie(cookie);
         }
     }
     fn set_upload_file(&mut self, file: &str) {
-        match self {
-            Cmd::Curl(curl) => curl.set_upload_file(file),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_upload_file(file);
         }
     }
     fn set_follow_redirects(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.set_follow_redirects(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_follow_redirects(opt);
         }
     }
     fn set_proxy_tunnel(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.set_proxy_tunnel(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_proxy_tunnel(opt);
         }
     }
     fn match_wildcard(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.match_wildcard(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.match_wildcard(opt);
         }
     }
     fn write_output(&mut self) -> Result<(), std::io::Error> {
-        match self {
-            Cmd::Curl(curl) => curl.write_output(),
-            _ => Ok(()),
+        if let Cmd::Curl(curl) = self {
+            curl.write_output()
+        } else {
+            Ok(())
         }
     }
     fn set_method(&mut self, method: String) {
-        match self {
-            Cmd::Curl(curl) => curl.set_method(method),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_method(method);
         }
     }
     fn set_auth(&mut self, auth: AuthKind) {
-        match self {
-            Cmd::Curl(curl) => curl.set_auth(auth),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_auth(auth);
         }
     }
     fn add_headers(&mut self, headers: String) {
-        match self {
-            Cmd::Curl(curl) => curl.add_headers(headers),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.add_headers(headers);
         }
     }
     fn enable_response_headers(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.enable_response_headers(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.enable_response_headers(opt);
         }
     }
     fn enable_progress_bar(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.enable_progress_bar(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.enable_progress_bar(opt);
         }
     }
     fn set_cert_info(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.set_cert_info(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_cert_info(opt);
         }
     }
     fn set_fail_on_error(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.set_fail_on_error(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_fail_on_error(opt);
         }
     }
     fn save_command(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.save_command(opt),
-            _ => {}
-        }
-    }
-    fn set_headers(&mut self, headers: Vec<String>) {
-        match self {
-            Cmd::Curl(curl) => curl.set_headers(headers),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.save_command(opt);
         }
     }
     fn set_verbose(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.set_verbose(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_verbose(opt);
         }
     }
     fn set_unix_socket(&mut self, socket: &str) {
-        match self {
-            Cmd::Curl(curl) => curl.set_unix_socket(socket),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_unix_socket(socket);
         }
     }
     fn save_token(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.save_token(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.save_token(opt);
         }
     }
     fn get_token(&self) -> Option<String> {
-        match self {
-            Cmd::Curl(curl) => curl.get_token(),
-            _ => None,
+        if let Cmd::Curl(curl) = self {
+            curl.get_token()
+        } else {
+            None
         }
     }
     fn remove_headers(&mut self, headers: String) {
-        match self {
-            Cmd::Curl(curl) => curl.remove_headers(headers),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.remove_headers(headers);
         }
     }
     fn will_save_command(&self) -> bool {
-        match self {
-            Cmd::Curl(curl) => curl.will_save_command(),
-            _ => false,
+        if let Cmd::Curl(curl) = self {
+            curl.will_save_command()
+        } else {
+            false
         }
     }
     fn set_tcp_keepalive(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.set_tcp_keepalive(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_tcp_keepalive(opt);
         }
     }
     fn set_unrestricted_auth(&mut self, opt: bool) {
-        match self {
-            Cmd::Curl(curl) => curl.set_unrestricted_auth(opt),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_unrestricted_auth(opt);
         }
     }
     fn set_referrer(&mut self, referrer: &str) {
-        match self {
-            Cmd::Curl(curl) => curl.set_referrer(referrer),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_referrer(referrer);
         }
     }
     fn set_max_redirects(&mut self, redirects: usize) {
-        match self {
-            Cmd::Curl(curl) => curl.set_max_redirects(redirects),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_max_redirects(redirects);
         }
     }
     fn set_ca_path(&mut self, path: &str) {
-        match self {
-            Cmd::Curl(curl) => curl.set_ca_path(path),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_ca_path(path);
         }
     }
     fn set_user_agent(&mut self, ua: &str) {
-        match self {
-            Cmd::Curl(curl) => curl.set_user_agent(ua),
-            _ => {}
+        if let Cmd::Curl(curl) = self {
+            curl.set_user_agent(ua);
         }
     }
 }
-
 pub trait CmdOpts {
     fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String>;
     fn add_basic_auth(&mut self, info: &str);
@@ -246,7 +232,6 @@ pub trait CmdOpts {
     fn set_response(&mut self, response: &str);
     fn get_command_string(&mut self) -> String;
 }
-
 pub trait CurlOpts {
     fn set_upload_file(&mut self, file: &str);
     fn add_cookie(&mut self, cookie: String);
@@ -262,7 +247,6 @@ pub trait CurlOpts {
     fn set_cert_info(&mut self, opt: bool);
     fn set_fail_on_error(&mut self, opt: bool);
     fn save_command(&mut self, opt: bool);
-    fn set_headers(&mut self, headers: Vec<String>);
     fn set_verbose(&mut self, opt: bool);
     fn set_unix_socket(&mut self, socket: &str);
     fn save_token(&mut self, opt: bool);
