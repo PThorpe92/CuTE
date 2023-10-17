@@ -132,7 +132,7 @@ impl<'a> App<'a> {
     pub fn go_back_screen(&mut self) {
         self.screen_stack.pop(); // current screen
         match self.screen_stack.last() {
-            Some(Screen::InputMenu(_)) => self.go_back_screen(),
+            Some(Screen::InputMenu(_)) | Some(Screen::AlertMenu(_)) => self.go_back_screen(),
             // is that recursion in prod????? o_0
             Some(screen) if screen == &self.current_screen => self.go_back_screen(),
             Some(screen) => {
@@ -233,19 +233,18 @@ impl<'a> App<'a> {
         self.response.as_ref().unwrap().as_str()
     }
 
-    pub fn delete_saved_command(&self, ind: usize) {
-        let saved_commands = self.get_saved_commands().unwrap();
-        let cmd = saved_commands.get(ind).unwrap();
-        if self.db.as_ref().delete_command(cmd.get_id()).is_ok() {}
+    pub fn delete_saved_command(&mut self, ind: i32) {
+        if let Err(e) = self.db.as_mut().delete_command(ind) {
+            println!("Error: {}", e);
+        }
+        self.goto_screen(Screen::SavedCommands);
     }
 
-    pub fn delete_saved_key(&self, index: usize) {
-        let saved_keys = self.get_saved_keys().unwrap();
-        let key = saved_keys.get(index).unwrap();
-        self.db.as_ref().delete_key(key.get_id()).unwrap();
+    pub fn delete_saved_key(&self, index: i32) {
+        self.db.as_ref().delete_key(index).unwrap();
     }
 
-    pub fn delete_item(&mut self, ind: usize) {
+    pub fn delete_item(&mut self, ind: i32) {
         match self.current_screen {
             Screen::SavedCommands => self.delete_saved_command(ind),
             Screen::SavedKeys => self.delete_saved_key(ind),

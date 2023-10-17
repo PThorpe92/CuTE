@@ -64,7 +64,7 @@ impl DB {
     }
 
     pub fn delete_command(&self, id: i32) -> Result<(), rusqlite::Error> {
-        let mut stmt = self.conn.prepare("DELETE FROM commands WHERE id = ?1")?;
+        let mut stmt = self.conn.prepare("DELETE FROM commands WHERE id = ?")?;
         stmt.execute(params![id])?;
         Ok(())
     }

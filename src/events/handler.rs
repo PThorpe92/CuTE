@@ -54,11 +54,6 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                         KeyCode::Char('b') => {
                             app.go_back_screen();
                         }
-                        KeyCode::Char('x') => {
-                            if !app.items.is_empty() {
-                                app.delete_item(app.cursor);
-                            }
-                        }
                         _ => {}
                     }
                 }

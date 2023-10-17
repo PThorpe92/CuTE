@@ -223,9 +223,8 @@ fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) 
             .as_ref(),
         )
         .split(frame.size());
-
     let message = Paragraph::new(prompt);
-    frame.render_widget(message, chunks[0]);
+    frame.render_widget(message, chunks[2]);
 }
 
 fn parse_auth(auth: AuthType, app: &mut App, message: &str) {

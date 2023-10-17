@@ -48,10 +48,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         .add_modifier(tui::style::Modifier::BOLD),
                 )
                 .alignment(Alignment::Center);
-            frame.render_widget(
-                logo,
-                small_rect(frame.size()).intersection(default_rect(frame.size())),
-            );
+            frame.render_widget(logo, small_rect(frame.size()));
         } else if app.current_screen == Screen::SavedCommands
             || app.current_screen == Screen::SavedKeys
         {
@@ -87,7 +84,13 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         let area = small_rect(frame.size());
         let response = app.response.clone().unwrap();
         let paragraph = Paragraph::new(Text::from(response.as_str()))
-            .style(Style::default().fg(Color::Yellow).bg(Color::Black))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Double)
+                    .border_style(Style::new().bold()),
+            )
+            .style(Style::default().fg(Color::Green).bg(Color::Black))
             .alignment(Alignment::Center);
         frame.render_widget(paragraph, area);
     }
@@ -215,7 +218,7 @@ pub fn render_header_paragraph(para: &'static str, title: &'static str) -> Parag
                 .title(title)
                 .title_alignment(Alignment::Center)
                 .borders(Borders::ALL)
-                .border_type(BorderType::Rounded),
+                .border_type(BorderType::Double),
         )
         .style(Style::default().fg(Color::Cyan).bg(Color::Black))
         .alignment(Alignment::Center)

@@ -10,6 +10,7 @@ use tui::Frame;
 
 pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     handle_screen_defaults(app, frame);
+    // if we select a command, open options
     if let Some(cmd) = app.selected {
         app.goto_screen(Screen::AlertMenu(cmd));
     }
@@ -20,20 +21,21 @@ pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cm
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length(13),     // This will be the alert box
-                Constraint::Percentage(65), // This aligns the main screen perfectly with the bottom
-                Constraint::Percentage(22),
+                Constraint::Percentage(25),
+                Constraint::Percentage(50),
+                Constraint::Percentage(25),
             ]
             .as_ref(),
         )
+        .horizontal_margin(5)
         .split(frame.size());
     // Render the alert box
-    let alert_box = layout[0];
+    let alert_box = layout[1];
     let alert_text_chunk = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().bg(Color::Red).fg(Color::White))
+        .style(Style::default().bg(Color::Black).fg(Color::LightGreen))
         .title("Alert");
-    let options_box = layout[0].inner(&Margin {
+    let options_box = layout[1].inner(&Margin {
         vertical: 1,
         horizontal: 1,
     });
@@ -57,8 +59,8 @@ pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cm
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
     let show_cmds = app.get_saved_commands().unwrap();
-    let get = show_cmds.get(cmd).unwrap().clone();
-    let paragraph = Paragraph::new(format!("{:?}", get))
+    let selected = show_cmds.get(cmd).unwrap().clone();
+    let paragraph = Paragraph::new(format!("{:?}", selected.get_command()))
         .block(Block::default().borders(Borders::ALL).title("Command"))
         .alignment(tui::layout::Alignment::Center);
     frame.render_widget(paragraph, cmd_str);
@@ -70,7 +72,10 @@ pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cm
             app.execute_saved_command(cmd);
             app.goto_screen(Screen::Response(app.response.clone().unwrap()));
         }
-        Some(1) => app.delete_item(cmd),
+        // delete item
+        Some(1) => {
+            app.delete_item(selected.get_id());
+        }
         // copy to clipboard
         Some(2) => {
             if let Err(e) = app.copy_cmd_to_clipboard(cmd) {
@@ -78,6 +83,7 @@ pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cm
             }
             app.goto_screen(Screen::Success);
         }
+        // cancel
         Some(3) => {
             app.goto_screen(Screen::SavedCommands);
         }
