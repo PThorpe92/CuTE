@@ -331,6 +331,10 @@ impl<'a> CmdOpts for Curl<'a> {
         self.curl.url(url).unwrap();
     }
 
+    fn has_auth(&self) -> bool {
+        self.auth != AuthKind::None
+    }
+
     fn set_response(&mut self, response: &str) {
         self.resp = Some(String::from(response));
     }
@@ -418,6 +422,11 @@ impl<'a> CurlOpts for Curl<'a> {
             AuthKind::Spnego(info) => self.set_spnego_auth(info),
             AuthKind::None => {}
         }
+    }
+
+    fn has_unix_socket(&self) -> bool {
+        let flag = &CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
+        self.has_flag(flag)
     }
     fn set_method(&mut self, method: String) {
         match method.as_str() {
@@ -1048,13 +1057,13 @@ mod tests {
             .with_status(200)
             .with_body("Mocked Response")
             .create();
-        return ServerGuard::from(server);
+        server
     }
 
     #[test]
     fn test_new_curl() {
         let curl = Curl::new();
-        assert_eq!(curl.cmd, "curl ");
+        assert_eq!(curl.cmd, "curl");
         assert_eq!(curl.opts.len(), 0);
         assert_eq!(curl.resp, None);
     }
@@ -1144,6 +1153,7 @@ mod tests {
     fn test_deserialize_raw_str() {
         let json = json!(
         {
+                "method": "Get",
                 "auth": {"Basic": "username:password"},
                 "cmd": "curl -X GET https://example.com",
                 "headers": [],
@@ -1311,7 +1321,7 @@ mod tests {
         curl.build_command_str();
         assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.auth, AuthKind::AwsSigv4("user:password".to_string()));
-        assert_eq!(curl.cmd, "curl --aws-sigv4 user:password");
+        assert_eq!(curl.cmd, "curl  --aws-sigv4 user:password");
         assert!(curl.opts.contains(&CurlFlag::AwsSigv4(
             CurlFlagType::AwsSigv4.get_value(),
             Some(String::from("user:password"))

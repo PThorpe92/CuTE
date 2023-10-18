@@ -27,6 +27,8 @@ pub mod tui;
 
 pub mod render;
 
+pub mod saved_keys;
+
 use ::tui::prelude::{Backend, Constraint, Direction, Frame, Layout, Rect};
 use ::tui::prelude::{Color, Text};
 use ::tui::style::Style;

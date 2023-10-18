@@ -6,9 +6,9 @@ use std::fmt::{Display, Formatter};
 
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    ALERT_MENU_OPTIONS_CMD, AUTHENTICATION_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, MAIN_MENU_OPTIONS,
-    METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE, OPTION_PADDING_MAX, OPTION_PADDING_MID,
-    OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
+    AUTHENTICATION_MENU_OPTIONS, CMD_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, KEY_MENU_OPTIONS,
+    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE, OPTION_PADDING_MAX,
+    OPTION_PADDING_MID, OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
 };
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
@@ -30,7 +30,8 @@ pub enum Screen {
     Error(String),
     ViewBody,
     MoreFlags,
-    AlertMenu(usize),
+    CmdMenu(usize),
+    KeysMenu(usize),
 }
 
 impl Display for Screen {
@@ -50,7 +51,8 @@ impl Display for Screen {
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
             Screen::MoreFlags => "MoreFlags",
-            Screen::AlertMenu(_) => "AlertMenu",
+            Screen::CmdMenu(_) => "CmdMenu",
+            Screen::KeysMenu(_) => "KeysMenu",
         };
         write!(f, "{}", screen)
     }
@@ -133,7 +135,7 @@ impl<'a> Screen {
             Screen::ViewBody => {
                 vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
             }
-            Screen::AlertMenu(_) => ALERT_MENU_OPTIONS_CMD
+            Screen::CmdMenu(_) => CMD_MENU_OPTIONS
                 .iter()
                 .map(|i| ListItem::new(format!("{i}{}", NEWLINE)))
                 .collect(),
@@ -156,6 +158,10 @@ impl<'a> Screen {
                     .map(|c| ListItem::new(format!("{}{}", c, determine_line_size(len))))
                     .collect();
             }
+            Screen::KeysMenu(_) => KEY_MENU_OPTIONS
+                .iter()
+                .map(|i| ListItem::new(format!("{}{}", i, NEWLINE)))
+                .collect(),
             Screen::MoreFlags => {
                 let len = MORE_FLAGS_MENU.len();
                 return MORE_FLAGS_MENU

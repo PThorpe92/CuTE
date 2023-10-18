@@ -40,6 +40,15 @@ impl<'a> CmdOpts for Cmd<'a> {
             curl.add_basic_auth(info);
         }
     }
+
+    fn has_auth(&self) -> bool {
+        if let Cmd::Curl(curl) = self {
+            curl.has_auth()
+        } else {
+            false
+        }
+    }
+
     fn get_url(&self) -> String {
         match self {
             Cmd::Curl(curl) => curl.get_url(),
@@ -83,10 +92,18 @@ impl<'a> CmdOpts for Cmd<'a> {
         }
     }
 }
+
 impl<'a> CurlOpts for Cmd<'a> {
     fn add_cookie(&mut self, cookie: String) {
         if let Cmd::Curl(curl) = self {
             curl.add_cookie(cookie);
+        }
+    }
+    fn has_unix_socket(&self) -> bool {
+        if let Cmd::Curl(curl) = self {
+            curl.has_unix_socket()
+        } else {
+            false
         }
     }
     fn set_upload_file(&mut self, file: &str) {
@@ -231,6 +248,7 @@ pub trait CmdOpts {
     fn set_url(&mut self, url: &str);
     fn set_response(&mut self, response: &str);
     fn get_command_string(&mut self) -> String;
+    fn has_auth(&self) -> bool;
 }
 pub trait CurlOpts {
     fn set_upload_file(&mut self, file: &str);
@@ -247,6 +265,7 @@ pub trait CurlOpts {
     fn set_cert_info(&mut self, opt: bool);
     fn set_fail_on_error(&mut self, opt: bool);
     fn save_command(&mut self, opt: bool);
+    fn has_unix_socket(&self) -> bool;
     fn set_verbose(&mut self, opt: bool);
     fn set_unix_socket(&mut self, socket: &str);
     fn save_token(&mut self, opt: bool);
