@@ -6,6 +6,8 @@ use tui::Frame;
 use super::render::handle_screen_defaults;
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
+use crate::display::menuopts::{AWS_AUTH_ERROR_MSG, AWS_AUTH_MSG};
+use crate::display::AppOptions;
 use crate::screens::screen::Screen;
 
 // This is the display auth not to be confused with the request auth
@@ -45,11 +47,28 @@ pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame
             0 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::Basic))),
             1 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::Bearer))),
             2 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::Digest))),
-            3 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::AWSSignatureV4))),
+            3 => {
+                if varify_aws_auth() {
+                    app.goto_screen(Screen::RequestMenu(String::from(AWS_AUTH_MSG)));
+                    app.add_app_option(AppOptions::Auth("AWS SignatureV4 Auth".to_string()));
+                } else {
+                    app.goto_screen(Screen::RequestMenu(String::from(AWS_AUTH_ERROR_MSG)));
+                }
+            }
             4 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::SPNEGO))),
             5 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::Kerberos))),
             6 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::NTLM))),
             _ => {}
         }
     }
+}
+
+fn varify_aws_auth() -> bool {
+    if std::env::var("AWS_ACCESS_KEY_ID").is_ok()
+        && std::env::var("AWS_SECRET_ACCESS_KEY").is_ok()
+        && std::env::var("AWS_DEFAULT_REGION").is_ok()
+    {
+        return true;
+    }
+    false
 }

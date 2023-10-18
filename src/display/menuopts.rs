@@ -14,6 +14,12 @@ pub const API_KEY_PARAGRAPH: &str =
 pub const HTTP_REQUEST: &str = "HTTP Request";
 pub const DEFAULT_MENU_PARAGRAPH: &str =
     "\nPress q to exit \n Press Enter to select \n Please select a Menu item\n keybindings to navigate";
+pub const AWS_AUTH_MSG: &str =
+    "Alert: AWS Signature V4 Authentication is using the following ENV VARs:
+    \nAWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION";
+pub const AWS_AUTH_ERROR_MSG: &str =
+    "Error: AWS Signature V4 Authentication requires the following ENV VARs:
+    \nAWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION";
 pub const API_KEY_TITLE: &str = "My API Keys";
 pub const METHOD_MENU_TITLE: &str = "** CuTE ** Choose a Method";
 pub const SAVED_COMMANDS_TITLE: &str = "My Saved cURL Commands";

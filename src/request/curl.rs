@@ -245,7 +245,7 @@ pub enum AuthKind {
     Basic(String),
     Bearer(String),
     Digest(String),
-    AwsSigv4(String),
+    AwsSigv4,
     Spnego(String),
     NtlmWb(String),
     Kerberos(String),
@@ -257,7 +257,6 @@ impl AuthKind {
             AuthKind::Bearer(token) => Some(token.clone()),
             AuthKind::Basic(login) => Some(login.clone()),
             AuthKind::Digest(login) => Some(login.clone()),
-            AuthKind::AwsSigv4(login) => Some(login.clone()),
             AuthKind::Spnego(login) => Some(login.clone()),
             AuthKind::Ntlm(login) => Some(login.clone()),
             AuthKind::NtlmWb(login) => Some(login.clone()),
@@ -266,18 +265,18 @@ impl AuthKind {
         }
     }
 }
-
+#[rustfmt::skip]
 impl Display for AuthKind {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             AuthKind::None => write!(f, "None"),
-            AuthKind::Ntlm(login) => write!(f, "NTLM: {}", login),
-            AuthKind::Basic(login) => write!(f, "Basic: {}", login),
-            AuthKind::Bearer(token) => write!(f, "Bearer: {}", token),
-            AuthKind::Digest(login) => write!(f, "Digest: {}", login),
-            AuthKind::AwsSigv4(login) => write!(f, "AWS SignatureV4: {}", login),
-            AuthKind::Spnego(login) => write!(f, "SPNEGO: {}", login),
-            AuthKind::NtlmWb(login) => write!(f, "NTLM WB: {}", login),
+            AuthKind::Ntlm(login)     => write!(f, "NTLM: {}", login),
+            AuthKind::Basic(login)    => write!(f, "Basic: {}", login),
+            AuthKind::Bearer(token)   => write!(f, "Bearer: {}", token),
+            AuthKind::Digest(login)   => write!(f, "Digest: {}", login),
+            AuthKind::AwsSigv4        => write!(f, "AWS SignatureV4"),
+            AuthKind::Spnego(login)   => write!(f, "SPNEGO: {}", login),
+            AuthKind::NtlmWb(login)   => write!(f, "NTLM WB: {}", login),
             AuthKind::Kerberos(login) => write!(f, "Kerberos: {}", login),
         }
     }
@@ -415,7 +414,7 @@ impl<'a> CurlOpts for Curl<'a> {
             AuthKind::Basic(info) => self.set_basic_auth(info),
             AuthKind::Ntlm(info) => self.set_ntlm_auth(&info),
             AuthKind::Bearer(token) => self.set_bearer_auth(token),
-            AuthKind::AwsSigv4(login) => self.set_aws_sigv4_auth(login),
+            AuthKind::AwsSigv4 => self.set_aws_sigv4_auth(),
             AuthKind::Digest(login) => self.set_digest_auth(&login),
             AuthKind::Kerberos(info) => self.set_kerberos_auth(&info),
             AuthKind::NtlmWb(info) => self.set_ntlm_wb_auth(&info),
@@ -686,9 +685,7 @@ impl<'a> Curl<'a> {
                     }
                 }
                 CurlFlag::AwsSigv4(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_aws_sigv4_auth(val);
-                    }
+                    self.set_aws_sigv4_auth();
                 }
                 CurlFlag::UnixSocket(..) => {
                     if let Some(val) = opt.get_arg() {
@@ -782,12 +779,9 @@ impl<'a> Curl<'a> {
         self.auth = AuthKind::Digest(info.to_string());
     }
 
-    pub fn set_aws_sigv4_auth(&mut self, login: String) {
-        self.add_flag(CurlFlag::AwsSigv4(
-            CurlFlagType::AwsSigv4.get_value(),
-            Some(login.clone()),
-        ));
-        self.auth = AuthKind::AwsSigv4(login);
+    pub fn set_aws_sigv4_auth(&mut self) {
+        self.add_flag(CurlFlag::AwsSigv4(CurlFlagType::AwsSigv4.get_value(), None));
+        self.auth = AuthKind::AwsSigv4;
     }
 
     pub fn set_spnego_auth(&mut self, login: String) {
@@ -934,8 +928,7 @@ impl<'a> Curl<'a> {
                 self.curl.username(login).unwrap();
                 let _ = self.curl.http_auth(Auth::new().gssnegotiate(true));
             }
-            AuthKind::AwsSigv4(login) => {
-                self.curl.username(login).unwrap();
+            AuthKind::AwsSigv4 => {
                 let _ = self.curl.http_auth(Auth::new().aws_sigv4(true));
             }
             _ => {}
@@ -1317,14 +1310,14 @@ mod tests {
     #[test]
     fn test_set_aws_sigv4_auth() {
         let mut curl = Curl::new();
-        curl.set_aws_sigv4_auth("user:password".to_string());
+        curl.set_aws_sigv4_auth();
         curl.build_command_str();
         assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.auth, AuthKind::AwsSigv4("user:password".to_string()));
-        assert_eq!(curl.cmd, "curl  --aws-sigv4 user:password");
+        assert_eq!(curl.auth, AuthKind::AwsSigv4);
+        assert_eq!(curl.cmd, "curl  --aws-sigv4");
         assert!(curl.opts.contains(&CurlFlag::AwsSigv4(
             CurlFlagType::AwsSigv4.get_value(),
-            Some(String::from("user:password"))
+            None
         )));
     }
 

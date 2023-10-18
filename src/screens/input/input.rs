@@ -255,7 +255,7 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
         AuthType::Digest => AuthKind::Digest(String::from(message)),
-        AuthType::AWSSignatureV4 => AuthKind::AwsSigv4(String::from(message)),
+        AuthType::AWSSignatureV4 => AuthKind::AwsSigv4,
         AuthType::SPNEGO => AuthKind::Spnego(String::from(message)),
         AuthType::Kerberos => AuthKind::Kerberos(String::from(message)),
         AuthType::NTLM => AuthKind::Ntlm(String::from(message)),

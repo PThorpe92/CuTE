@@ -152,7 +152,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         //
         // REQUEST MENU *********************************************************
         Screen::RequestMenu(e) => {
-            if is_error(&e) {
+            if is_prompt(&e) {
                 handle_request_menu_screen(app, frame, e);
             } else {
                 handle_request_menu_screen(app, frame, "".to_string());
@@ -193,8 +193,8 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
     }
 }
 
-fn is_error(e: &str) -> bool {
-    e.to_lowercase().contains("error")
+fn is_prompt(e: &str) -> bool {
+    e.to_lowercase().contains("error") || e.to_lowercase().contains("alert")
 }
 
 fn handle_display_options(opts: &[AppOptions]) -> Vec<Line> {
