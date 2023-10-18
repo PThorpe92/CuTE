@@ -88,10 +88,12 @@ impl<'a> App<'a> {
     pub fn tick(&self) {}
 
     pub fn redraw(&mut self) {
-        let selected = (self.selected, self.cursor);
-        self.goto_screen(self.current_screen.clone());
-        self.state.as_mut().unwrap().select(selected.0);
-        self.cursor = selected.1;
+        if self.selected.is_some() {
+            let selected = (self.selected, self.cursor);
+            self.goto_screen(self.current_screen.clone());
+            self.state.as_mut().unwrap().select(selected.0);
+            self.cursor = selected.1;
+        }
     }
 
     pub fn goto_screen(&mut self, screen: Screen) {
@@ -105,7 +107,7 @@ impl<'a> App<'a> {
                     .get_saved_keys()
                     .unwrap_or_default()
                     .iter()
-                    .map(|key| ListItem::new(format!("{:?}{:?}", key, OPTION_PADDING_MID)))
+                    .map(|key| ListItem::new(format!("{}{}", key, OPTION_PADDING_MID)))
                     .collect();
                 self.selected = None;
                 return;
@@ -132,7 +134,9 @@ impl<'a> App<'a> {
     pub fn go_back_screen(&mut self) {
         self.screen_stack.pop(); // current screen
         match self.screen_stack.last() {
-            Some(Screen::InputMenu(_)) | Some(Screen::AlertMenu(_)) => self.go_back_screen(),
+            Some(Screen::InputMenu(_)) | Some(Screen::CmdMenu(_)) | Some(Screen::KeysMenu(_)) => {
+                self.go_back_screen()
+            }
             // is that recursion in prod????? o_0
             Some(screen) if screen == &self.current_screen => self.go_back_screen(),
             Some(screen) => {
@@ -218,11 +222,8 @@ impl<'a> App<'a> {
         self.goto_screen(Screen::Response(self.response.clone().unwrap()));
     }
 
-    pub fn copy_cmd_to_clipboard(&self, index: usize) -> Result<(), String> {
-        let saved_commands = self.get_saved_commands().unwrap();
-        let cmd = saved_commands.get(index).unwrap();
-        println!("{cmd}");
-        if terminal_clipboard::set_string(cmd.get_command()).is_ok() {
+    pub fn copy_to_clipboard(&self, opt: &str) -> Result<(), String> {
+        if terminal_clipboard::set_string(opt).is_ok() {
             Ok(())
         } else {
             Err(String::from("Failed to copy to clipboard"))
@@ -233,22 +234,35 @@ impl<'a> App<'a> {
         self.response.as_ref().unwrap().as_str()
     }
 
-    pub fn delete_saved_command(&mut self, ind: i32) {
-        if let Err(e) = self.db.as_mut().delete_command(ind) {
-            println!("Error: {}", e);
-        }
+    pub fn delete_saved_command(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
+        self.db.as_mut().delete_command(ind)?;
         self.goto_screen(Screen::SavedCommands);
+        Ok(())
     }
 
-    pub fn delete_saved_key(&self, index: i32) {
-        self.db.as_ref().delete_key(index).unwrap();
+    pub fn has_auth(&self) -> bool {
+        self.command.as_ref().unwrap().has_auth()
     }
 
-    pub fn delete_item(&mut self, ind: i32) {
+    pub fn has_unix_socket(&self) -> bool {
+        self.command.as_ref().unwrap().has_unix_socket()
+    }
+
+    pub fn has_url(&self) -> bool {
+        !self.command.as_ref().unwrap().get_url().is_empty()
+    }
+
+    pub fn delete_saved_key(&mut self, index: i32) -> Result<(), rusqlite::Error> {
+        self.db.as_ref().delete_key(index)?;
+        self.goto_screen(Screen::SavedKeys);
+        Ok(())
+    }
+
+    pub fn delete_item(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
         match self.current_screen {
-            Screen::SavedCommands => self.delete_saved_command(ind),
-            Screen::SavedKeys => self.delete_saved_key(ind),
-            _ => {}
+            Screen::CmdMenu(_) => self.delete_saved_command(ind),
+            Screen::KeysMenu(_) => self.delete_saved_key(ind),
+            _ => Ok(()),
         }
     }
 #[rustfmt::skip]

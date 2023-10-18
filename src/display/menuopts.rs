@@ -3,16 +3,23 @@
  */
 use lazy_static::lazy_static;
 
-pub const SAVED_COMMANDS_PARAGRAPH: &str = "\nPress q to exit\nPress Enter to Execute command\nPress 'ESC' to go back\nPress 'x' to Delete\n";
+pub const SAVED_COMMANDS_PARAGRAPH: &str =
+    "\nPress q to exit\nPress Enter to Execute command\nPress 'ESC' or 'h' to go back\n";
 pub const CURL: &str = "curl";
 pub const WGET: &str = "wget";
 pub const CUSTOM: &str = "custom";
 pub const DOWNLOAD: &str = "Download";
 pub const API_KEY_PARAGRAPH: &str =
-    "Press q to quit\nPress Enter to select\nPress 'x' to delete an item\n";
+    "Press q to quit\nPress 'ESC' or 'h' to go back\nPress Enter for Menu\n";
 pub const HTTP_REQUEST: &str = "HTTP Request";
 pub const DEFAULT_MENU_PARAGRAPH: &str =
     "\nPress q to exit \n Press Enter to select \n Please select a Menu item\n keybindings to navigate";
+pub const AWS_AUTH_MSG: &str =
+    "Alert: AWS Signature V4 Authentication is using the following ENV VARs:
+    \nAWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION";
+pub const AWS_AUTH_ERROR_MSG: &str =
+    "Error: AWS Signature V4 Authentication requires the following ENV VARs:
+    \nAWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION";
 pub const API_KEY_TITLE: &str = "My API Keys";
 pub const METHOD_MENU_TITLE: &str = "** CuTE ** Choose a Method";
 pub const SAVED_COMMANDS_TITLE: &str = "My Saved cURL Commands";
@@ -41,8 +48,8 @@ pub const NEWLINE: &str = "\n";
 #[rustfmt::skip]
 pub const CUTE_LOGO: &str =
 "    . . . . . . .  .  .  .  . . .    . .p  o  w .. e  r e  d.  . ..b.y ..
-     ***************` ......      ..., $$####################$`****************``l             *&%&*   *&%&*
-    %%%%%%%%%%%%%%%` #$%$#``|  #####``%%%%%%%%%%%%%%%%%%%%%% '%%%%%%%%%%%%%%%%``i   **       *&%&*   *&%&*
+     ``*`*`*`*``*``*` .uuuu.    uuuuu, ``*`*'*'*'*''*'`*`*`*`*`'*'*'`**`'*'*'*`*`l             *&%&*   *&%&*
+    $#$#$#$#$#$#$#$` $#$#$``|  #$#$#$''$#$#$#$#$#$#$#$#$#$#$ '#%#%#%#%#%#%#%##``i   **       *&%&*   *&%&*
      %%%%#``;;;;;;;`  %%%%#``|  %%%%#``| **`;; %%%%&*+`` **;;| %%%%%%`   %%%%%%``b  *%%*     *&%&*   *&%&*
      %%%%#``| *.      %%%%#``|  %%%%#``| ~   ` %%%%$*+`  ` .   %%%%%%`===#####``     **     *&%&*   *&%&*
      %%%%#``| `   ___ %%%%#``|  %%%%#``| _*_   %%%%$*+`   -*-  %%%%%%%%%%####``            *&%&*   *&%&*
@@ -88,9 +95,28 @@ pub const DISPLAY_OPT_COOKIE: &str = "  Add Cookie: ";
 pub const DISPLAY_OPT_USERAGENT: &str = "  Specify User-Agent: ";
 pub const DISPLAY_OPT_PROXY_TUNNEL: &str = "  Enable HTTP Proxy-Tunnel 󱠾 ";
 pub const DISPLAY_OPT_URL: &str = "  Request URL: ";
+pub const UPLOAD_FILEPATH_ERROR: &str =
+    "Error: Invalid file path. Please enter an absolute path or a valid relative path.";
+pub const SOCKET_ERROR: &str =
+    "Error: Invalid socket file path. Please use an absolute path or a valid relative path.";
+pub const PARSE_INT_ERROR: &str = "Error: Please enter a valid integer.";
+pub const CERT_ERROR: &str =
+    "Error: Invalid certificate file path. Please use an absolute path or a valid relative path.";
+pub const HEADER_ERROR: &str = "Error: Invalid header. Please use the format \"Key:Value\".";
+pub const SAVE_AUTH_ERROR: &str =
+    "Error: You must have selected Authentication in order to save your token";
+pub const VALID_COMMAND_ERROR: &str =
+    "Error: Invalid command.\n You must add either a URL or Unix Socket to execute a command";
+
 lazy_static! {
-    pub static ref ALERT_MENU_OPTIONS_CMD: [&'static str; 4] = [
+    pub static ref CMD_MENU_OPTIONS: [&'static str; 4] = [
         "Execute   ",
+        "Delete   ",
+        "Copy to Clipboard  󰅎 ",
+        "Cancel   ",
+    ];
+    pub static ref KEY_MENU_OPTIONS: [&'static str; 4] = [
+        "Add a new key  ",
         "Delete   ",
         "Copy to Clipboard  󰅎 ",
         "Cancel   ",
@@ -104,8 +130,8 @@ lazy_static! {
         "View or execute my saved commands  ",
     ];
     pub static ref REQUEST_MENU_OPTIONS: [&'static str; 13] = [
-        "Add a file for uploads",
         "Add a URL 󰖟 ",
+        "Add a file for uploads  ",
         "Add Unix Socket address 󰟩 ",
         "Add Authentication 󰯄 ",
         "Add Headers  ",

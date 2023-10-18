@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use std::fmt::Display;
+use std::{default, fmt::Display};
 
 // Purpose: Main library file for the application.
 // ********************************************************************
@@ -30,7 +30,7 @@ pub mod tui_cute;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     colors: Colors,
-    logo: Logo,
+    logo: Option<Logo>,
     db_path: Option<String>,
 }
 
@@ -41,8 +41,12 @@ impl Config {
     pub fn get_bg_color(&self) -> tui::style::Color {
         self.colors.get_bg()
     }
-    pub fn get_logo(&self) -> String {
-        self.logo.to_string()
+    pub fn get_logo(&self) -> &str {
+        if self.logo == Some(Logo::Default) {
+            CUTE_LOGO
+        } else {
+            ""
+        }
     }
     pub fn get_db_path(&self) -> String {
         self.db_path
@@ -65,7 +69,7 @@ impl Default for Config {
                 fg: ConfigColor::Cyan,
                 bg: ConfigColor::Gray,
             },
-            logo: Logo::Default,
+            logo: Some(Logo::Default),
             db_path: Some(String::from(
                 dirs::data_local_dir()
                     .expect("Failed to get local data directory")
@@ -78,8 +82,9 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Logo {
+    #[default]
     Default,
     None,
 }

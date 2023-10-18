@@ -110,6 +110,11 @@ impl CmdOpts for Wget {
     fn get_url(&self) -> String {
         self.url.clone()
     }
+
+    fn has_auth(&self) -> bool {
+        self.auth.is_some()
+    }
+
     fn set_outfile(&mut self, file: &str) {
         self.output = file.to_string();
     }
@@ -174,7 +179,7 @@ impl Wget {
         }
     }
 
-    fn has_url(&self) -> bool {
+    pub fn has_url(&self) -> bool {
         !self.url.is_empty()
     }
 

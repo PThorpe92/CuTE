@@ -14,6 +14,7 @@ use super::more_flags::handle_more_flags_screen;
 use super::request::handle_request_menu_screen;
 use super::response::handle_response_screen;
 use super::saved_commands::{handle_alert_menu, handle_saved_commands_screen};
+use super::saved_keys::{handle_key_menu, handle_saved_keys_screen};
 use crate::{app::App, display::menuopts::SAVED_COMMANDS_PARAGRAPH};
 use tui::style::Stylize;
 use tui::text::Line;
@@ -49,17 +50,6 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 )
                 .alignment(Alignment::Center);
             frame.render_widget(logo, small_rect(frame.size()));
-        } else if app.current_screen == Screen::SavedCommands
-            || app.current_screen == Screen::SavedKeys
-        {
-            let logo = Paragraph::new("Press 'x' to delete a saved item.")
-                .block(Block::default().border_type(BorderType::Rounded))
-                .style(
-                    Style::default()
-                        .fg(app.config.get_fg_color())
-                        .bg(app.config.get_bg_color()),
-                );
-            frame.render_widget(logo, small_rect(frame.size()));
         }
         let area = small_rect(frame.size());
         let opts = app.opts.clone();
@@ -75,7 +65,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                 )
                 .fg(app.config.get_fg_color())
                 .bg(app.config.get_bg_color())
-                .style(Style::default().on_gray())
+                .style(Style::default())
                 .alignment(Alignment::Left),
             area,
         );
@@ -104,6 +94,7 @@ pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
         Screen::SavedKeys => {
             items = Some(
                 app.get_saved_keys()
+                    .unwrap()
                     .into_iter()
                     .map(|x| format!("{:?}", x))
                     .collect::<Vec<String>>(),
@@ -161,7 +152,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         //
         // REQUEST MENU *********************************************************
         Screen::RequestMenu(e) => {
-            if is_error(&e) {
+            if is_prompt(&e) {
                 handle_request_menu_screen(app, frame, e);
             } else {
                 handle_request_menu_screen(app, frame, "".to_string());
@@ -192,17 +183,18 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             handle_more_flags_screen(app, frame);
         }
         Screen::SavedKeys => {
-            handle_screen_defaults(app, frame);
+            handle_saved_keys_screen(app, frame);
         }
-        Screen::AlertMenu(cmd) => {
+        Screen::CmdMenu(cmd) => {
             handle_alert_menu(app, frame, cmd);
         }
+        Screen::KeysMenu(cmd) => handle_key_menu(app, frame, cmd),
         _ => {}
     }
 }
 
-fn is_error(e: &str) -> bool {
-    e.to_lowercase().contains("error")
+fn is_prompt(e: &str) -> bool {
+    e.to_lowercase().contains("error") || e.to_lowercase().contains("alert")
 }
 
 fn handle_display_options(opts: &[AppOptions]) -> Vec<Line> {

@@ -65,7 +65,7 @@ impl DB {
 
     pub fn delete_command(&self, id: i32) -> Result<(), rusqlite::Error> {
         let mut stmt = self.conn.prepare("DELETE FROM commands WHERE id = ?")?;
-        stmt.execute(params![id])?;
+        stmt.execute([id])?;
         Ok(())
     }
 
@@ -104,8 +104,8 @@ impl DB {
     }
 
     pub fn delete_key(&self, id: i32) -> Result<()> {
-        let mut stmt = self.conn.prepare("DELETE FROM keys WHERE id = ?1")?;
-        stmt.execute(params![id])?;
+        let mut stmt = self.conn.prepare("DELETE FROM keys WHERE id = ?")?;
+        stmt.execute([id])?;
         Ok(())
     }
 
@@ -140,9 +140,6 @@ impl Display for SavedCommand {
     }
 }
 
-// TODO: we need to be getting the api key from the command and offering
-// to store it separately + link the two. (also encrypt the key?)
-// do we use OS keyring or maybe an ENV VAR?
 impl SavedCommand {
     // We nned to allow the user to write out the response to a file,
     // so at some point we may need to read it back in
@@ -183,6 +180,9 @@ impl SavedKey {
 
     pub fn get_id(&self) -> i32 {
         self.id
+    }
+    pub fn get_key(&self) -> &str {
+        &self.key
     }
 
     pub fn is_key(&self, key: &str) -> bool {

@@ -1,7 +1,8 @@
 use crate::app::App;
 use crate::display::menuopts::{
-    INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER, INPUT_OPT_BASIC,
-    INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD,
+    CERT_ERROR, HEADER_ERROR, INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER,
+    INPUT_OPT_BASIC, INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD, PARSE_INT_ERROR, SOCKET_ERROR,
+    UPLOAD_FILEPATH_ERROR,
 };
 use crate::display::AppOptions;
 use crate::request::command::CmdType;
@@ -64,7 +65,7 @@ pub fn handle_default_input_screen<B: Backend>(
                 Span::styled("Press i", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw("to start editing."),
             ],
-            Style::default().add_modifier(Modifier::RAPID_BLINK),
+            Style::default(),
         ),
         InputMode::Editing => (
             vec![
@@ -109,7 +110,6 @@ pub fn handle_default_input_screen<B: Backend>(
 
 fn is_valid_unix_socket_path(path: &str) -> Result<(), String> {
     let path = Path::new(path);
-
     if path.is_absolute() || path.starts_with("~") {
         // Ensure it's a Unix socket file (ends with `.sock` or has no extension)
         if let Some(file_name) = path.file_name() {
@@ -119,12 +119,9 @@ fn is_valid_unix_socket_path(path: &str) -> Result<(), String> {
                 }
             }
         }
-        Err(
-            "Error: Invalid socket file path. Please use an absolute path or a valid relative path."
-                .to_string(),
-        )
+        Err(SOCKET_ERROR.to_string())
     } else {
-        Err("Error: Path must be absolute or start with ~ (for home directory) and point to a valid socket file.".to_string())
+        Err(SOCKET_ERROR.to_string())
     }
 }
 
@@ -155,8 +152,12 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             }
         }
         InputOpt::Headers => {
-            app.add_app_option(AppOptions::Headers(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            if !validate_key_val(&message) {
+                app.goto_screen(Screen::RequestMenu(String::from(HEADER_ERROR)));
+            } else {
+                app.add_app_option(AppOptions::Headers(message.clone()));
+                app.goto_screen(Screen::RequestMenu(String::new()));
+            }
         }
         // Only downloads let you specify the output file prior to execution of the command
         InputOpt::Output => {
@@ -172,19 +173,29 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::CaPath => {
-            app.add_app_option(AppOptions::CaPath(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            if !validate_path(&message) {
+                app.goto_screen(Screen::RequestMenu(String::from(CERT_ERROR)));
+            } else {
+                app.add_app_option(AppOptions::CaPath(message.clone()));
+                app.goto_screen(Screen::RequestMenu(String::new()));
+            }
         }
         InputOpt::UserAgent => {
             app.add_app_option(AppOptions::UserAgent(message.clone()));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::MaxRedirects => {
-            let num = message.parse::<usize>().unwrap();
-            app.add_app_option(AppOptions::MaxRedirects(num));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            if let Ok(num) = message.parse::<usize>() {
+                app.add_app_option(AppOptions::MaxRedirects(num));
+                app.goto_screen(Screen::RequestMenu(String::new()));
+            } else {
+                app.goto_screen(Screen::RequestMenu(String::from(PARSE_INT_ERROR)));
+            }
         }
         InputOpt::UploadFile => {
+            if !validate_path(&message) {
+                app.goto_screen(Screen::RequestMenu(String::from(UPLOAD_FILEPATH_ERROR)));
+            }
             app.add_app_option(AppOptions::UploadFile(message));
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
@@ -224,7 +235,16 @@ fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) 
         )
         .split(frame.size());
     let message = Paragraph::new(prompt);
-    frame.render_widget(message, chunks[2]);
+    frame.render_widget(message, chunks[0]);
+}
+
+fn validate_key_val(key_val: &str) -> bool {
+    let split = key_val.split(':');
+    split.count() > 1
+}
+
+fn validate_path(path: &str) -> bool {
+    Path::new(path).exists()
 }
 
 fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
@@ -235,7 +255,7 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
         AuthType::Digest => AuthKind::Digest(String::from(message)),
-        AuthType::AWSSignatureV4 => AuthKind::AwsSigv4(String::from(message)),
+        AuthType::AWSSignatureV4 => AuthKind::AwsSigv4,
         AuthType::SPNEGO => AuthKind::Spnego(String::from(message)),
         AuthType::Kerberos => AuthKind::Kerberos(String::from(message)),
         AuthType::NTLM => AuthKind::Ntlm(String::from(message)),
