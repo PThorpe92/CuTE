@@ -5,7 +5,6 @@ use crate::request::command::{CmdOpts, CMD};
 use crate::request::curl::Curl;
 use crate::screens::screen::Screen;
 use crate::Config;
-use dirs::config_dir;
 use std::io::{BufWriter, Write};
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
@@ -54,12 +53,8 @@ pub struct App<'a> {
 
 impl<'a> Default for App<'a> {
     fn default() -> Self {
-        let base_config_dir = config_dir().unwrap();
-        let config_dir = base_config_dir.join("CuTE").join("config.toml");
-        let toml_str = std::fs::read_to_string(config_dir).unwrap();
-        let app_config: Config = toml::from_str(&toml_str).unwrap_or_default();
         Self {
-            config: app_config,
+            config: Config::default(),
             running: true,
             cursor: 0,
             screen_stack: vec![Screen::Home],
