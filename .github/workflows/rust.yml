@@ -25,17 +25,9 @@ jobs:
         toolchain: stable
         override: true
     - name: Install Deps On Linux
+      if: runner.os == 'Linux'
       run: |
-        if ["$RUNNER_OS" == "Linux"]; then
           sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-          exit 0
-        elif [ "$RUNNER_OS" == "Windows"]; then
-          echo "IDK If We Need Anything Here"
-          exit 0
-        elif [ "$RUNNER_OS" == "macOs"]; then
-         echo "IDK If We Need Anything Here"
-         exit 0
-        fi
     - name: Build
       run: cargo build --verbose
     - name: Run tests
