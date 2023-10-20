@@ -6,7 +6,6 @@ version = 3
 name = "CuTE-tui"
 version = "0.1.0"
 dependencies = [
- "clipboard",
  "crossterm 0.27.0",
  "curl",
  "dirs",
@@ -143,28 +142,6 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
-
-[[package]]
-name = "clipboard"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25a904646c0340239dcf7c51677b33928bf24fdf424b79a57909c0109075b2e7"
-dependencies = [
- "clipboard-win 2.2.0",
- "objc",
- "objc-foundation",
- "objc_id",
- "x11-clipboard 0.3.3",
-]
-
-[[package]]
-name = "clipboard-win"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3a093d6fed558e5fe24c3dfc85a68bb68f1c824f440d3ba5aca189e2998786b"
-dependencies = [
- "winapi",
-]
 
 [[package]]
 name = "clipboard-win"
@@ -1266,11 +1243,11 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb56a93aa750a8e07858eb8f6692fce91b78ed4b129b8ba4bb477dfcaf3b8ab8"
 dependencies = [
- "clipboard-win 4.5.0",
+ "clipboard-win",
  "clipboard_macos",
  "once_cell",
  "termux-clipboard",
- "x11-clipboard 0.5.3",
+ "x11-clipboard",
 ]
 
 [[package]]
@@ -1649,30 +1626,11 @@ dependencies = [
 
 [[package]]
 name = "x11-clipboard"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89bd49c06c9eb5d98e6ba6536cf64ac9f7ee3a009b2f53996d405b3944f6bcea"
-dependencies = [
- "xcb 0.8.2",
-]
-
-[[package]]
-name = "x11-clipboard"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "473068b7b80ac86a18328824f1054e5e007898c47b5bbc281bd7abe32bc3653c"
 dependencies = [
- "xcb 0.10.1",
-]
-
-[[package]]
-name = "xcb"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e917a3f24142e9ff8be2414e36c649d47d6cc2ba81f16201cdef96e533e02de"
-dependencies = [
- "libc",
- "log",
+ "xcb",
 ]
 
 [[package]]

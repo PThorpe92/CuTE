@@ -109,7 +109,7 @@ impl AppOptions {
             AppOptions::SaveCommand => String::from(DISPLAY_OPT_COMMAND_SAVED),
             AppOptions::Response(response) => String::from(response),
             AppOptions::RecDownload(level) => {
-                format!("{}{}", DISPLAY_OPT_MAX_REC, level.to_string())
+                format!("{}{}", DISPLAY_OPT_MAX_REC, level)
             }
             AppOptions::Auth(auth) => format!("{}{}", DISPLAY_OPT_AUTH, auth.clone()),
             AppOptions::SaveToken => String::from(DISPLAY_OPT_TOKEN_SAVED),
@@ -122,7 +122,7 @@ impl AppOptions {
             AppOptions::ProxyTunnel => DISPLAY_OPT_PROXY_TUNNEL.to_string(),
             AppOptions::UserAgent(ua) => format!("{}{}", DISPLAY_OPT_USERAGENT, ua),
             AppOptions::MaxRedirects(max_redirects) => {
-                format!("{}{}", DISPLAY_OPT_MAX_REDIRECTS, max_redirects.to_string())
+                format!("{}{}", DISPLAY_OPT_MAX_REDIRECTS, max_redirects)
             }
             AppOptions::Cookie(cookie) => format!("{}{}", DISPLAY_OPT_COOKIE, cookie.clone()),
             AppOptions::Referrer(referrer) => {
