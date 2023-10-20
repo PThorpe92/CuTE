@@ -204,11 +204,6 @@ impl<'a> App<'a> {
         let saved_commands = self.get_saved_commands().unwrap();
         let cmd = saved_commands.get(index).unwrap();
         let mut command: Curl = serde_json::from_str(cmd.get_curl_json()).unwrap();
-        let file = std::fs::File::create("./test.json").unwrap();
-        let mut writer = BufWriter::new(file);
-        if writer.write_all(cmd.get_curl_json().as_bytes()).is_ok() {
-            println!("write successful");
-        }
         command.easy_from_opts();
         match command.execute(None) {
             Ok(_) => self.set_response(command.get_response().clone()),
@@ -488,7 +483,6 @@ impl<'a> App<'a> {
 }
 
 #[cfg(test)]
-#[cfg(not(env = "CI"))]
 mod tests {
 
     use super::App;

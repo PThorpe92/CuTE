@@ -1,3 +1,0 @@
-env:
-  SKIP_DIRECTORY_CREATION: true
-  CI: true

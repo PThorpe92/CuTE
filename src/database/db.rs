@@ -1,4 +1,7 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    path::PathBuf,
+};
 
 use dirs::data_local_dir;
 use rusqlite::{params, Connection, OpenFlags, Result};
@@ -25,6 +28,9 @@ pub struct DB {
 
 impl DB {
     pub fn new() -> Result<Self, rusqlite::Error> {
+        if std::env::var("CI").is_ok() {
+            return Err(rusqlite::Error::InvalidPath(PathBuf::from("CI")));
+        }
         let dir = data_local_dir().expect("Failed to get data local directory");
         let dir = dir.join("CuTE");
         let dbpath = dir.join("CuTE.db");

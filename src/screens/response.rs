@@ -4,18 +4,11 @@ use crate::display::inputopt::InputOpt;
 
 use crate::request::response::Response;
 use crate::screens::screen::Screen;
-use clipboard::{ClipboardContext, ClipboardProvider};
 use std::error::Error;
 use tui::backend::Backend;
 use tui::text::Text;
 use tui::widgets::{ListState, Paragraph};
 use tui::Frame;
-
-pub fn copy_to_clipboard(command: &str) -> Result<(), Box<dyn Error>> {
-    let mut ctx: ClipboardContext = ClipboardProvider::new()?;
-    ctx.set_contents(command.to_owned())?;
-    Ok(())
-}
 
 pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, resp: String) {
     let area = default_rect(small_alert_box(frame.size()));
@@ -50,28 +43,22 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
             // Copy to clipboard
             3 => {
                 if app.command.is_some() {
-                    match copy_to_clipboard(
+                    match terminal_clipboard::set_string(
                         app.command.as_mut().unwrap().get_command_string().as_str(),
                     ) {
                         Ok(_) => app.goto_screen(Screen::Success),
                         Err(e) => app.goto_screen(Screen::Error(e.to_string())),
                     }
+                } else if terminal_clipboard::set_string(
+                    app.response
+                        .as_ref()
+                        .unwrap_or(&"Command failed to save".to_string()),
+                )
+                .is_ok()
+                {
+                    app.goto_screen(Screen::Success);
                 } else {
-                    if terminal_clipboard::set_string(
-                        app.response
-                            .as_ref()
-                            .unwrap_or(&"Command failed to save".to_string()),
-                    )
-                    .is_ok()
-                    {
-                        app.goto_screen(Screen::Success);
-                    } else {
-                        app.goto_screen(Screen::Error("Failed to copy to clipboard".to_string()));
-                    }
-                    match copy_to_clipboard(resp.as_str()) {
-                        Ok(_) => app.goto_screen(Screen::Success),
-                        Err(e) => app.goto_screen(Screen::Error(e.to_string())),
-                    }
+                    app.goto_screen(Screen::Error("Failed to copy to clipboard".to_string()));
                 }
             }
             _ => {}
