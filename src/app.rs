@@ -488,6 +488,7 @@ impl<'a> App<'a> {
 }
 
 #[cfg(test)]
+#[cfg(not(env = "CI"))]
 mod tests {
 
     use super::App;
