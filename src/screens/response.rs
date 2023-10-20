@@ -6,10 +6,12 @@ use crate::request::response::Response;
 use crate::screens::screen::Screen;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use std::error::Error;
+use std::fmt::format;
 use tui::backend::Backend;
 use tui::text::Text;
 use tui::widgets::{ListState, Paragraph};
 use tui::Frame;
+use crate::screens::Screen::Response as ResponseScreen;
 
 pub fn copy_to_clipboard(command: &str) -> Result<(), Box<dyn Error>> {
     let mut ctx: ClipboardContext = ClipboardProvider::new()?;
@@ -37,7 +39,21 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
             // View response headers
             1 => {
                 let area_2 = small_alert_box(frame.size());
-                let response = Response::from_raw_string(resp.as_str()).unwrap();
+
+                println!("{}", resp.as_str());
+                // Check for response error here
+                let response = match Response::from_raw_string(resp.as_str()) {
+                    Ok(resp) => {
+                        resp
+                    }
+                    Err(e) => {
+                        Response {
+                            body: format!("Err: {}", e),
+                            status:300,
+                            headers: std::collections::HashMap::from([("One".to_string(), "1".to_string()), ("Two".to_string(), "2".to_string())]),
+                        }
+                    }
+                };
                 let headers = response.get_headers();
                 let paragraph = Paragraph::new(Text::from(headers.to_string()));
                 frame.render_widget(paragraph, area_2);
