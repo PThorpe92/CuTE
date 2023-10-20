@@ -1,4 +1,3 @@
-use std::fmt::format;
 use crate::database::db::DB;
 
 use super::command::CmdOpts;
