@@ -1,4 +1,3 @@
-use std::fmt::format;
 use crate::database::db::DB;
 
 use super::command::CmdOpts;
@@ -18,6 +17,57 @@ impl CmdOpts for Wget {
     // This is just if we want to build a string from the command. Not sure if we are going
     // to need this, but we may end up storing download commands in DB
 
+    fn execute(&mut self, _db: Option<&mut Box<DB>>) -> Result<(), String> {
+        self.build_command();
+        let command = std::process::Command::new("sh")
+            .arg("-c")
+            .args([self.cmd.join(" ")]) // Rest Of The Command Arguments
+            .output()
+            .expect("failed to execute process");
+        if command.status.success() {
+            self.response = Some(String::from_utf8(command.stdout).unwrap());
+            Ok(())
+        } else {
+            Err(String::from_utf8(command.stderr).unwrap())
+        }
+    }
+
+
+    fn add_basic_auth(&mut self, info: &str) {
+        let mut split = info.split(':');
+        let usr = split.next().unwrap();
+        let pwd = split.next().unwrap();
+        self.auth = Some(format!("--user={} --password={}", usr, pwd));
+    }
+
+
+    fn get_url(&self) -> String {
+        self.url.clone()
+    }
+
+    fn set_outfile(&mut self, file: &str) {
+        self.output = file.to_string();
+    }
+
+
+    fn get_response(&self) -> String {
+        self.response
+            .clone()
+            .unwrap_or(String::from("No download response"))
+    }
+
+    fn set_rec_download_level(&mut self, level: usize) {
+        self.rec_level = Some(level);
+    }
+
+    fn set_url(&mut self, url: &str) {
+        self.url = url.to_string();
+    }
+
+    fn set_response(&mut self, response: &str) {
+        self.response = Some(response.to_string());
+    }
+
     fn get_command_string(&mut self) -> String {
         let mut cmdstr = vec![String::from("wget")];
         if self.has_url() {
@@ -34,61 +84,8 @@ impl CmdOpts for Wget {
         }
         return cmdstr.join(" ").trim().to_string();
     }
-
-
-
-    fn set_response(&mut self, response: &str) {
-        self.response = Some(response.to_string());
-    }
-
-
-    fn execute(&mut self, _db: Option<&mut Box<DB>>) -> Result<(), String> {
-        self.build_command();
-        let command = std::process::Command::new("sh")
-            .arg("-c")
-            .args([self.cmd.join(" ")]) // Rest Of The Command Arguments
-            .output()
-            .expect("failed to execute process");
-        if command.status.success() {
-            self.response = Some(String::from_utf8(command.stdout).unwrap());
-            Ok(())
-        } else {
-            Err(String::from_utf8(command.stderr).unwrap())
-        }
-    }
-
-    fn add_basic_auth(&mut self, info: &str) {
-        let mut split = info.split(':');
-        let usr = split.next().unwrap();
-        let pwd = split.next().unwrap();
-        self.auth = Some(format!("--user={} --password={}", usr, pwd));
-    }
-
-
-
-    fn set_rec_download_level(&mut self, level: usize) {
-        self.rec_level = Some(level);
-    }
-
-    fn set_url(&mut self, url: &str) {
-        self.url = url.to_string();
-    }
-
-    fn get_url(&self) -> String {
-        self.url.clone()
-    }
-
     fn has_auth(&self) -> bool {
         self.auth.is_some()
-    }
-
-    fn set_outfile(&mut self, file: &str) {
-        self.output = file.to_string();
-    }
-    fn get_response(&self) -> String {
-        self.response
-            .clone()
-            .unwrap_or(String::from("No download response"))
     }
 }
 
