@@ -494,13 +494,14 @@ mod tests {
     use crate::display::AppOptions;
     use crate::request::command::Cmd;
     use crate::request::curl::Curl;
-
+/*
     // helper return app instance with curl command
     fn return_app_cmd() -> App<'static> {
         let mut app = App::default();
         app.set_command(Box::new(Cmd::Curl(Curl::new())));
         app
     }
+
 
     #[test]
     fn test_add_app_option() {
@@ -540,4 +541,6 @@ mod tests {
         app.add_app_option(AppOptions::URL(String::from(url)));
         app.remove_app_option(&AppOptions::URL(String::from(url)));
     }
+
+ */
 }

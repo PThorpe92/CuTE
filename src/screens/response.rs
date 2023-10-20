@@ -47,6 +47,8 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                         resp
                     }
                     Err(e) => {
+                        // For now this just does some silly shit but it prevents us from unwrapping an error.
+                        // TODO: Get Real Information Here.
                         Response {
                             body: format!("Err: {}", e),
                             status:300,
@@ -57,7 +59,7 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                 let headers = response.get_headers();
                 let paragraph = Paragraph::new(Text::from(headers.to_string()));
                 frame.render_widget(paragraph, area_2);
-                app.goto_screen(Screen::SavedCommands);
+                //app.goto_screen(Screen::SavedCommands);
             }
             // View response body
             2 => {
