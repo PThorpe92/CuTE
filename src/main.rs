@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 use dirs::data_local_dir;
+use std::env;
 use std::error::Error;
 use std::io;
 use tui::backend::CrosstermBackend;
@@ -11,23 +12,24 @@ use CuTE_tui::tui_cute::Tui;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();
-    let cutepath = data_local_dir().expect("Failed to get data local directory");
-    let cutepath = cutepath.join("CuTE");
+    if env::var("SKIP_DIRECTORY_CREATION").is_err() {
+        let cutepath = data_local_dir().expect("Failed to get data local directory");
+        let cutepath = cutepath.join("CuTE");
+        // Check if the directory exists
+        if !cutepath.exists() {
+            // If it doesn't exist, create it
+            if let Err(err) = std::fs::create_dir_all(&cutepath) {
+                let dbpath = cutepath.join("CuTE.db");
 
-    // Check if the directory exists
-    if !cutepath.exists() {
-        // If it doesn't exist, create it
-        if let Err(err) = std::fs::create_dir_all(&cutepath) {
-            let dbpath = cutepath.join("CuTE.db");
-
-            std::fs::File::create(&dbpath).expect("failed to create database");
-            eprintln!("Failed to create CuTE directory: {}", err);
-            Err(Box::<dyn Error>::from(err))?;
+                std::fs::File::create(&dbpath).expect("failed to create database");
+                eprintln!("Failed to create CuTE directory: {}", err);
+                Err(Box::<dyn Error>::from(err))?;
+            } else {
+                println!("CuTE directory created at {:?}", cutepath);
+            }
         } else {
-            println!("CuTE directory created at {:?}", cutepath);
+            println!("CuTE directory already exists at {:?}", cutepath);
         }
-    } else {
-        println!("CuTE directory already exists at {:?}", cutepath);
     }
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
