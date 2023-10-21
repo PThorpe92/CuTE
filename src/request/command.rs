@@ -121,6 +121,11 @@ impl<'a> CurlOpts for Cmd<'a> {
             curl.set_proxy_tunnel(opt);
         }
     }
+    fn set_request_body(&mut self, body: &str) {
+        if let Cmd::Curl(curl) = self {
+            curl.set_request_body(body);
+        }
+    }
     fn match_wildcard(&mut self, opt: bool) {
         if let Cmd::Curl(curl) = self {
             curl.match_wildcard(opt);
@@ -251,6 +256,7 @@ pub trait CmdOpts {
     fn has_auth(&self) -> bool;
 }
 pub trait CurlOpts {
+    fn set_request_body(&mut self, body: &str);
     fn set_upload_file(&mut self, file: &str);
     fn add_cookie(&mut self, cookie: String);
     fn set_follow_redirects(&mut self, opt: bool);

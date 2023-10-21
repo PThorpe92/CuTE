@@ -87,6 +87,7 @@ pub const DISPLAY_OPT_AUTH: &str = "  Authentication: ";
 pub const DISPLAY_OPT_MATCH_WILDCARD: &str = "  Match glob wildcard 󰛄 ";
 pub const DISPLAY_OPT_CERT_INFO: &str = "  Request certificate info 󰄤 ";
 pub const DISPLAY_OPT_UPLOAD: &str = "  Upload file: ";
+pub const DISPLAY_OPT_REQUEST_BODY: &str = "  Request Body";
 pub const DISPLAY_OPT_TCP_KEEPALIVE: &str = "  Enable TCP keepalive 󰗶 ";
 pub const DISPLAY_OPT_MAX_REC: &str = "  Specify recursive depth: ";
 pub const DISPLAY_OPT_OUTFILE: &str = "  Specify output filepath: ";
@@ -159,14 +160,12 @@ lazy_static! {
         "PATCH",
         "HEAD",
     ];
-    pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 8] = [
+    pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 6] = [
         "Basic",
         "Bearer",
         "Digest",
         "AWS SignatureV4",
         "Ntlm",
-        "NtlmWb",
-        "Kerberos",
         "SPNEGO",
     ];
     pub static ref MORE_FLAGS_MENU: [&'static str; 13] = [
