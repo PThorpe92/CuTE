@@ -28,6 +28,7 @@ use tui::{
     widgets::{BorderType, Paragraph},
     Frame,
 };
+use crate::screens::error::handle_error_screen;
 
 use super::{centered_rect, default_rect, small_rect, Screen};
 
@@ -177,7 +178,8 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             handle_saved_commands_screen(app, frame);
         }
         Screen::Error(e) => {
-            handle_response_screen(app, frame, e.to_string());
+            //handle_response_screen(app, frame, e.to_string());
+            handle_error_screen(app, frame, e);
         }
         Screen::MoreFlags => {
             handle_more_flags_screen(app, frame);

@@ -36,6 +36,7 @@ use ::tui::widgets::{Block, Borders, Paragraph, Wrap};
 pub use screen::Screen;
 
 pub mod saved_commands;
+pub mod error;
 
 pub fn small_alert_box(r: Rect) -> Rect {
     centered_rect(70, 60, r)
