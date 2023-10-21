@@ -39,8 +39,17 @@ impl Config {
     pub fn get_fg_color(&self) -> tui::style::Color {
         self.colors.get_fg()
     }
+    pub fn set_db_path(&mut self, path: PathBuf) {
+        self.db_path = Some(path);
+    }
     pub fn get_bg_color(&self) -> tui::style::Color {
         self.colors.get_bg()
+    }
+    pub fn get_body_color(&self) -> tui::style::Color {
+        self.colors.body.get_value()
+    }
+    pub fn get_outline_color(&self) -> tui::style::Color {
+        self.colors.outline.get_value()
     }
     pub fn get_logo(&self) -> &str {
         if self.logo == Some(Logo::Default) {
@@ -60,6 +69,8 @@ impl Config {
             colors: Colors {
                 fg: ConfigColor::Cyan,
                 bg: ConfigColor::Gray,
+                body: ConfigColor::Yellow,
+                outline: ConfigColor::Blue,
             },
             logo: Some(Logo::Default),
             db_path: Some(DB::get_default_path()),
@@ -68,9 +79,10 @@ impl Config {
 
     pub fn load() -> Result<Self, String> {
         if let Some(config) = config_dir() {
-            let config = config.join("CuTe").join("config.toml");
+            let config = config.join("CuTE").join("config.toml");
             if let Ok(config) = std::fs::read_to_string(config) {
                 if let Ok(config) = toml::from_str::<Config>(&config) {
+                    println!("Loaded config: {:?}", config);
                     Ok(config)
                 } else {
                     Err("Failed to parse config.toml".to_string())
@@ -117,6 +129,8 @@ impl Display for Logo {
 pub struct Colors {
     fg: ConfigColor,
     bg: ConfigColor,
+    body: ConfigColor,
+    outline: ConfigColor,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -129,6 +143,7 @@ enum ConfigColor {
     Black,
     White,
     Green,
+    Yellow,
 }
 
 impl Colors {
@@ -151,6 +166,7 @@ impl ConfigColor {
             ConfigColor::Black => tui::style::Color::Black,
             ConfigColor::White => tui::style::Color::White,
             ConfigColor::Green => tui::style::Color::Green,
+            ConfigColor::Yellow => tui::style::Color::Yellow,
         }
     }
 }

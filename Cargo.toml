@@ -14,7 +14,7 @@ tui = { package = "ratatui", features = [
   "macros",
 ], version = "0.23.0" }
 tui-input = "*"
-tui-widget-list = "0.2.2"
+tui-widget-list = "0.3.0"
 lazy_static = "1.4.0"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 serde_json = { version = "1.0.107", features = ["std"] }

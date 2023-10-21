@@ -1,32 +1,21 @@
 #![allow(non_snake_case)]
-use dirs::data_local_dir;
-use std::error::Error;
+use clap::builder::Command;
+use clap::Arg;
+use dirs::config_dir;
 use std::io;
+use std::path::PathBuf;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 use CuTE_tui::app::{App, AppResult};
 use CuTE_tui::events::event::{Event, EventHandler};
 use CuTE_tui::events::handler::handle_key_events;
 use CuTE_tui::tui_cute::Tui;
+use CuTE_tui::Config;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();
-    let cutepath = data_local_dir().expect("Failed to get data local directory");
-    let cutepath = cutepath.join("CuTE");
-    // Check if the directory exists
-    if !cutepath.exists() {
-        // If it doesn't exist, create it
-        if let Err(err) = std::fs::create_dir_all(&cutepath) {
-            let dbpath = cutepath.join("CuTE.db");
-
-            std::fs::File::create(&dbpath).expect("failed to create database");
-            eprintln!("Failed to create CuTE directory: {}", err);
-            Err(Box::<dyn Error>::from(err))?;
-        } else {
-            println!("CuTE directory created at {:?}", cutepath);
-        }
-    } else {
-        println!("CuTE directory already exists at {:?}", cutepath);
+    if let Some(config) = parse_cmdline() {
+        app.set_config(config);
     }
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
@@ -46,4 +35,53 @@ fn main() -> AppResult<()> {
 
     tui.exit()?;
     Ok(())
+}
+
+fn parse_cmdline() -> Option<Config> {
+    let config_path: PathBuf = config_dir().unwrap().join("CuTE/config.toml");
+    let args = Command::new("CuTE")
+        .author("PThorpe92<preston@unlockedlabs.org>")
+        .version("0.0.2")
+        .about("Simple TUI for libcurl powered http requests, wget powered recursive downloads, and API key/command storage")
+        .after_help("Arguments are '--dump-config' to write the default config file to the current working directory,
+            \nand '--db-path' to define a custom path to the database\nDB path can also be defined in the config file at $CONFIG/CuTE/config.toml\n
+            or you can set the $CUTE_DB_PATH environment variable")
+        .arg(
+            Arg::new("db-path")
+                .help("Define a custom path to the database")
+                .id("db-path")
+                .long("db-path"), // Added this line to indicate it takes a value
+        )
+        .arg(
+            Arg::new("dump-config")
+                .help("Write the default config file to the current working directory")
+                .id("dump-config")
+                .long("dump-config")
+                .default_missing_value(".")
+                .default_value()
+        ).get_matches();
+    if args.contains_id("dump-config") {
+        let mut config_path: String = args
+            .get_one::<String>("dump-config")
+            .expect("Missing dump-config argument")
+            .to_string();
+        if !config_path.contains("config.toml") {
+            config_path.push_str("/config.toml");
+        }
+        let config = CuTE_tui::Config::default();
+        let config = toml::to_string_pretty(&config).expect("Failed to serialize config");
+        std::fs::write(config_path, config).expect("Failed to write config file");
+    }
+    if args.contains_id("db-path") {
+        let db_path: String = args
+            .get_one::<String>("db")
+            .expect("Missing db-path argument")
+            .to_string();
+        let db_path = std::path::Path::new(&db_path);
+        let db_path = std::fs::canonicalize(db_path).expect("Failed to canonicalize path");
+        let mut config = Config::default();
+        config.set_db_path(db_path);
+        return Some(config);
+    }
+    None
 }

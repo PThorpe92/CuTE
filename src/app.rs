@@ -79,6 +79,9 @@ impl<'a> App<'a> {
     pub fn set_command(&mut self, command: Box<dyn CMD>) {
         self.command = Some(command);
     }
+    pub fn set_config(&mut self, config: Config) {
+        self.config = config;
+    }
     pub fn tick(&self) {}
 
     pub fn redraw(&mut self) {

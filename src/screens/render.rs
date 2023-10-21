@@ -15,6 +15,7 @@ use super::request::handle_request_menu_screen;
 use super::response::handle_response_screen;
 use super::saved_commands::{handle_alert_menu, handle_saved_commands_screen};
 use super::saved_keys::{handle_key_menu, handle_saved_keys_screen};
+use crate::screens::error::handle_error_screen;
 use crate::{app::App, display::menuopts::SAVED_COMMANDS_PARAGRAPH};
 use tui::style::Stylize;
 use tui::text::Line;
@@ -28,7 +29,6 @@ use tui::{
     widgets::{BorderType, Paragraph},
     Frame,
 };
-use crate::screens::error::handle_error_screen;
 
 use super::{centered_rect, default_rect, small_rect, Screen};
 
@@ -49,9 +49,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         .get_style()
                         .add_modifier(tui::style::Modifier::BOLD),
                 )
-                .on_light_cyan()
-                .alignment(Alignment::Center)
-                .on_light_cyan();
+                .alignment(Alignment::Center);
             frame.render_widget(logo, small_rect(frame.size()));
         }
         let area = small_rect(frame.size());
@@ -136,7 +134,10 @@ pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
         Screen::HeaderAddRemove => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
         _ => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
     };
-    frame.render_widget(render_header_paragraph(paragraph, title), frame.size());
+    frame.render_widget(
+        render_header_paragraph(paragraph, title, app.config.get_style()),
+        frame.size(),
+    );
 }
 
 pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen: Screen) {
@@ -147,7 +148,11 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             let area = default_rect(frame.size());
             let response = app.response.clone().unwrap();
             let paragraph = Paragraph::new(Text::from(response.as_str()))
-                .style(Style::default().fg(Color::Yellow).bg(Color::Black))
+                .style(
+                    Style::default()
+                        .fg(app.config.get_body_color())
+                        .bg(app.config.get_bg_color()),
+                )
                 .alignment(Alignment::Center);
             frame.render_widget(paragraph, area);
         }
@@ -207,7 +212,11 @@ fn handle_display_options(opts: &[AppOptions]) -> Vec<Line> {
         .collect::<Vec<Line>>()
 }
 
-pub fn render_header_paragraph(para: &'static str, title: &'static str) -> Paragraph<'static> {
+pub fn render_header_paragraph(
+    para: &'static str,
+    title: &'static str,
+    style: Style,
+) -> Paragraph<'static> {
     Paragraph::new(para)
         .block(
             Block::default()
@@ -216,6 +225,6 @@ pub fn render_header_paragraph(para: &'static str, title: &'static str) -> Parag
                 .borders(Borders::ALL)
                 .border_type(BorderType::Double),
         )
-        .style(Style::default().fg(Color::Cyan).bg(Color::Black))
+        .style(style)
         .alignment(Alignment::Center)
 }
