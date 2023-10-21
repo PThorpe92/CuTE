@@ -241,14 +241,12 @@ impl<'a> PartialEq for Curl<'a> {
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
 pub enum AuthKind {
     None,
-    Ntlm(String),
+    Ntlm,
     Basic(String),
     Bearer(String),
-    Digest(String),
+    Digest,
     AwsSigv4,
-    Spnego(String),
-    NtlmWb(String),
-    Kerberos(String),
+    Spnego,
 }
 
 impl AuthKind {
@@ -256,11 +254,6 @@ impl AuthKind {
         match self {
             AuthKind::Bearer(token) => Some(token.clone()),
             AuthKind::Basic(login) => Some(login.clone()),
-            AuthKind::Digest(login) => Some(login.clone()),
-            AuthKind::Spnego(login) => Some(login.clone()),
-            AuthKind::Ntlm(login) => Some(login.clone()),
-            AuthKind::NtlmWb(login) => Some(login.clone()),
-            AuthKind::Kerberos(login) => Some(login.clone()),
             _ => None,
         }
     }
@@ -269,15 +262,13 @@ impl AuthKind {
 impl Display for AuthKind {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            AuthKind::None => write!(f, "None"),
-            AuthKind::Ntlm(login)     => write!(f, "NTLM: {}", login),
+            AuthKind::None            => write!(f, "None"),
+            AuthKind::Ntlm            => write!(f, "NTLM"),
             AuthKind::Basic(login)    => write!(f, "Basic: {}", login),
             AuthKind::Bearer(token)   => write!(f, "Bearer: {}", token),
-            AuthKind::Digest(login)   => write!(f, "Digest: {}", login),
+            AuthKind::Digest          => write!(f, "Digest Auth"),
             AuthKind::AwsSigv4        => write!(f, "AWS SignatureV4"),
-            AuthKind::Spnego(login)   => write!(f, "SPNEGO: {}", login),
-            AuthKind::NtlmWb(login)   => write!(f, "NTLM WB: {}", login),
-            AuthKind::Kerberos(login) => write!(f, "Kerberos: {}", login),
+            AuthKind::Spnego          => write!(f, "SPNEGO Auth"),
         }
     }
 }
@@ -412,13 +403,11 @@ impl<'a> CurlOpts for Curl<'a> {
     fn set_auth(&mut self, auth: AuthKind) {
         match auth {
             AuthKind::Basic(info) => self.set_basic_auth(info),
-            AuthKind::Ntlm(info) => self.set_ntlm_auth(&info),
+            AuthKind::Ntlm => self.set_ntlm_auth(),
             AuthKind::Bearer(token) => self.set_bearer_auth(token),
             AuthKind::AwsSigv4 => self.set_aws_sigv4_auth(),
-            AuthKind::Digest(login) => self.set_digest_auth(&login),
-            AuthKind::Kerberos(info) => self.set_kerberos_auth(&info),
-            AuthKind::NtlmWb(info) => self.set_ntlm_wb_auth(&info),
-            AuthKind::Spnego(info) => self.set_spnego_auth(info),
+            AuthKind::Digest => self.set_digest_auth(),
+            AuthKind::Spnego => self.set_spnego_auth(),
             AuthKind::None => {}
         }
     }
@@ -551,6 +540,10 @@ impl<'a> CurlOpts for Curl<'a> {
         self.curl.tcp_keepalive(opt).unwrap();
     }
 
+    fn set_request_body(&mut self, body: &str) {
+        self.curl.post_fields_copy(body.as_bytes()).unwrap();
+    }
+
     fn set_follow_redirects(&mut self, opt: bool) {
         let flag = CurlFlag::FollowRedirects(CurlFlagType::FollowRedirects.get_value(), None);
         self.toggle_flag(&flag);
@@ -664,9 +657,7 @@ impl<'a> Curl<'a> {
                     }
                 }
                 CurlFlag::Digest(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_digest_auth(val.as_str());
-                    }
+                    self.set_digest_auth();
                 }
                 CurlFlag::Basic(..) => {
                     if let Some(val) = opt.get_arg() {
@@ -674,19 +665,10 @@ impl<'a> Curl<'a> {
                     }
                 }
                 CurlFlag::AnyAuth(..) => self.set_any_auth(),
-                CurlFlag::Ntlm(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_ntlm_auth(val.as_str());
-                    }
-                }
-                CurlFlag::NtlmWb(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_ntlm_wb_auth(val.as_str());
-                    }
-                }
-                CurlFlag::AwsSigv4(..) => {
-                    self.set_aws_sigv4_auth();
-                }
+                CurlFlag::Ntlm(..) => self.set_ntlm_auth(),
+
+                CurlFlag::AwsSigv4(..) => self.set_aws_sigv4_auth(),
+
                 CurlFlag::UnixSocket(..) => {
                     if let Some(val) = opt.get_arg() {
                         self.set_unix_socket(val.as_str());
@@ -697,16 +679,8 @@ impl<'a> Curl<'a> {
                         self.set_upload_file(val.as_str());
                     }
                 }
-                CurlFlag::SpnegoAuth(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_spnego_auth(val);
-                    }
-                }
-                CurlFlag::Kerberos(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_kerberos_auth(val.as_str());
-                    }
-                }
+                CurlFlag::SpnegoAuth(..) => self.set_spnego_auth(),
+
                 CurlFlag::DumpHeaders(..) => {
                     if let Some(val) = opt.get_arg() {
                         self.show_headers(val.as_str());
@@ -771,12 +745,9 @@ impl<'a> Curl<'a> {
         self.curl.nobody(true).unwrap();
     }
 
-    pub fn set_digest_auth(&mut self, info: &str) {
-        self.add_flag(CurlFlag::Digest(
-            CurlFlagType::Digest.get_value(),
-            Some(info.to_string()),
-        ));
-        self.auth = AuthKind::Digest(info.to_string());
+    pub fn set_digest_auth(&mut self) {
+        self.add_flag(CurlFlag::Digest(CurlFlagType::Digest.get_value(), None));
+        self.auth = AuthKind::Digest;
     }
 
     pub fn set_aws_sigv4_auth(&mut self) {
@@ -784,12 +755,12 @@ impl<'a> Curl<'a> {
         self.auth = AuthKind::AwsSigv4;
     }
 
-    pub fn set_spnego_auth(&mut self, login: String) {
+    pub fn set_spnego_auth(&mut self) {
         self.add_flag(CurlFlag::SpnegoAuth(
             CurlFlagType::SpnegoAuth.get_value(),
-            Some(login.clone()),
+            None,
         ));
-        self.auth = AuthKind::Spnego(login);
+        self.auth = AuthKind::Spnego;
     }
 
     pub fn will_save_command(&self) -> bool {
@@ -822,20 +793,9 @@ impl<'a> Curl<'a> {
         self.curl.custom_request("DELETE").unwrap();
     }
 
-    pub fn set_ntlm_auth(&mut self, login: &str) {
-        self.add_flag(CurlFlag::Ntlm(
-            CurlFlagType::Ntlm.get_value(),
-            Some(login.to_string()),
-        ));
-        self.auth = AuthKind::Ntlm(login.to_string());
-    }
-
-    pub fn set_ntlm_wb_auth(&mut self, login: &str) {
-        self.add_flag(CurlFlag::NtlmWb(
-            CurlFlagType::NtlmWb.get_value(),
-            Some(login.to_string()),
-        ));
-        self.auth = AuthKind::NtlmWb(login.to_string());
+    pub fn set_ntlm_auth(&mut self) {
+        self.add_flag(CurlFlag::Ntlm(CurlFlagType::Ntlm.get_value(), None));
+        self.auth = AuthKind::Ntlm;
     }
 
     pub fn set_bearer_auth(&mut self, token: String) {
@@ -852,14 +812,6 @@ impl<'a> Curl<'a> {
             Some(file.to_string()),
         ));
         self.curl.show_header(true).unwrap();
-    }
-
-    pub fn set_kerberos_auth(&mut self, login: &str) {
-        self.add_flag(CurlFlag::Kerberos(
-            CurlFlagType::Kerberos.get_value(),
-            Some(login.to_string()),
-        ));
-        self.auth = AuthKind::Kerberos(login.to_string());
     }
 
     fn build_command_str(&mut self) {
@@ -902,36 +854,18 @@ impl<'a> Curl<'a> {
                 list_edited = true;
                 let _ = list.append(&format!("Authorization: Bearer {}", token.clone()));
             }
-            AuthKind::Digest(login) => {
-                self.curl
-                    .username(login.split(':').next().unwrap())
-                    .unwrap();
-                self.curl
-                    .password(login.split(':').last().unwrap())
-                    .unwrap();
+            AuthKind::Digest => {
                 let _ = self.curl.http_auth(Auth::new().digest(true));
             }
-            AuthKind::Ntlm(login) => {
-                self.curl
-                    .username(login.split(':').next().unwrap())
-                    .unwrap();
-                self.curl
-                    .password(login.split(':').last().unwrap())
-                    .unwrap();
+            AuthKind::Ntlm => {
                 let _ = self.curl.http_auth(Auth::new().ntlm(true));
             }
-            AuthKind::NtlmWb(login) => {
-                self.curl.username(login).unwrap();
-                let _ = self.curl.http_auth(Auth::new().ntlm_wb(true));
-            }
-            AuthKind::Spnego(login) => {
-                self.curl.username(login).unwrap();
+            AuthKind::Spnego => {
                 let _ = self.curl.http_auth(Auth::new().gssnegotiate(true));
             }
             AuthKind::AwsSigv4 => {
                 let _ = self.curl.http_auth(Auth::new().aws_sigv4(true));
             }
-            _ => {}
         };
         list_edited
     }
@@ -1013,7 +947,6 @@ define_curl_flags! {
     UnixSocket("--unix-socket"),
     UploadFile("--upload-file"),
     Ntlm("--ntlm"),
-    NtlmWb("--ntlm-wb"),
     Proxy("-x"),
     AwsSigv4("--aws-sigv4"),
     ProxyTunnel("--proxy-tunnel"),
@@ -1030,7 +963,6 @@ define_curl_flags! {
     TcpKeepAlive(" "),
     CaPath("--capath"),
     SpnegoAuth("--negotiate"),
-    Kerberos("--krb"),
     Progress("--progress-bar"),
 }
 
@@ -1299,12 +1231,11 @@ mod tests {
     #[test]
     fn test_set_digest_auth() {
         let mut curl = Curl::new();
-        curl.set_digest_auth("username:pwd");
+        curl.set_digest_auth();
         assert_eq!(curl.opts.len(), 1);
-        assert!(curl.opts.contains(&CurlFlag::Digest(
-            CurlFlagType::Digest.get_value(),
-            Some(String::from("username:pwd"))
-        )));
+        assert!(curl
+            .opts
+            .contains(&CurlFlag::Digest(CurlFlagType::Digest.get_value(), None,)));
     }
 
     #[test]
@@ -1324,13 +1255,13 @@ mod tests {
     #[test]
     fn test_set_spnego_auth() {
         let mut curl = Curl::new();
-        curl.set_spnego_auth("username:pwd".to_string());
+        curl.set_spnego_auth();
         curl.build_command_str();
         assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.auth, AuthKind::Spnego("username:pwd".to_string()));
+        assert_eq!(curl.auth, AuthKind::Spnego);
         assert!(curl.opts.contains(&CurlFlag::SpnegoAuth(
             CurlFlagType::SpnegoAuth.get_value(),
-            Some(String::from("username:pwd"))
+            None,
         )));
     }
 

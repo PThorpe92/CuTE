@@ -20,8 +20,6 @@ pub enum AuthType {
     Digest,
     AWSSignatureV4,
     NTLM,
-    NTLMWB,
-    Kerberos,
     SPNEGO,
 }
 
@@ -33,8 +31,6 @@ impl Display for AuthType {
             AuthType::Digest => "Digest",
             AuthType::AWSSignatureV4 => "AWS Signature V4",
             AuthType::NTLM => "NTLM",
-            AuthType::NTLMWB => "NTLMWB",
-            AuthType::Kerberos => "Kerberos",
             AuthType::SPNEGO => "SPNEGO",
         };
         write!(f, "{}", auth)
@@ -56,8 +52,7 @@ pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame
                 }
             }
             4 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::SPNEGO))),
-            5 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::Kerberos))),
-            6 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::NTLM))),
+            5 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::NTLM))),
             _ => {}
         }
     }

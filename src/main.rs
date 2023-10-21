@@ -13,7 +13,6 @@ fn main() -> AppResult<()> {
     let mut app = App::new();
     let cutepath = data_local_dir().expect("Failed to get data local directory");
     let cutepath = cutepath.join("CuTE");
-
     // Check if the directory exists
     if !cutepath.exists() {
         // If it doesn't exist, create it
