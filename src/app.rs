@@ -5,7 +5,6 @@ use crate::request::command::{CmdOpts, CMD};
 use crate::request::curl::Curl;
 use crate::screens::screen::Screen;
 use crate::Config;
-use std::io::{BufWriter, Write};
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
@@ -279,6 +278,7 @@ impl<'a> App<'a> {
             AppOptions::UserAgent(_) => self.command.as_mut().unwrap().set_user_agent(""),
             AppOptions::Referrer(_) => self.command.as_mut().unwrap().set_referrer(""),
             AppOptions::RecDownload(_) => self.command.as_mut().unwrap().set_rec_download_level(0),
+            AppOptions::RequestBody(_) => self.command.as_mut().unwrap().set_request_body(""),
             AppOptions::Cookie(_) => self.command
                                     .as_mut()
                                     .unwrap()
@@ -395,6 +395,7 @@ impl<'a> App<'a> {
                 AppOptions::Referrer(referrer) => self.command.as_mut().unwrap().set_referrer(&referrer),
                 AppOptions::UserAgent(agent) => self.command.as_mut().unwrap().set_user_agent(&agent),
                 AppOptions::CaPath(ca_path) => self.command.as_mut().unwrap().set_ca_path(&ca_path),
+                AppOptions::RequestBody(body) => self.command.as_mut().unwrap().set_request_body(&body),
                 AppOptions::MaxRedirects(max_redirects) => self.command
                         .as_mut()
                         .unwrap()
@@ -476,6 +477,12 @@ impl<'a> App<'a> {
                         self.command.as_mut().unwrap().set_unix_socket(socket);
                     }
                 }
+                AppOptions::RequestBody(_) => {
+                    if let AppOptions::RequestBody(ref mut body) = opt {
+                        option.replace_value(body.clone());
+                        self.command.as_mut().unwrap().set_request_body(body);
+                    }
+                }
                 _ => {}
             }
         }
@@ -485,57 +492,57 @@ impl<'a> App<'a> {
 #[cfg(test)]
 mod tests {
 
-    use super::App;
-    use crate::display::AppOptions;
-    use crate::request::command::Cmd;
-    use crate::request::curl::Curl;
-/*
-    // helper return app instance with curl command
-    fn return_app_cmd() -> App<'static> {
-        let mut app = App::default();
-        app.set_command(Box::new(Cmd::Curl(Curl::new())));
-        app
-    }
+    /*
+       use super::App;
+       use crate::display::AppOptions;
+       use crate::request::command::Cmd;
+       use crate::request::curl::Curl;
+       // helper return app instance with curl command
+       fn return_app_cmd() -> App<'static> {
+           let mut app = App::default();
+           app.set_command(Box::new(Cmd::Curl(Curl::new())));
+           app
+       }
 
 
-    #[test]
-    fn test_add_app_option() {
-        let mut app = return_app_cmd();
-        let url = "https://www.google.com";
-        app.add_app_option(AppOptions::URL(String::from(url)));
-        assert!(app.command.as_ref().unwrap().get_url() == url);
-    }
+       #[test]
+       fn test_add_app_option() {
+           let mut app = return_app_cmd();
+           let url = "https://www.google.com";
+           app.add_app_option(AppOptions::URL(String::from(url)));
+           assert!(app.command.as_ref().unwrap().get_url() == url);
+       }
 
-    #[test]
-    fn test_toggle_verbose() {
-        let mut app = return_app_cmd();
-        // Add one.
-        app.add_app_option(crate::display::AppOptions::Verbose);
-        assert!(app.has_app_option(&AppOptions::Verbose));
-        // this should toggle
-        app.add_app_option(AppOptions::Verbose);
-        assert!(!app.has_app_option(&AppOptions::Verbose));
-    }
+       #[test]
+       fn test_toggle_verbose() {
+           let mut app = return_app_cmd();
+           // Add one.
+           app.add_app_option(crate::display::AppOptions::Verbose);
+           assert!(app.has_app_option(&AppOptions::Verbose));
+           // this should toggle
+           app.add_app_option(AppOptions::Verbose);
+           assert!(!app.has_app_option(&AppOptions::Verbose));
+       }
 
-    #[test]
-    fn test_replace_app_opt() {
-        let mut app = return_app_cmd();
-        let url = "https://www.google.com".to_string();
-        app.add_app_option(AppOptions::URL(url.clone()));
-        assert!(app.command.as_ref().unwrap().get_url() == url);
-        // overwrite the url
-        let new_url = "https://www.github.com".to_string();
-        app.add_app_option(AppOptions::URL(new_url.clone()));
-        assert!(app.command.as_ref().unwrap().get_url() == new_url);
-    }
+       #[test]
+       fn test_replace_app_opt() {
+           let mut app = return_app_cmd();
+           let url = "https://www.google.com".to_string();
+           app.add_app_option(AppOptions::URL(url.clone()));
+           assert!(app.command.as_ref().unwrap().get_url() == url);
+           // overwrite the url
+           let new_url = "https://www.github.com".to_string();
+           app.add_app_option(AppOptions::URL(new_url.clone()));
+           assert!(app.command.as_ref().unwrap().get_url() == new_url);
+       }
 
-    #[test]
-    fn test_remove_app_option() {
-        let mut app = return_app_cmd();
-        let url = "https://www.google.com";
-        app.add_app_option(AppOptions::URL(String::from(url)));
-        app.remove_app_option(&AppOptions::URL(String::from(url)));
-    }
+       #[test]
+       fn test_remove_app_option() {
+           let mut app = return_app_cmd();
+           let url = "https://www.google.com";
+           app.add_app_option(AppOptions::URL(String::from(url)));
+           app.remove_app_option(&AppOptions::URL(String::from(url)));
+       }
 
- */
+    */
 }

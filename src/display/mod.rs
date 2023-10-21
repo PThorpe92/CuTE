@@ -51,6 +51,7 @@ pub enum AppOptions {
     UnrestrictedAuth,
     MaxRedirects(usize),
     UploadFile(String),
+    RequestBody(String),
 }
 
 impl AppOptions {
@@ -95,7 +96,9 @@ impl AppOptions {
             AppOptions::UploadFile(ref mut file) => {
                 *file = val;
             }
-
+            AppOptions::RequestBody(ref mut body) => {
+                *body = val;
+            }
             _ => {}
         }
     }
@@ -135,6 +138,7 @@ impl AppOptions {
             AppOptions::TcpKeepAlive => DISPLAY_OPT_TCP_KEEPALIVE.to_string(),
             AppOptions::UnrestrictedAuth => format!("{}{}", DISPLAY_OPT_UNRESTRICTED_AUTH, "󰄨"),
             AppOptions::UploadFile(file) => format!("{}{}", DISPLAY_OPT_UPLOAD, file.clone()),
+            AppOptions::RequestBody(body) => format!("{}{}", DISPLAY_OPT_UPLOAD, body.clone()),
         }
     }
 }

@@ -208,6 +208,10 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 app.goto_screen(Screen::Response(String::from(app.get_response())));
             }
         }
+        InputOpt::RequestBody => {
+            app.add_app_option(AppOptions::RequestBody(message.clone()));
+            app.goto_screen(Screen::RequestMenu(String::new()));
+        }
         InputOpt::RecursiveDownload => {
             let recursion_level = message.parse::<usize>().unwrap();
             app.add_app_option(AppOptions::RecDownload(recursion_level));
@@ -254,12 +258,10 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
     app.command.as_mut().unwrap().set_auth(match auth {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
-        AuthType::Digest => AuthKind::Digest(String::from(message)),
+        AuthType::Digest => AuthKind::Digest,
         AuthType::AWSSignatureV4 => AuthKind::AwsSigv4,
-        AuthType::SPNEGO => AuthKind::Spnego(String::from(message)),
-        AuthType::Kerberos => AuthKind::Kerberos(String::from(message)),
-        AuthType::NTLM => AuthKind::Ntlm(String::from(message)),
-        AuthType::NTLMWB => AuthKind::NtlmWb(String::from(message)),
+        AuthType::SPNEGO => AuthKind::Spnego,
+        AuthType::NTLM => AuthKind::Ntlm,
     });
     app.add_app_option(AppOptions::Auth(String::from(message)));
     app.goto_screen(Screen::RequestMenu(String::new()));
