@@ -29,7 +29,17 @@ pub struct DB {
 impl DB {
     pub fn new() -> Result<Self, rusqlite::Error> {
         let path = DB::get_default_path();
-
+        if !path.exists() {
+            // If it doesn't exist, create it
+            if let Err(err) = std::fs::create_dir_all(&path) {
+                std::fs::File::create(&path).expect("failed to create database");
+                eprintln!("Failed to create CuTE directory: {}", err);
+            } else {
+                println!("CuTE directory created at {:?}", path);
+            }
+        } else {
+            println!("CuTE directory already exists at {:?}", path);
+        }
         let conn = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
