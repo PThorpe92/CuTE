@@ -254,6 +254,8 @@ impl<'a> App<'a> {
             _ => Ok(()),
         }
     }
+
+    // Have to skip rustfmt due to enormous verbosity of all these match statments
 #[rustfmt::skip]
     pub fn remove_app_option(&mut self, opt: &AppOptions) {
         match opt {
@@ -279,24 +281,10 @@ impl<'a> App<'a> {
             AppOptions::Referrer(_) => self.command.as_mut().unwrap().set_referrer(""),
             AppOptions::RecDownload(_) => self.command.as_mut().unwrap().set_rec_download_level(0),
             AppOptions::RequestBody(_) => self.command.as_mut().unwrap().set_request_body(""),
-            AppOptions::Cookie(_) => self.command
-                                    .as_mut()
-                                    .unwrap()
-                                    .remove_headers(opt.get_value()),
-            AppOptions::Headers(_) => self.command
-                                    .as_mut()
-                                    .unwrap()
-                                    .remove_headers(opt.get_value()),
-
-            AppOptions::Auth(_) => self.command
-                                    .as_mut()
-                                    .unwrap()
-                                    .set_auth(crate::request::curl::AuthKind::None),
-
-            AppOptions::EnableHeaders => self.command
-                                        .as_mut()
-                                        .unwrap()
-                                        .enable_response_headers(false),
+            AppOptions::Cookie(_) => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
+            AppOptions::Headers(_) => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
+            AppOptions::Auth(_) => self.command.as_mut().unwrap().set_auth(crate::request::curl::AuthKind::None),
+            AppOptions::EnableHeaders => self.command.as_mut().unwrap().enable_response_headers(false),
         }
         self.opts
             .retain(|x| mem::discriminant(x) != mem::discriminant(opt));

@@ -12,8 +12,7 @@ use std::{
 };
 
 use super::command::{CmdOpts, CurlOpts, CMD};
-
-pub static DEFAULT_CMD: &str = "curl";
+use crate::display::menuopts::CURL;
 
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
 struct Collector(Vec<u8>);
@@ -202,7 +201,7 @@ impl<'a> Clone for Curl<'a> {
         if let Some(ref outfile) = self.outfile {
             curl.set_outfile(outfile);
         }
-        if self.cmd != DEFAULT_CMD {
+        if self.cmd != CURL {
             // our cmd string has been built
             curl.cmd = self.cmd.clone();
         }
@@ -281,7 +280,7 @@ impl<'a> Default for Curl<'a> {
             curl: Easy2::new(Collector(Vec::new())),
             method: None,
             auth: AuthKind::None,
-            cmd: String::from(DEFAULT_CMD),
+            cmd: String::from(CURL),
             url: String::new(),
             opts: Vec::new(),
             headers: None,
@@ -541,6 +540,11 @@ impl<'a> CurlOpts for Curl<'a> {
     }
 
     fn set_request_body(&mut self, body: &str) {
+        let flag = CurlFlag::RequestBody(
+            CurlFlagType::RequestBody.get_value(),
+            Some(body.to_string()),
+        );
+        self.toggle_flag(&flag);
         self.curl.post_fields_copy(body.as_bytes()).unwrap();
     }
 
@@ -707,6 +711,11 @@ impl<'a> Curl<'a> {
                 CurlFlag::TcpKeepAlive(..) => self.set_tcp_keepalive(true),
                 CurlFlag::PreventDefaultConfig(..) => {}
                 CurlFlag::Progress(..) => {}
+                CurlFlag::RequestBody(..) => {
+                    if let Some(val) = opt.get_arg() {
+                        self.set_request_body(&val);
+                    }
+                }
             }
         }
     }
@@ -883,7 +892,7 @@ impl<'a> Curl<'a> {
     }
 }
 
-// curl.opts  =  Vec<Flag>  =  vec!["--cert-type", "PEM"] so flag / argument
+// curl.opts  =  Vec<Flag>  =  vec!["--cert-type", "PEM"] flag / argument
 // but we dont want to have to provide/remember the "-X"(flag) so we store it in the enum
 // We may have "--verbose" which is a flag with no value
 // But each enum variant has the default flag stored as a static string, so we can use that
@@ -932,7 +941,6 @@ macro_rules! define_curl_flags {
     };
 }
 
-// Define the CurlFlag enum using the macro.
 define_curl_flags! {
     Verbose("-v"),
     Cookie("-b"),
@@ -964,6 +972,7 @@ define_curl_flags! {
     CaPath("--capath"),
     SpnegoAuth("--negotiate"),
     Progress("--progress-bar"),
+    RequestBody("--data"),
 }
 
 #[cfg(test)]

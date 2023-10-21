@@ -1,11 +1,12 @@
 #![allow(non_snake_case)]
-use std::{default, fmt::Display};
+use std::{fmt::Display, path::PathBuf};
 
-// Purpose: Main library file for the application.
-// ********************************************************************
 use crate::display::menuopts::CUTE_LOGO;
 
+use database::db::DB;
+use dirs::config_dir;
 use serde::{Deserialize, Serialize};
+use tui::style::Style;
 
 // Application.
 pub mod app;
@@ -31,7 +32,7 @@ pub mod tui_cute;
 pub struct Config {
     colors: Colors,
     logo: Option<Logo>,
-    db_path: Option<String>,
+    db_path: Option<PathBuf>,
 }
 
 impl Config {
@@ -48,36 +49,50 @@ impl Config {
             ""
         }
     }
-    pub fn get_db_path(&self) -> String {
-        self.db_path
-            .as_ref()
-            .unwrap_or(&String::from(
-                dirs::data_local_dir()
-                    .unwrap_or(dirs::home_dir().unwrap())
-                    .join("CuTE")
-                    .into_os_string()
-                    .to_str()
-                    .unwrap(),
-            ))
-            .to_string()
+
+    pub fn get_style(&self) -> Style {
+        Style::default()
+            .fg(self.get_fg_color())
+            .bg(self.get_bg_color())
     }
-}
-impl Default for Config {
-    fn default() -> Self {
+    pub fn get_default_config() -> Self {
         Self {
             colors: Colors {
                 fg: ConfigColor::Cyan,
                 bg: ConfigColor::Gray,
             },
             logo: Some(Logo::Default),
-            db_path: Some(String::from(
-                dirs::data_local_dir()
-                    .expect("Failed to get local data directory")
-                    .join("CuTE")
-                    .into_os_string()
-                    .to_str()
-                    .unwrap(),
-            )),
+            db_path: Some(DB::get_default_path()),
+        }
+    }
+
+    pub fn load() -> Result<Self, String> {
+        if let Some(config) = config_dir() {
+            let config = config.join("CuTe").join("config.toml");
+            if let Ok(config) = std::fs::read_to_string(config) {
+                if let Ok(config) = toml::from_str::<Config>(&config) {
+                    Ok(config)
+                } else {
+                    Err("Failed to parse config.toml".to_string())
+                }
+            } else {
+                Err("Failed to read config.toml".to_string())
+            }
+        } else {
+            Err("Failed to get config directory".to_string())
+        }
+    }
+
+    pub fn get_db_path(&self) -> Option<PathBuf> {
+        self.db_path.as_ref().cloned()
+    }
+}
+impl Default for Config {
+    fn default() -> Self {
+        if let Ok(config) = Self::load() {
+            config
+        } else {
+            Self::get_default_config()
         }
     }
 }
