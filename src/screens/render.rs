@@ -41,15 +41,17 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
         // app.current_screen, this function is called so we check for any display options
         // that were added to app.opts in the previous screen and add them here.
         if app.current_screen == Screen::Home {
+            // the home screen renders the ascii art logo
             let logo = Paragraph::new(app.config.get_logo())
                 .block(Block::default())
                 .style(
-                    Style::default()
-                        .fg(app.config.get_fg_color())
-                        .bg(app.config.get_bg_color())
+                    app.config
+                        .get_style()
                         .add_modifier(tui::style::Modifier::BOLD),
                 )
-                .alignment(Alignment::Center);
+                .on_light_cyan()
+                .alignment(Alignment::Center)
+                .on_light_cyan();
             frame.render_widget(logo, small_rect(frame.size()));
         }
         let area = small_rect(frame.size());
@@ -62,7 +64,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                         .borders(Borders::ALL)
                         .border_type(BorderType::Double)
                         .title_style(Style::new().bold().italic())
-                        .title(" Request Options "),
+                        .title("-Request Options-"),
                 )
                 .fg(app.config.get_fg_color())
                 .bg(app.config.get_bg_color())
@@ -201,7 +203,7 @@ fn is_prompt(e: &str) -> bool {
 
 fn handle_display_options(opts: &[AppOptions]) -> Vec<Line> {
     opts.iter()
-        .map(|x| Line::from(format!("{:?}", x)))
+        .map(|x| Line::from(x.get_value()))
         .collect::<Vec<Line>>()
 }
 

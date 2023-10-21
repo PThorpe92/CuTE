@@ -28,15 +28,10 @@ pub struct DB {
 
 impl DB {
     pub fn new() -> Result<Self, rusqlite::Error> {
-        if std::env::var("CI").is_ok() {
-            return Err(rusqlite::Error::InvalidPath(PathBuf::from("CI")));
-        }
-        let dir = data_local_dir().expect("Failed to get data local directory");
-        let dir = dir.join("CuTE");
-        let dbpath = dir.join("CuTE.db");
+        let path = DB::get_default_path();
 
         let conn = Connection::open_with_flags(
-            dbpath,
+            path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_URI
@@ -59,6 +54,12 @@ impl DB {
         conn.execute("COMMIT;", params![])?;
 
         Ok(DB { conn })
+    }
+
+    pub fn get_default_path() -> PathBuf {
+        let dir = data_local_dir().expect("Failed to get data local directory,\nPlease specify a path at $CONFIG/CuTE/config.toml\nOr with the --db_path={path/to/CuTE.db}");
+        let dir = dir.join("CuTE");
+        dir.join("CuTE.db")
     }
 
     pub fn add_command(&self, command: &str, json_str: String) -> Result<(), rusqlite::Error> {
@@ -202,12 +203,5 @@ impl SavedKey {
     pub fn from_json(json: &str) -> Result<Self> {
         Ok(serde_json::from_str(json).expect("Failed to deserialize"))
     }
-
     //TODO: implement actual encryption
-    //
-    // pub fn encrypt(&self, key: &str) -> Result<String> {
-    //     let mut encrypted = encrypt(key, self.key.as_str())?;
-    //     encrypted.push_str("\n");
-    //     Ok(encrypted)
-    // }
 }
