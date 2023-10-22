@@ -14,6 +14,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mockito",
+ "once_cell",
  "ratatui",
  "regex",
  "rusqlite",
