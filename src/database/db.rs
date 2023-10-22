@@ -42,7 +42,7 @@ impl DB {
         }
 
         let conn_result = Connection::open_with_flags(
-            path,
+            path.join("CuTE.db"),
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_URI
@@ -57,7 +57,7 @@ impl DB {
                 conn = connection;
             }
             Err(e) => {
-                println!("CuTE Database Error: {}", e);
+                println!("CuTE Database Error: {:?}", e);
                 return Err(e);
             }
         }
@@ -83,7 +83,8 @@ impl DB {
     pub fn get_default_path() -> PathBuf {
         let dir = data_local_dir().expect("Failed to get data local directory,\nPlease specify a path at $CONFIG/CuTE/config.toml\nOr with the --db_path={path/to/CuTE.db}");
         let dir = dir.join("CuTE");
-        dir.join("CuTE.db")
+        //dir.join("CuTE.db")
+        dir
     }
 
     pub fn add_command(&self, command: &str, json_str: String) -> Result<(), rusqlite::Error> {
