@@ -40,13 +40,27 @@ impl DB {
         } else {
             println!("CuTE directory already exists at {:?}", path);
         }
-        let conn = Connection::open_with_flags(
+
+        let conn_result = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_URI
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )?;
+        );
+
+        let conn;
+
+        // We Need To Handle Some Errors Here Related To Opening SQLite3 Database Files
+        match conn_result {
+            Ok(connection) => {
+                conn = connection;
+            }
+            Err(e) => {
+                println!("CuTE Database Error: {}", e);
+                return Err(e);
+            }
+        }
 
         // Begin a transaction
         conn.execute("BEGIN;", params![])?;

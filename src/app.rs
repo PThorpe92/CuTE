@@ -52,6 +52,8 @@ pub struct App<'a> {
 
 impl<'a> Default for App<'a> {
     fn default() -> Self {
+
+
         Self {
             config: Config::default(),
             running: true,
