@@ -1,6 +1,5 @@
 use crate::app::App;
 use crate::screens::{default_rect, small_alert_box};
-use log::error;
 use tui::backend::Backend;
 use tui::layout::{Constraint, Layout};
 use tui::prelude::Direction;
@@ -46,6 +45,7 @@ fn err_box<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg: Strin
 
     frame.render_widget(
         Paragraph::new(Text::from(error_msg))
+            .style(app.config.get_style_error())
             .alignment(::tui::prelude::Alignment::Center)
             .wrap(Wrap { trim: true }),
         innerbox,

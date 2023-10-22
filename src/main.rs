@@ -2,8 +2,8 @@
 use clap::builder::Command;
 use clap::Arg;
 use dirs::config_dir;
+use once_cell::sync::Lazy;
 use std::io;
-use std::path::PathBuf;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 use CuTE_tui::app::{App, AppResult};
@@ -37,8 +37,16 @@ fn main() -> AppResult<()> {
     Ok(())
 }
 
+pub static CONFIG_PATH: Lazy<String> = Lazy::new(|| {
+    config_dir()
+        .unwrap()
+        .join("CuTE/config.toml")
+        .as_os_str()
+        .to_string_lossy()
+        .to_string()
+});
+
 fn parse_cmdline() -> Option<Config> {
-    let config_path: PathBuf = config_dir().unwrap().join("CuTE/config.toml");
     let args = Command::new("CuTE")
         .author("PThorpe92<preston@unlockedlabs.org>")
         .version("0.0.2")
@@ -58,7 +66,7 @@ fn parse_cmdline() -> Option<Config> {
                 .id("dump-config")
                 .long("dump-config")
                 .default_missing_value(".")
-                .default_value()
+                .default_value(CONFIG_PATH.as_str())
         ).get_matches();
     if args.contains_id("dump-config") {
         let mut config_path: String = args

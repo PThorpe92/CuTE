@@ -81,7 +81,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
                     .border_type(BorderType::Double)
                     .border_style(Style::new().bold()),
             )
-            .style(Style::default().fg(Color::Green).bg(Color::Black))
+            .style(app.config.get_style())
             .alignment(Alignment::Center);
         frame.render_widget(paragraph, area);
     }
@@ -148,11 +148,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             let area = default_rect(frame.size());
             let response = app.response.clone().unwrap();
             let paragraph = Paragraph::new(Text::from(response.as_str()))
-                .style(
-                    Style::default()
-                        .fg(app.config.get_body_color())
-                        .bg(app.config.get_bg_color()),
-                )
+                .style(app.config.get_style())
                 .alignment(Alignment::Center);
             frame.render_widget(paragraph, area);
         }

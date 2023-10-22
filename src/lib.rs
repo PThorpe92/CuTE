@@ -64,13 +64,20 @@ impl Config {
             .fg(self.get_fg_color())
             .bg(self.get_bg_color())
     }
+
+    pub fn get_style_error(&self) -> Style {
+        Style::default()
+            .fg(tui::style::Color::Red)
+            .bg(self.get_bg_color())
+    }
+
     pub fn get_default_config() -> Self {
         Self {
             colors: Colors {
-                fg: ConfigColor::Cyan,
-                bg: ConfigColor::Gray,
+                fg: ConfigColor::Gray,
+                bg: ConfigColor::Black,
                 body: ConfigColor::Yellow,
-                outline: ConfigColor::Blue,
+                outline: ConfigColor::Cyan,
             },
             logo: Some(Logo::Default),
             db_path: Some(DB::get_default_path()),
@@ -82,7 +89,6 @@ impl Config {
             let config = config.join("CuTE").join("config.toml");
             if let Ok(config) = std::fs::read_to_string(config) {
                 if let Ok(config) = toml::from_str::<Config>(&config) {
-                    println!("Loaded config: {:?}", config);
                     Ok(config)
                 } else {
                     Err("Failed to parse config.toml".to_string())
