@@ -1,33 +1,35 @@
+use crate::app::App;
+use crate::screens::{default_rect, small_alert_box};
 use tui::backend::Backend;
-use tui::Frame;
 use tui::layout::{Constraint, Layout};
 use tui::prelude::Direction;
 use tui::style::{Color, Style};
 use tui::text::Text;
 use tui::widgets::{Block, Borders, ListState, Paragraph, Wrap};
-use crate::app::App;
-use crate::screens::{default_rect, small_alert_box};
+use tui::Frame;
 
-
-fn err_box<B:Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg:String) {
+fn err_box<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg: String) {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - 40) / 2),
-            Constraint::Percentage(40),
-            Constraint::Percentage((100 - 40) / 2)
-        ].as_ref(),)
+        .constraints(
+            [
+                Constraint::Percentage((100 - 40) / 2),
+                Constraint::Percentage(40),
+                Constraint::Percentage((100 - 40) / 2),
+            ]
+            .as_ref(),
+        )
         .split(frame.size());
-
 
     let boundbox = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(
             [
-                Constraint::Percentage((100 - 50) / 2),
+                Constraint::Percentage(25),
                 Constraint::Percentage(50),
-                Constraint::Percentage((100 - 50) / 2),
-            ].as_ref(),
+                Constraint::Percentage(25),
+            ]
+            .as_ref(),
         )
         .split(popup_layout[1])[1];
 
@@ -39,21 +41,18 @@ fn err_box<B:Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg:String)
 
     let innerbox = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage(30),
-                Constraint::Percentage(50)
-            ].as_ref()
-        )
+        .constraints([Constraint::Percentage(30), Constraint::Percentage(50)].as_ref())
         .split(boundbox)[1];
 
-    frame.render_widget(Paragraph::new(Text::from(error_msg))
-                            .alignment(::tui::prelude::Alignment::Center)
-                            .wrap(Wrap {trim:true}),
-                        innerbox);
+    frame.render_widget(
+        Paragraph::new(Text::from(error_msg))
+            .alignment(::tui::prelude::Alignment::Center)
+            .wrap(Wrap { trim: true }),
+        innerbox,
+    );
 }
 
-pub fn handle_error_screen<B:Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg:String) {
+pub fn handle_error_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg: String) {
     let area = default_rect(small_alert_box(frame.size()));
     let new_list = app.current_screen.get_list(None);
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
@@ -66,6 +65,5 @@ pub fn handle_error_screen<B:Backend>(app: &mut App, frame: &mut Frame<'_, B>, e
     frame.set_cursor(0, app.cursor as u16);
     //frame.render_stateful_widget(new_list, area, &mut state);
 
-    err_box(app,frame, error_msg);
-
+    err_box(app, frame, error_msg);
 }

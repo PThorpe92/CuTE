@@ -32,6 +32,7 @@ pub enum Screen {
     MoreFlags,
     CmdMenu(usize),
     KeysMenu(usize),
+    RequestBodyInput,
 }
 
 impl Display for Screen {
@@ -53,6 +54,7 @@ impl Display for Screen {
             Screen::MoreFlags => "MoreFlags",
             Screen::CmdMenu(_) => "CmdMenu",
             Screen::KeysMenu(_) => "KeysMenu",
+            Screen::RequestBodyInput => "RequestBodyInput",
         };
         write!(f, "{}", screen)
     }
@@ -134,6 +136,9 @@ impl<'a> Screen {
             }
             Screen::ViewBody => {
                 vec![ListItem::new("View Body").style(Style::default().fg(Color::Green))]
+            }
+            Screen::RequestBodyInput => {
+                vec![ListItem::new("Request Body Input").style(Style::default().fg(Color::Green))]
             }
             Screen::CmdMenu(_) => CMD_MENU_OPTIONS
                 .iter()

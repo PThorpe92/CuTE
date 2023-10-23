@@ -1,3 +1,4 @@
+use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, DEFAULT_MENU_PARAGRAPH, DEFAULT_MENU_TITLE,
     DOWNLOAD_MENU_TITLE, ERROR_MENU_TITLE, INPUT_MENU_TITLE, SAVED_COMMANDS_TITLE,
@@ -9,6 +10,7 @@ use crate::screens::input::input::handle_default_input_screen;
 use super::auth::handle_authentication_screen;
 use super::downloads::handle_downloads_screen;
 use super::home::handle_home_screen;
+use super::input::request_body_input::handle_req_body_input_screen;
 use super::method::handle_method_select_screen;
 use super::more_flags::handle_more_flags_screen;
 use super::request::handle_request_menu_screen;
@@ -24,7 +26,7 @@ use tui::widgets::{Block, Borders};
 use tui::{
     backend::Backend,
     layout::Alignment,
-    style::{Color, Style},
+    style::Style,
     text::Text,
     widgets::{BorderType, Paragraph},
     Frame,
@@ -193,6 +195,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         Screen::CmdMenu(cmd) => {
             handle_alert_menu(app, frame, cmd);
         }
+        Screen::RequestBodyInput => handle_req_body_input_screen(app, frame, InputOpt::RequestBody),
         Screen::KeysMenu(cmd) => handle_key_menu(app, frame, cmd),
         _ => {}
     }

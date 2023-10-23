@@ -14,9 +14,7 @@ use CuTE_tui::Config;
 
 fn main() -> AppResult<()> {
     let mut app = App::new();
-    if let Some(config) = parse_cmdline() {
-        app.set_config(config);
-    }
+    app.set_config(parse_cmdline().unwrap_or_default());
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
     let events = EventHandler::new(250);
@@ -48,10 +46,10 @@ pub static CONFIG_PATH: Lazy<String> = Lazy::new(|| {
 
 fn parse_cmdline() -> Option<Config> {
     let args = Command::new("CuTE")
-        .author("PThorpe92<preston@unlockedlabs.org>")
-        .version("0.0.2")
+        .author("PThorpe92 <preston@unlockedlabs.org>")
+        .version("0.1.0")
         .about("Simple TUI for libcurl powered http requests, wget powered recursive downloads, and API key/command storage")
-        .after_help("Arguments are '--dump-config' to write the default config file to the current working directory,
+        .after_help("Arguments are '--dump-config {path}' to write the default config file to the specified path,
             \nand '--db-path' to define a custom path to the database\nDB path can also be defined in the config file at $CONFIG/CuTE/config.toml\n
             or you can set the $CUTE_DB_PATH environment variable")
         .arg(
@@ -65,8 +63,6 @@ fn parse_cmdline() -> Option<Config> {
                 .help("Write the default config file to the current working directory")
                 .id("dump-config")
                 .long("dump-config")
-                .default_missing_value(".")
-                .default_value(CONFIG_PATH.as_str())
         ).get_matches();
     if args.contains_id("dump-config") {
         let mut config_path: String = args

@@ -29,6 +29,7 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
             let fmtstr = format!("Enter a URL for your {}\n and press Enter", opt);
             Text::from(Line::from(fmtstr))
         }
+        InputOpt::RequestBody => Text::from("Enter a body for your request and press Enter"),
         InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
         InputOpt::RecursiveDownload => Text::from(INPUT_OPT_REC_DOWNLOAD),
         InputOpt::Auth(auth) => match auth {
@@ -125,7 +126,7 @@ fn is_valid_unix_socket_path(path: &str) -> Result<(), String> {
     }
 }
 
-fn parse_input(message: String, opt: InputOpt, app: &mut App) {
+pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
         InputOpt::URL(opt) => {
             match opt {
@@ -224,7 +225,7 @@ fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     }
 }
 
-fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) {
+pub fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) {
     // Render the input with the provided prompt
     let chunks = Layout::default()
         .direction(Direction::Vertical)

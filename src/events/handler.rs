@@ -35,13 +35,23 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                             app.move_cursor_down();
                         }
                         KeyCode::Enter => {
+                            if app.current_screen == Screen::RequestBodyInput
+                                && !app.input.value().is_empty()
+                            {
+                                app.messages.push(app.input.value().to_string());
+                                app.input.reset();
+                            }
                             app.select_item();
                         }
-                        KeyCode::Char('i') => {
-                            if let Screen::InputMenu(_) = app.current_screen {
+                        KeyCode::Char('i') => match app.current_screen {
+                            Screen::InputMenu(_) => {
                                 app.input_mode = InputMode::Editing;
                             }
-                        }
+                            Screen::RequestBodyInput => {
+                                app.input_mode = InputMode::Editing;
+                            }
+                            _ => {}
+                        },
                         KeyCode::Char('j') => {
                             app.move_cursor_down();
                         }
@@ -65,12 +75,20 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                 }
             }
         }
-
+        // if we are editing, typically we will want the user to be in insert mode and press Enter
+        // to submit. But if we are allowing text wrapping and a larger input box, we have to allow
+        // the use of the Enter key to insert a newline.
         InputMode::Editing => match key_event.kind {
             KeyEventKind::Press => match key_event.code {
                 KeyCode::Enter => {
-                    app.messages.push(app.input.value().into());
-                    app.input.reset();
+                    if app.current_screen == Screen::RequestBodyInput {
+                        app.input.handle(InputRequest::InsertChar('\n'));
+                        app.input.cursor();
+                    } else {
+                        app.messages.push(app.input.value().to_string());
+                        app.input.reset();
+                        app.input_mode = InputMode::Normal;
+                    }
                 }
                 KeyCode::Char(c) => if app.input.handle(InputRequest::InsertChar(c)).is_some() {},
                 KeyCode::Backspace => {
