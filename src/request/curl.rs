@@ -347,7 +347,6 @@ impl<'a> CmdOpts for Curl<'a> {
                 .for_each(|h| list.append(h.as_str()).unwrap());
         }
         if self.will_save_command() {
-            println!("Saving command");
             let _ = db.as_mut().unwrap().add_command(
                 &self.get_command_string(),
                 serde_json::to_string(&self).unwrap_or(String::from("Error serializing command")),

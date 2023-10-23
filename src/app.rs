@@ -352,16 +352,27 @@ impl<'a> App<'a> {
         }
         match opt {
             AppOptions::Verbose => self.command.as_mut().unwrap().set_verbose(true),
+
             AppOptions::EnableHeaders =>  self.command.as_mut().unwrap().enable_response_headers(true),
+
             AppOptions::ProgressBar => self.command.as_mut().unwrap().enable_progress_bar(true),
+
             AppOptions::FailOnError => self.command.as_mut().unwrap().set_fail_on_error(true),
+
             AppOptions::MatchWildcard => self.command.as_mut().unwrap().match_wildcard(true),
+            
             AppOptions::CertInfo => self.command.as_mut().unwrap().set_cert_info(true),
+
             AppOptions::ProxyTunnel => self.command.as_mut().unwrap().set_proxy_tunnel(true),
+
             AppOptions::SaveCommand => self.command.as_mut().unwrap().save_command(true),
+            
             AppOptions::FollowRedirects => self.command.as_mut().unwrap().set_follow_redirects(true),
+
             AppOptions::UnrestrictedAuth => self.command.as_mut().unwrap().set_unrestricted_auth(true),
+
             AppOptions::TcpKeepAlive => self.command.as_mut().unwrap().set_tcp_keepalive(true),
+
             AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(true),
             _ => {}
         }
@@ -379,16 +390,27 @@ impl<'a> App<'a> {
             self.opts.push(opt.clone());
             match opt {
                 AppOptions::UnixSocket(socket) =>  self.command.as_mut().unwrap().set_unix_socket(&socket),
+
                 AppOptions::Headers(value) => self.command.as_mut().unwrap().add_headers(value),
+
                 AppOptions::URL(url) => self.command.as_mut().unwrap().set_url(&url),
+
                 AppOptions::Outfile(outfile) => self.command.as_mut().unwrap().set_outfile(&outfile),
+
                 AppOptions::Cookie(cookie) => self.command.as_mut().unwrap().add_cookie(cookie),
+
                 AppOptions::RecDownload(i) => self.command.as_mut().unwrap().set_rec_download_level(i),
+
                 AppOptions::Response(resp) => self.command.as_mut().unwrap().set_response(&resp),
+
                 AppOptions::Referrer(referrer) => self.command.as_mut().unwrap().set_referrer(&referrer),
+
                 AppOptions::UserAgent(agent) => self.command.as_mut().unwrap().set_user_agent(&agent),
+
                 AppOptions::CaPath(ca_path) => self.command.as_mut().unwrap().set_ca_path(&ca_path),
+
                 AppOptions::RequestBody(body) => self.command.as_mut().unwrap().set_request_body(&body),
+
                 AppOptions::MaxRedirects(max_redirects) => self.command
                         .as_mut()
                         .unwrap()

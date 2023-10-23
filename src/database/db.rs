@@ -1,12 +1,13 @@
-use std::{
-    fmt::{Display, Formatter},
-    path::PathBuf,
-};
-
 use dirs::data_local_dir;
 use rusqlite::{params, Connection, OpenFlags, Result};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::env;
+use std::str::FromStr;
+use std::{
+    fmt::{Display, Formatter},
+    path::PathBuf,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCommand {
@@ -28,7 +29,12 @@ pub struct DB {
 
 impl DB {
     pub fn new() -> Result<Self, rusqlite::Error> {
-        let path = DB::get_default_path();
+        let mut path: PathBuf = PathBuf::new();
+        if std::env::var("CUTE_DB_PATH").is_ok() {
+            path = PathBuf::from_str(env::var("CUTE_DB_PATH").unwrap().as_str()).unwrap();
+        } else {
+            path = DB::get_default_path();
+        }
         if !path.exists() {
             // If it doesn't exist, create it
             if let Err(err) = std::fs::create_dir_all(&path) {

@@ -34,7 +34,7 @@ pub fn handle_request_menu_screen<B: Backend>(
         // Enable headers in response
         Some(6) => app.add_app_option(AppOptions::EnableHeaders),
         // Request Body
-        Some(7) => app.goto_screen(Screen::InputMenu(InputOpt::RequestBody)),
+        Some(7) => app.goto_screen(Screen::RequestBodyInput),
         // Save this command
         Some(8) => app.add_app_option(AppOptions::SaveCommand),
         // Save your token or login

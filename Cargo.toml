@@ -5,6 +5,10 @@ authors = ["PThorpe92 <preston@unlockedlabs.org>"]
 license = "GPL-3.0"
 edition = "2021"
 
+[[bin]]
+name = "cute"
+path = "src/main.rs"
+
 [dependencies]
 crossterm = "0.27.0"
 tui = { package = "ratatui", features = [

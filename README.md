@@ -7,11 +7,9 @@
 # Rust TUI HTTP Client with API Key Management
 
 
-Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of files (powered by WGET), and storage + management of your API keys.
+Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.
 
-Have you ever wanted to just grab some data from an API, or demonstrate that your REST endpoint is working, and had to craft some 2 paragraph long curl CLI command, just to forget every flag and option you used the next time you need to do send the same command? 
-
-Now, not only can you execute these commands from a simple TUI and either view the response or write it to a file, but on top of executing the command with libcurl, _CuTE_ will build the actual curl command string you need to run it again, should you wish to share it with someone else, use it on a server, or just keep it stashed for later.
+This tool is for when you don't need something as complex as Postman, but you also don't want to have to remember the syntax for `curl` (or `wget`) commands. 
 
 ## Features
 
@@ -21,9 +19,9 @@ Now, not only can you execute these commands from a simple TUI and either view t
 
 - **Multiple Request Types**: With this tool, you can effortlessly create and send all the standard HTTP request types, and even use multiple forms of Authentication, without knowing an entire sub-language known as `curl-cli-flags`. This ensures flexibility in your interaction with different APIs.
 
-- **API Key Management**: The project includes a simple-to-use API key management system. You can store your API keys within the application and assign them names for easy reference.
+- **API Key Management**: Very simple sqlite based API key storage system. You can choose to save a Key from a request, or just add/edit/delete them manually.
 
-- **Response Visualization**: The tool pretty-prints JSON and XML responses in a human-readable format within the TUI. This enables quick assessment of the results of your requests.
+- **Response Visualization**: Pretty-print JSON responses in a human-readable format within the TUI, or allows you to choose to write the response to a file. 
 
 - **Cross Platform**: This application builds and runs on Linux, MacOS and even _Windows_.
 
@@ -32,9 +30,9 @@ Now, not only can you execute these commands from a simple TUI and either view t
 
 - Have __you__ even ran `curl --help all` ?
 
-## Why don't you support `X`?
+## Why don't you support `X` option?
 
-- See above `why`: Supporting every available action or authentication type in libcurl would be a monumental task. If there are enough requests for a specific feature, it will be considered. Otherwise, PR's are welcome.
+- See above `why`: Supporting every available option in libcurl would be a monumental task. If there are enough requests for a specific feature, it will be considered. Otherwise, PR's are welcome.
 
 
 ## Installation
@@ -55,14 +53,17 @@ Now, not only can you execute these commands from a simple TUI and either view t
    ```
    cargo build --release 
    ```
-
+5. **Move Binary**: Move the binary to a location in your PATH:
+   ```
+   sudo mv target/release/cute /usr/local/bin
+   ```
 ## Usage
 
 Upon launching the application, you'll be presented with the TUI interface. Here's a quick guide to using the features:
 
 1. **Main Menu**: The main menu will provide options to create different types of HTTP requests and manage API keys.
 
-2. **Request Type**: Select the type of HTTP request you would like to make. The tool supports GET, POST, PUT, PATCH, and DELETE requests.
+2. **Request Type**: Select the type of HTTP request you would like to make. The tool supports GET, POST, PUT, PATCH, HEAD, DELETE and custom requests.
 
 3. **API Key Management**: In the API key management section, you can add, edit, or delete API keys. Assign API keys to profiles and specific requests for easy integration.
 
