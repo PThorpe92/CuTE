@@ -8,6 +8,7 @@ use tui::text::Text;
 use tui::widgets::{Block, Borders, ListState, Paragraph, Wrap};
 use tui::Frame;
 
+
 fn err_box<B: Backend>(frame: &mut Frame<'_, B>, error_msg: String) {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)

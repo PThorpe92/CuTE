@@ -75,6 +75,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                 }
             }
         }
+
         InputMode::Editing => match key_event.kind {
             KeyEventKind::Press => match key_event.code {
                 KeyCode::Enter => {
