@@ -1,4 +1,5 @@
 ![image](logo.gif)
+
 ![image](cute.png)
 # Rust TUI HTTP Client with API Key Management
 
