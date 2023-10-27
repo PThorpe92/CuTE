@@ -8,7 +8,8 @@ use tui::text::Text;
 use tui::widgets::{Block, Borders, ListState, Paragraph, Wrap};
 use tui::Frame;
 
-fn err_box<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg: String) {
+
+fn err_box<B: Backend>(frame: &mut Frame<'_, B>, error_msg: String) {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -65,5 +66,5 @@ pub fn handle_error_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, 
     frame.set_cursor(0, app.cursor as u16);
     //frame.render_stateful_widget(new_list, area, &mut state);
 
-    err_box(app, frame, error_msg);
+    err_box(frame, error_msg);
 }

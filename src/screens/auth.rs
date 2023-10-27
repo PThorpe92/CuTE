@@ -8,6 +8,7 @@ use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{AWS_AUTH_ERROR_MSG, AWS_AUTH_MSG};
 use crate::display::AppOptions;
+use crate::request::curl::AuthKind;
 use crate::screens::screen::Screen;
 
 // This is the display auth not to be confused with the request auth
@@ -46,13 +47,20 @@ pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame
             3 => {
                 if varify_aws_auth() {
                     app.goto_screen(Screen::RequestMenu(String::from(AWS_AUTH_MSG)));
-                    app.add_app_option(AppOptions::Auth("AWS SignatureV4 Auth".to_string()));
+                    app.add_app_option(AppOptions::Auth(AuthType::AWSSignatureV4.to_string()));
                 } else {
                     app.goto_screen(Screen::RequestMenu(String::from(AWS_AUTH_ERROR_MSG)));
                 }
             }
-            4 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::SPNEGO))),
-            5 => app.goto_screen(Screen::InputMenu(InputOpt::Auth(AuthType::NTLM))),
+            4 => {
+                app.command.as_mut().unwrap().set_auth(AuthKind::Spnego);
+                app.add_app_option(AppOptions::Auth(AuthType::SPNEGO.to_string()));
+                app.goto_screen(Screen::RequestMenu(String::from("Alert: Negotiate Auth")));
+            }
+            5 => {
+                app.command.as_mut().unwrap().set_auth(AuthKind::Ntlm);
+                app.goto_screen(Screen::RequestMenu(String::from("Alert: NTLM Auth")));
+            }
             _ => {}
         }
     }

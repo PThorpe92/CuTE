@@ -243,7 +243,7 @@ pub enum AuthKind {
     Ntlm,
     Basic(String),
     Bearer(String),
-    Digest,
+    Digest(String),
     AwsSigv4,
     Spnego,
 }
@@ -253,6 +253,7 @@ impl AuthKind {
         match self {
             AuthKind::Bearer(token) => Some(token.clone()),
             AuthKind::Basic(login) => Some(login.clone()),
+            AuthKind::Digest(login) => Some(login.clone()),
             _ => None,
         }
     }
@@ -265,7 +266,7 @@ impl Display for AuthKind {
             AuthKind::Ntlm            => write!(f, "NTLM"),
             AuthKind::Basic(login)    => write!(f, "Basic: {}", login),
             AuthKind::Bearer(token)   => write!(f, "Bearer: {}", token),
-            AuthKind::Digest          => write!(f, "Digest Auth"),
+            AuthKind::Digest(login)   => write!(f, "Digest Auth: {}", login),
             AuthKind::AwsSigv4        => write!(f, "AWS SignatureV4"),
             AuthKind::Spnego          => write!(f, "SPNEGO Auth"),
         }
@@ -404,7 +405,7 @@ impl<'a> CurlOpts for Curl<'a> {
             AuthKind::Ntlm => self.set_ntlm_auth(),
             AuthKind::Bearer(token) => self.set_bearer_auth(token),
             AuthKind::AwsSigv4 => self.set_aws_sigv4_auth(),
-            AuthKind::Digest => self.set_digest_auth(),
+            AuthKind::Digest(login) => self.set_digest_auth(&login),
             AuthKind::Spnego => self.set_spnego_auth(),
             AuthKind::None => {}
         }
@@ -660,7 +661,9 @@ impl<'a> Curl<'a> {
                     }
                 }
                 CurlFlag::Digest(..) => {
-                    self.set_digest_auth();
+                    if let Some(login) = opt.get_arg() {
+                        self.set_digest_auth(&login);
+                    }
                 }
                 CurlFlag::Basic(..) => {
                     if let Some(val) = opt.get_arg() {
@@ -753,9 +756,12 @@ impl<'a> Curl<'a> {
         self.curl.nobody(true).unwrap();
     }
 
-    pub fn set_digest_auth(&mut self) {
-        self.add_flag(CurlFlag::Digest(CurlFlagType::Digest.get_value(), None));
-        self.auth = AuthKind::Digest;
+    pub fn set_digest_auth(&mut self, login: &str) {
+        self.add_flag(CurlFlag::Digest(
+            CurlFlagType::Digest.get_value(),
+            Some(String::from(login)),
+        ));
+        self.auth = AuthKind::Digest(String::from(login));
     }
 
     pub fn set_aws_sigv4_auth(&mut self) {
@@ -862,7 +868,13 @@ impl<'a> Curl<'a> {
                 list_edited = true;
                 let _ = list.append(&format!("Authorization: Bearer {}", token.clone()));
             }
-            AuthKind::Digest => {
+            AuthKind::Digest(login) => {
+                self.curl
+                    .username(login.split(':').next().unwrap())
+                    .unwrap();
+                self.curl
+                    .password(login.split(':').last().unwrap())
+                    .unwrap();
                 let _ = self.curl.http_auth(Auth::new().digest(true));
             }
             AuthKind::Ntlm => {
@@ -1239,11 +1251,12 @@ mod tests {
     #[test]
     fn test_set_digest_auth() {
         let mut curl = Curl::new();
-        curl.set_digest_auth();
+        curl.set_digest_auth("username:password");
         assert_eq!(curl.opts.len(), 1);
-        assert!(curl
-            .opts
-            .contains(&CurlFlag::Digest(CurlFlagType::Digest.get_value(), None,)));
+        assert!(curl.opts.contains(&CurlFlag::Digest(
+            CurlFlagType::Digest.get_value(),
+            Some(String::from("username:password")),
+        )));
     }
 
     #[test]

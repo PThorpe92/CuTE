@@ -259,7 +259,7 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
     app.command.as_mut().unwrap().set_auth(match auth {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
-        AuthType::Digest => AuthKind::Digest,
+        AuthType::Digest => AuthKind::Digest(String::from(message)),
         AuthType::AWSSignatureV4 => AuthKind::AwsSigv4,
         AuthType::SPNEGO => AuthKind::Spnego,
         AuthType::NTLM => AuthKind::Ntlm,

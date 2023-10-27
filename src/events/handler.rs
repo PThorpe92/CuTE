@@ -75,20 +75,13 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                 }
             }
         }
-        // if we are editing, typically we will want the user to be in insert mode and press Enter
-        // to submit. But if we are allowing text wrapping and a larger input box, we have to allow
-        // the use of the Enter key to insert a newline.
+
         InputMode::Editing => match key_event.kind {
             KeyEventKind::Press => match key_event.code {
                 KeyCode::Enter => {
-                    if app.current_screen == Screen::RequestBodyInput {
-                        app.input.handle(InputRequest::InsertChar('\n'));
-                        app.input.cursor();
-                    } else {
-                        app.messages.push(app.input.value().to_string());
-                        app.input.reset();
-                        app.input_mode = InputMode::Normal;
-                    }
+                    app.messages.push(app.input.value().to_string());
+                    app.input.reset();
+                    app.input_mode = InputMode::Normal;
                 }
                 KeyCode::Char(c) => if app.input.handle(InputRequest::InsertChar(c)).is_some() {},
                 KeyCode::Backspace => {
