@@ -43,8 +43,6 @@ impl DB {
             } else {
                 println!("CuTE directory created at {:?}", path);
             }
-        } else {
-            println!("CuTE directory already exists at {:?}", path);
         }
 
         let conn_result = Connection::open_with_flags(
@@ -55,18 +53,14 @@ impl DB {
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         );
 
-        let conn;
-
         // We Need To Handle Some Errors Here Related To Opening SQLite3 Database Files
-        match conn_result {
-            Ok(connection) => {
-                conn = connection;
-            }
+        let conn = match conn_result {
+            Ok(connection) => connection,
             Err(e) => {
                 println!("CuTE Database Error: {:?}", e);
                 return Err(e);
             }
-        }
+        };
 
         // Begin a transaction
         conn.execute("BEGIN;", params![])?;
@@ -87,10 +81,8 @@ impl DB {
     }
 
     pub fn get_default_path() -> PathBuf {
-        let dir = data_local_dir().expect("Failed to get data local directory,\nPlease specify a path at $CONFIG/CuTE/config.toml\nOr with the --db_path={path/to/CuTE.db}");
-        let dir = dir.join("CuTE");
-        //dir.join("CuTE.db")
-        dir
+        let mut dir = data_local_dir().expect("Failed to get data local directory,\nPlease specify a path at $CONFIG/CuTE/config.toml\nOr with the --db_path={path/to/CuTE.db}");
+        dir.join("CuTE")
     }
 
     pub fn add_command(&self, command: &str, json_str: String) -> Result<(), rusqlite::Error> {

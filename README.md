@@ -1,11 +1,9 @@
-![image](https://github.com/PThorpe92/CuTE/assets/121899304/5f4294a3-787c-429b-9d98-efa34f2b8546)
-
-![demo](https://github.com/PThorpe92/curl-tui-rs/assets/121899304/e50b009d-e766-48c8-9c6b-c1bbe07d00d2)
-
-
-
+![image](logo.gif)
+![image](cute.png)
 # Rust TUI HTTP Client with API Key Management
 
+#### This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
+![image](screenshot.png)
 
 Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.
 
@@ -15,9 +13,9 @@ This tool is for when you don't need something as complex as Postman, but you al
 
 - **Interactive TUI Interface**: The application offers an intuitive TUI interface that makes it easy to construct and execute HTTP requests without leaving the terminal.
 
-- **Intuitive VIM keybindings:**  Navigate the TUI using the familiar Vim keybindings you know and love.
+- **Intuitive VIM keybindings:**  Vim keybindings are defaulted. Support to change them will eventually make it into the config file.
 
-- **Multiple Request Types**: With this tool, you can effortlessly create and send all the standard HTTP request types, and even use multiple forms of Authentication, without knowing an entire sub-language known as `curl-cli-flags`. This ensures flexibility in your interaction with different APIs.
+- **Multiple Request Types**: Support for GET, POST, PUT, PATCH, HEAD, DELETE and custom requests.
 
 - **API Key Management**: Very simple sqlite based API key storage system. You can choose to save a Key from a request, or just add/edit/delete them manually.
 
@@ -29,10 +27,6 @@ This tool is for when you don't need something as complex as Postman, but you al
 ## Why?
 
 - Have __you__ even ran `curl --help all` ?
-
-## Why don't you support `X` option?
-
-- See above `why`: Supporting every available option in libcurl would be a monumental task. If there are enough requests for a specific feature, it will be considered. Otherwise, PR's are welcome.
 
 
 ## Installation
@@ -83,6 +77,6 @@ This project is licensed under the [GPL3.0 License](LICENSE).
 
 ---
 
-Happy coding! If you have any questions or need assistance, feel free to reach out to [Preston T](https://github.com/PThorpe92)
+If you have any questions or need assistance, feel free to reach out to [Preston](https://github.com/PThorpe92)
 
 **Disclaimer:** This project is provided as-is, and its creators are not responsible for any misuse or potential security vulnerabilities resulting from the usage of API keys.
