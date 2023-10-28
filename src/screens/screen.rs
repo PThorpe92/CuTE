@@ -188,7 +188,12 @@ impl<'a> Screen {
                     .borders(Borders::ALL),
             )
             .style(Style::default().fg(Color::White))
-            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
+            .highlight_style(
+                Style::default()
+                    .add_modifier(Modifier::REVERSED)
+                    .add_modifier(Modifier::BOLD)
+                    .add_modifier(Modifier::ITALIC),
+            )
             .highlight_symbol("󱋰 ")
     }
 }
