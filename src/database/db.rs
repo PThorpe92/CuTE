@@ -81,7 +81,7 @@ impl DB {
     }
 
     pub fn get_default_path() -> PathBuf {
-        let mut dir = data_local_dir().expect("Failed to get data local directory,\nPlease specify a path at $CONFIG/CuTE/config.toml\nOr with the --db_path={path/to/CuTE.db}");
+        let dir = data_local_dir().expect("Failed to get data local directory,\nPlease specify a path at $CONFIG/CuTE/config.toml\nOr with the --db_path={path/to/CuTE.db}");
         dir.join("CuTE")
     }
 
@@ -226,5 +226,4 @@ impl SavedKey {
     pub fn from_json(json: &str) -> Result<Self> {
         Ok(serde_json::from_str(json).expect("Failed to deserialize"))
     }
-    //TODO: implement actual encryption
 }

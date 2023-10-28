@@ -131,7 +131,7 @@ pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
         Screen::Success => (&DEFAULT_MENU_PARAGRAPH, &SUCCESS_MENU_TITLE),
         Screen::Error(_) => (&DEFAULT_MENU_PARAGRAPH, &ERROR_MENU_TITLE),
         Screen::ViewBody => (&DEFAULT_MENU_PARAGRAPH, &VIEW_BODY_TITLE),
-        Screen::Downloads => (&DEFAULT_MENU_PARAGRAPH, &DOWNLOAD_MENU_TITLE),
+        Screen::Downloads(_) => (&DEFAULT_MENU_PARAGRAPH, &DOWNLOAD_MENU_TITLE),
         Screen::SavedKeys => (&API_KEY_PARAGRAPH, &API_KEY_TITLE),
         Screen::HeaderAddRemove => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
         _ => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
@@ -154,7 +154,13 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
                 .alignment(Alignment::Center);
             frame.render_widget(paragraph, area);
         }
-        Screen::Downloads => handle_downloads_screen(app, frame),
+        Screen::Downloads(e) => {
+            if is_prompt(&e) {
+                handle_downloads_screen(app, frame, &e);
+            } else {
+                handle_downloads_screen(app, frame, "");
+            }
+        }
         //
         // REQUEST MENU *********************************************************
         Screen::RequestMenu(e) => {
@@ -183,7 +189,6 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             handle_saved_commands_screen(app, frame);
         }
         Screen::Error(e) => {
-            //handle_response_screen(app, frame, e.to_string());
             handle_error_screen(app, frame, e);
         }
         Screen::MoreFlags => {

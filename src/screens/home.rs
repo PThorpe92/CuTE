@@ -17,7 +17,7 @@ pub fn handle_home_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
             }
             1 => {
                 app.set_command(Box::new(Cmd::Wget(Wget::new())));
-                app.goto_screen(Screen::Downloads);
+                app.goto_screen(Screen::Downloads("".to_string()));
             }
             2 => app.goto_screen(Screen::SavedKeys),
             3 => app.goto_screen(Screen::SavedCommands),

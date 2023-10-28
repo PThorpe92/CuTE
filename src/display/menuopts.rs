@@ -86,6 +86,7 @@ pub const DISPLAY_OPT_CA_PATH: &str = "  󰄤 SSL Certificate path: ";
 pub const DISPLAY_OPT_AUTH: &str = "  Authentication: ";
 pub const DISPLAY_OPT_MATCH_WILDCARD: &str = "  Match glob wildcard 󰛄 ";
 pub const DISPLAY_OPT_CERT_INFO: &str = "  Request certificate info 󰄤 ";
+pub const DISPLAY_OPT_BODY: &str = "  Request Body: ";
 pub const DISPLAY_OPT_UPLOAD: &str = "  Upload file: ";
 pub const DISPLAY_OPT_REQUEST_BODY: &str = "  Request Body";
 pub const DISPLAY_OPT_TCP_KEEPALIVE: &str = "  Enable TCP keepalive 󰗶 ";
