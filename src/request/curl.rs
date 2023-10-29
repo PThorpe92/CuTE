@@ -957,7 +957,7 @@ define_curl_flags! {
     Cookie("-b"),
     Output("-o"),
     User("-u"),
-    Bearer("-H"),
+    Bearer("-H"),// bearer/basic auth are just headers
     CertInfo("--certinfo"),
     Headers("-H"),
     Digest("--digest"),
@@ -981,7 +981,7 @@ define_curl_flags! {
     // is default on CLI, so flag has no value
     TcpKeepAlive(" "),
     CaPath("--capath"),
-    SpnegoAuth("--negotiate"),
+    SpnegoAuth("--negotiate -u:"),
     Progress("--progress-bar"),
     RequestBody("--data"),
 }

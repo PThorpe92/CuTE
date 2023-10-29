@@ -55,11 +55,13 @@ pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame
             4 => {
                 app.command.as_mut().unwrap().set_auth(AuthKind::Spnego);
                 app.add_app_option(AppOptions::Auth(AuthType::SPNEGO.to_string()));
-                app.goto_screen(Screen::RequestMenu(String::from("Alert: Negotiate Auth")));
+                app.goto_screen(Screen::RequestMenu(String::from("")));
             }
             5 => {
                 app.command.as_mut().unwrap().set_auth(AuthKind::Ntlm);
-                app.goto_screen(Screen::RequestMenu(String::from("Alert: NTLM Auth")));
+                app.goto_screen(Screen::RequestMenu(String::from(
+                    "Alert: NTLM Auth Enabled",
+                )));
             }
             _ => {}
         }

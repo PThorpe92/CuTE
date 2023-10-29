@@ -4,7 +4,6 @@ use crate::display::inputopt::InputOpt;
 
 use crate::request::response::Response;
 use crate::screens::screen::Screen;
-use std::error::Error;
 use tui::backend::Backend;
 use tui::text::Text;
 use tui::widgets::{ListState, Paragraph};
@@ -32,12 +31,10 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                 let area_2 = small_alert_box(frame.size());
                 // Check for response error here
                 let response = match Response::from_raw_string(resp.as_str()) {
-                    Ok(resp) => {
-                        resp
-                    }
+                    Ok(resp) => resp,
                     Err(e) => {
                         // Hit the error screen.
-                        app.goto_screen(Screen::Error(format!("{}", e)));
+                        app.goto_screen(Screen::Error(String::from(e)));
                         return;
                     }
                 };
@@ -59,6 +56,8 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                         Ok(_) => app.goto_screen(Screen::Success),
                         Err(e) => app.goto_screen(Screen::Error(e.to_string())),
                     }
+                    // WHY does X11 clear the clipboard after the program exits??? Works on every
+                    // other system...
                 } else if terminal_clipboard::set_string(
                     app.response
                         .as_ref()
@@ -70,6 +69,10 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                 } else {
                     app.goto_screen(Screen::Error("Failed to copy to clipboard".to_string()));
                 }
+            }
+            4 => {
+                app.remove_all_app_options();
+                app.goto_screen(Screen::Home);
             }
             _ => {}
         };
