@@ -29,24 +29,24 @@ pub struct DB {
 
 impl DB {
     pub fn new() -> Result<Self, rusqlite::Error> {
-        let mut path: PathBuf = PathBuf::new();
+        let mut _path: PathBuf = PathBuf::new();
         if std::env::var("CUTE_DB_PATH").is_ok() {
-            path = PathBuf::from_str(env::var("CUTE_DB_PATH").unwrap().as_str()).unwrap();
+            _path = PathBuf::from_str(env::var("CUTE_DB_PATH").unwrap().as_str()).unwrap();
         } else {
-            path = DB::get_default_path();
+            _path = DB::get_default_path();
         }
-        if !path.exists() {
+        if !_path.exists() {
             // If it doesn't exist, create it
-            if let Err(err) = std::fs::create_dir_all(&path) {
-                std::fs::File::create(&path).expect("failed to create database");
+            if let Err(err) = std::fs::create_dir_all(&_path) {
+                std::fs::File::create(&_path).expect("failed to create database");
                 eprintln!("Failed to create CuTE directory: {}", err);
             } else {
-                println!("CuTE directory created at {:?}", path);
+                println!("CuTE directory created at {:?}", _path);
             }
         }
 
         let conn_result = Connection::open_with_flags(
-            path.join("CuTE.db"),
+            _path.join("CuTE.db"),
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_URI
