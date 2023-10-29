@@ -18,7 +18,7 @@ pub enum Screen {
     #[default]
     Home,
     Method,
-    Downloads,
+    Downloads(String),
     HeaderAddRemove,
     RequestMenu(String),
     InputMenu(InputOpt),
@@ -40,7 +40,7 @@ impl Display for Screen {
         let screen = match self {
             Screen::Home => "Home",
             Screen::Method => "Method",
-            Screen::Downloads => "Downloads",
+            Screen::Downloads(_) => "Downloads",
             Screen::HeaderAddRemove => "HeaderAddRemove",
             Screen::RequestMenu(_) => "RequestMenu",
             Screen::InputMenu(_) => "InputMenu",
@@ -144,7 +144,7 @@ impl<'a> Screen {
                 .iter()
                 .map(|i| ListItem::new(format!("{i}{}", NEWLINE)))
                 .collect(),
-            Screen::Downloads => {
+            Screen::Downloads(_) => {
                 let len = DOWNLOAD_MENU_OPTIONS.len();
                 return DOWNLOAD_MENU_OPTIONS
                     .iter()

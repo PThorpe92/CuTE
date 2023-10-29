@@ -132,7 +132,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             match opt {
                 CmdType::Wget => {
                     app.add_app_option(AppOptions::URL(message));
-                    app.goto_screen(Screen::Downloads);
+                    app.goto_screen(Screen::Downloads("".to_string()));
                 }
                 CmdType::Curl => {
                     app.add_app_option(AppOptions::URL(message));
@@ -163,7 +163,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         // Only downloads let you specify the output file prior to execution of the command
         InputOpt::Output => {
             app.add_app_option(AppOptions::Outfile(message.clone()));
-            app.goto_screen(Screen::Downloads);
+            app.goto_screen(Screen::Downloads("".to_string()));
         }
         InputOpt::Cookie => {
             app.add_app_option(AppOptions::Cookie(message.clone()));
@@ -214,9 +214,12 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.goto_screen(Screen::RequestMenu(String::new()));
         }
         InputOpt::RecursiveDownload => {
-            let recursion_level = message.parse::<usize>().unwrap();
-            app.add_app_option(AppOptions::RecDownload(recursion_level));
-            app.goto_screen(Screen::Downloads);
+            if let Ok(recursion_level) = message.parse::<usize>() {
+                app.add_app_option(AppOptions::RecDownload(recursion_level));
+                app.goto_screen(Screen::Downloads("".to_string()));
+            } else {
+                app.goto_screen(Screen::Downloads(String::from(PARSE_INT_ERROR)));
+            }
         }
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);
