@@ -4,6 +4,7 @@
 # Rust TUI HTTP Client with API Key Management
 
 #### This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
+#### I am distracted with work and a new project at the moment, so I am not able to put in as much time as I would like here and I am afraid that if I don't open source it now, it will end up in the side-project graveyard. Collaboration is welcome and encouraged, there is LOTS of low-hanging fruit here, while still being a useful tool.
 ![image](screenshot.png)
 
 Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.
@@ -78,6 +79,10 @@ This project is licensed under the [GPL3.0 License](LICENSE).
 
 ---
 
-If you have any questions or need assistance, feel free to reach out to [Preston](https://github.com/PThorpe92)
+If you have any questions or need assistance, feel free to [reach out](preston@unlockedlabs.org)
+
+**Fun fact:** This project was written in the Maine State Prison system, the main author and 2nd largest contributor are both currently incarcerated. I would like to bring whatever awareness possible to the importance of education and rehabilitation for those 2.2 million Americans currently incarcerated. Access to education and technology is severely limited in the carceral system and I am incredibly fortunate to be in a situation where I am permitted to have remote employment and access to participate in Open source projects. This is incredibly rare, and I am very grateful for the opportunity, but I recognize that this is very much the exception and not the rule. We need to do better as a society.
+
+If you are interested in helping support the education of incarcerated and justice-impacted individuals, please consider donating to a company like the one I currently work for, [Unlocked Labs](https://unlockedlabs.org/) or similar non-profits like [The Last Mile](https://thelastmile.org/) or [Recidiviz](https://www.recidiviz.org/)
 
 **Disclaimer:** This project is provided as-is, and its creators are not responsible for any misuse or potential security vulnerabilities resulting from the usage of API keys.

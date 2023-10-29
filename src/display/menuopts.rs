@@ -184,10 +184,11 @@ lazy_static! {
         "Specify User-Agent  󰖟 ",
         "Enable TCP keepalive 󰗶 ",
     ];
-    pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 4] = [
+    pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 5] = [
         "Write to file? 󱇧 ",
         "View response headers 󰰀 ",
         "View response body 󰈮 ",
-        "Copy command to clipboard 󰅎 "
+        "Copy command to clipboard 󰅎 ",
+        "Return to main menu  ",
     ];
 }
