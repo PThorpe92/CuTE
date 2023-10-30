@@ -168,11 +168,12 @@ impl<'a> App<'a> {
     }
 
     pub fn select_item(&mut self) {
-        let state = self.state.as_mut().unwrap();
+        if let Some(state) = self.state.as_mut() {
         if let Some(selected) = state.selected() {
             // ^^^ returns usize index
             self.selected = Some(selected);
         }
+    } 
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
@@ -298,8 +299,6 @@ impl<'a> App<'a> {
     // Need a button to reset everything
     pub fn remove_all_app_options(&mut self) {
         self.opts.clear();
-        self.command = Some(Box::new(Curl::new()));
-        self.goto_screen(Screen::Method);
         self.messages.clear();
         self.response = None;
     }
