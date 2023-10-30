@@ -28,8 +28,6 @@ pub struct App<'a> {
     pub current_screen: Screen,
     /// screen stack
     pub screen_stack: Vec<Screen>,
-    // Previous Screen 
-    pub previous_screen: Option<Screen>,
     /// index of selected item
     pub selected: Option<usize>,
     /// command (curl or wget)
@@ -61,7 +59,6 @@ impl<'a> Default for App<'a> {
             running: true,
             cursor: 0,
             screen_stack: vec![Screen::Home],
-            previous_screen: None,
             selected: None,
             command: None,
             input_mode: InputMode::Normal,
@@ -100,9 +97,6 @@ impl<'a> App<'a> {
 
     pub fn goto_screen(&mut self, screen: Screen) {
 
-        // Record Current Screen As Previous Screen 
-        self.previous_screen = Some(self.current_screen.clone());
-
         // Push New/Next Screen Onto The Screen Stack
         self.screen_stack.push(screen.clone());
 
@@ -112,14 +106,8 @@ impl<'a> App<'a> {
         self.cursor = 0;
         match screen {
             Screen::Method => {
-                // If The Screen We're Going To Is The Method Screen
-                // And Our Previous Screen Is Not The Home Screen, Meaning We're Backing Out  
-                // Not Moving Forward
-            
-                if self.previous_screen != Some(Screen::Home) {
-                    // Clear Our Options
-                    self.remove_all_app_options();
-                }   
+                // If The Method Screen Is Hit, We Reset options
+                self.remove_all_app_options();
             }
             Screen::SavedKeys => {
                 self.items = self
@@ -319,7 +307,6 @@ impl<'a> App<'a> {
     pub fn remove_all_app_options(&mut self) {
         self.opts.clear();
         self.command = Some(Box::new(Curl::new()));
-        self.goto_screen(Screen::Method);
         self.messages.clear();
         self.response = None;
     }
