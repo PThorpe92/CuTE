@@ -298,8 +298,6 @@ impl<'a> App<'a> {
     // Need a button to reset everything
     pub fn remove_all_app_options(&mut self) {
         self.opts.clear();
-        self.command = Some(Box::new(Curl::new()));
-        self.goto_screen(Screen::Method);
         self.messages.clear();
         self.response = None;
     }

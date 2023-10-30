@@ -59,6 +59,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                             app.move_cursor_up();
                         }
                         KeyCode::Char('h') => {
+                            // if we are going back to method scree, clear everything
                             app.go_back_screen();
                         }
                         KeyCode::Char('b') => {
