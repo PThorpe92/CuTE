@@ -117,9 +117,8 @@ impl<'a> App<'a> {
                 // Not Moving Forward
             
                 if self.previous_screen != Some(Screen::Home) {
-                 // Clear Our Options
-                    self.opts.clear();
-                    println!("Clear Code Hit");
+                    // Clear Our Options
+                    self.remove_all_app_options();
                 }   
             }
             Screen::SavedKeys => {

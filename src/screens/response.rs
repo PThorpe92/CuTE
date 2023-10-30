@@ -71,6 +71,7 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                 }
             }
             4 => {
+                // Return To Home
                 app.remove_all_app_options();
                 app.goto_screen(Screen::Home);
             }
