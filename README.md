@@ -49,13 +49,21 @@ This tool is for when you don't need something as complex as Postman, but you al
    ```
    cargo build --release 
    ```
-5. **Move Binary**: Move the binary to a location in your PATH:
+5. **Move Binary**: Move the binary to a location in your PATH of your choosing:
    ```
-   sudo mv target/release/cute /usr/local/bin
+   sudo cp target/release/cute /usr/local/bin
    ```
-## Usage
 
-Upon launching the application, you'll be presented with the TUI interface. Here's a quick guide to using the features:
+## Command Line Options
+
+##### cute [OPTIONAL] '--dump-config <PATH>' or '--db-path <'/PATH/to/cute.db'>'
+
+- **--dump-config**: Dumps the default config.toml file to the specified path. If no path is specified, it will output it to the current working directory.
+  - currently the config file can only specify basic colors of the application, and the path to the sqlite database. More options will be added in the future.
+
+- **--db-path**: Specify the path to the sqlite database. If no path is specified, it will default to `data_local_dir` working directory.(~/.local/share/CuTE/CuTE.db or the windows/macos equivalent)
+
+#### Menus
 
 1. **Main Menu**: The main menu will provide options to create different types of HTTP requests and manage API keys.
 
@@ -66,6 +74,7 @@ Upon launching the application, you'll be presented with the TUI interface. Here
 4. **Viewing Responses**: After executing a request, the tool will display the response in a readable format within the TUI, with the option to write it out to a file.
 
 5. **Saved Commands**: Much like the API keys, you can store and view past requests/commands for easy use later on.
+
 
 ## Contributing
 
