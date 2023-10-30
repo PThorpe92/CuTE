@@ -1,15 +1,27 @@
 use super::render::handle_screen_defaults;
-use super::Screen;
+use super::{centered_rect, small_alert_box, Screen};
 use crate::app::App;
 use crate::display::menuopts::KEY_MENU_OPTIONS;
 use tui::backend::Backend;
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
 pub fn handle_saved_keys_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     handle_screen_defaults(app, frame);
+    if app.items.is_empty() {
+        let paragraph = Paragraph::new("No Keys Found. Press 'a' to add a new key.").block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Double)
+                .border_style(Style::default().fg(Color::Red)),
+        );
+        frame.render_widget(paragraph, centered_rect(60, 70, frame.size()))
+    } else {
+        let paragraph = Paragraph::new("Press 'a' to add a new key").style(Style::default());
+        frame.render_widget(paragraph, small_alert_box(frame.size()));
+    }
     // if we select a key, open options
     if let Some(cmd) = app.selected {
         app.goto_screen(Screen::KeysMenu(cmd));

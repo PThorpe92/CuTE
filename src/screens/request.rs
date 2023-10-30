@@ -65,7 +65,10 @@ pub fn handle_request_menu_screen<B: Backend>(
         // more options
         Some(11) => app.goto_screen(Screen::MoreFlags),
         // clear options
-        Some(12) => app.remove_all_app_options(),
+        Some(12) => {
+            app.remove_all_app_options();
+            app.goto_screen(Screen::Method);
+        }
         _ => {}
     }
 }

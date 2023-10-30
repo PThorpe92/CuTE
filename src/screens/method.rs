@@ -8,6 +8,7 @@ use tui::backend::Backend;
 use tui::Frame;
 
 pub fn handle_method_select_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+    app.remove_all_app_options();
     app.command = Some(Box::new(Cmd::Curl(Curl::new())));
     handle_screen_defaults(app, frame);
     if let Some(num) = app.selected {

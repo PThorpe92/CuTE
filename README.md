@@ -1,11 +1,11 @@
-![image](logo.gif)
+![image](imgs/logo.gif)
 
-![image](cute.png)
+![image](imgs/cute.png)
 # Rust TUI HTTP Client with API Key Management
 
 #### This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
 #### I am distracted with work and a new project at the moment, so I am not able to put in as much time as I would like here and I am afraid that if I don't open source it now, it will end up in the side-project graveyard. Collaboration is welcome and encouraged, there is LOTS of low-hanging fruit here, while still being a useful tool.
-![image](screenshot.png)
+![image](imgs/demo.gif)
 
 Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.
 
@@ -33,6 +33,21 @@ This tool is for when you don't need something as complex as Postman, but you al
 
 ## Installation
 
+#### Prebuilt binaries for Windows and x86_64 Linux are available on the [Releases](https://github.com/PThorpe92/CuTE/tags) page.
+
+### Install with Cargo:
+
+- **Prerequisites**: Make sure you have Rust and Cargo installed on your system.
+
+ 1. `cargo install cute_tui`
+
+ 2. make sure that your `~/.cargo/bin` directory is in your PATH
+
+ 3. `cute` or `cute --dump-config .`  # this will put a config.toml file in your cwd. You can edit this and place it
+                          in a dir `CuTE` in your `~/.config/` path (see below) to customize the colors of the application.
+
+
+### Build from source:
 1. **Prerequisites**: Make sure you have Rust and Cargo installed on your system.
 
 2. **Clone the Repository**: Clone this repository to your local machine using the following command:
@@ -49,13 +64,22 @@ This tool is for when you don't need something as complex as Postman, but you al
    ```
    cargo build --release 
    ```
-5. **Move Binary**: Move the binary to a location in your PATH:
+5. **Move Binary**: Move the binary to a location in your PATH of your choosing:
    ```
-   sudo mv target/release/cute /usr/local/bin
+   sudo cp target/release/cute /usr/local/bin
    ```
-## Usage
 
-Upon launching the application, you'll be presented with the TUI interface. Here's a quick guide to using the features:
+## Command Line Options
+
+##### cute [OPTIONAL] '--dump-config <PATH>' or '--db-path <'/PATH/to/cute.db'>'
+
+- **--dump-config**: Dumps the default config.toml file to the specified path. If no path is specified, it will output it to the current working directory.
+  - This `config.toml` file needs to be placed in `~/.config/CuTE/{config.toml}` in order for the application to read it.
+  - currently the config file can only specify basic colors of the application, and the path to the sqlite database. More options will be added in the future.
+
+- **--db-path**: Specify the path to the sqlite database. If no path is specified, it will default to `data_local_dir` working directory.(~/.local/share/CuTE/CuTE.db or the windows/macos equivalent)
+
+#### Menus
 
 1. **Main Menu**: The main menu will provide options to create different types of HTTP requests and manage API keys.
 
@@ -66,6 +90,7 @@ Upon launching the application, you'll be presented with the TUI interface. Here
 4. **Viewing Responses**: After executing a request, the tool will display the response in a readable format within the TUI, with the option to write it out to a file.
 
 5. **Saved Commands**: Much like the API keys, you can store and view past requests/commands for easy use later on.
+
 
 ## Contributing
 
