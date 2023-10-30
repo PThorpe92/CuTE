@@ -96,11 +96,19 @@ impl<'a> App<'a> {
     }
 
     pub fn goto_screen(&mut self, screen: Screen) {
+
+        // Push New/Next Screen Onto The Screen Stack
         self.screen_stack.push(screen.clone());
+
+        // Set The Current Screen
         self.current_screen = screen.clone();
 
         self.cursor = 0;
         match screen {
+            Screen::Method => {
+                // If The Method Screen Is Hit, We Reset options
+                self.remove_all_app_options();
+            }
             Screen::SavedKeys => {
                 self.items = self
                     .get_saved_keys()
