@@ -1,7 +1,6 @@
 use super::render::handle_screen_defaults;
 use crate::app::App;
 use crate::request::command::Cmd;
-use crate::request::curl::Curl;
 use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
 use tui::backend::Backend;

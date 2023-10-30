@@ -33,6 +33,21 @@ This tool is for when you don't need something as complex as Postman, but you al
 
 ## Installation
 
+#### Prebuilt binaries for Windows and x86_64 Linux are available on the [Releases](https://github.com/PThorpe92/CuTE/tags) page.
+
+### Install with Cargo:
+
+- **Prerequisites**: Make sure you have Rust and Cargo installed on your system.
+
+ 1. `cargo install cute_tui`
+
+ 2. make sure that your `~/.cargo/bin` directory is in your PATH
+
+ 3. `cute` or `cute --dump-config .`  # this will put a config.toml file in your cwd. You can edit this and place it
+                          in a dir `CuTE` in your `~/.config/` path (see below) to customize the colors of the application.
+
+
+### Build from source:
 1. **Prerequisites**: Make sure you have Rust and Cargo installed on your system.
 
 2. **Clone the Repository**: Clone this repository to your local machine using the following command:
@@ -59,6 +74,7 @@ This tool is for when you don't need something as complex as Postman, but you al
 ##### cute [OPTIONAL] '--dump-config <PATH>' or '--db-path <'/PATH/to/cute.db'>'
 
 - **--dump-config**: Dumps the default config.toml file to the specified path. If no path is specified, it will output it to the current working directory.
+  - This `config.toml` file needs to be placed in `~/.config/CuTE/{config.toml}` in order for the application to read it.
   - currently the config file can only specify basic colors of the application, and the path to the sqlite database. More options will be added in the future.
 
 - **--db-path**: Specify the path to the sqlite database. If no path is specified, it will default to `data_local_dir` working directory.(~/.local/share/CuTE/CuTE.db or the windows/macos equivalent)
