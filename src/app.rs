@@ -6,6 +6,7 @@ use crate::request::curl::Curl;
 use crate::screens::screen::Screen;
 use crate::Config;
 use std::{error, mem};
+use arboard::Clipboard;
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
@@ -226,10 +227,13 @@ impl<'a> App<'a> {
     }
 
     pub fn copy_to_clipboard(&self, opt: &str) -> Result<(), String> {
-        if terminal_clipboard::set_string(opt).is_ok() {
+            if let Ok(mut clipboard) = Clipboard::new() {
+            if let Err(e) = clipboard.set_text(opt) {
+                return Err(e.to_string());
+            } 
             Ok(())
-        } else {
-            Err(String::from("Failed to copy to clipboard"))
+            } else {
+            Err("Failed to copy to clipboard".to_string()) 
         }
     }
 

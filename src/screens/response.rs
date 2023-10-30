@@ -50,20 +50,20 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
             // Copy to clipboard
             3 => {
                 if app.command.is_some() {
-                    match terminal_clipboard::set_string(
-                        app.command.as_mut().unwrap().get_command_string().as_str(),
-                    ) {
+                    let cmd = app.command.as_mut().unwrap().get_command_string();
+                    match app.copy_to_clipboard(cmd.as_str()) {
                         Ok(_) => app.goto_screen(Screen::Success),
                         Err(e) => app.goto_screen(Screen::Error(e.to_string())),
                     }
                     // WHY does X11 clear the clipboard after the program exits??? Works on every
                     // other system...
-                } else if terminal_clipboard::set_string(
-                    app.response
-                        .as_ref()
-                        .unwrap_or(&"Command failed to save".to_string()),
-                )
-                .is_ok()
+                } else if app
+                    .copy_to_clipboard(
+                        app.response
+                            .as_ref()
+                            .unwrap_or(&"Command failed to save".to_string()),
+                    )
+                    .is_ok()
                 {
                     app.goto_screen(Screen::Success);
                 } else {
