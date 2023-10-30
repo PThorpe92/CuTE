@@ -3,6 +3,7 @@ use tui_input::InputRequest;
 
 use crate::app::InputMode;
 use crate::app::{App, AppResult};
+use crate::display::inputopt::InputOpt;
 use crate::screens::screen::Screen;
 
 /// Handles the key events and updates the state of [`App`].
@@ -42,6 +43,11 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                                 app.input.reset();
                             }
                             app.select_item();
+                        }
+                        KeyCode::Char('a') => {
+                            if app.current_screen == Screen::SavedKeys {
+                                app.goto_screen(Screen::InputMenu(InputOpt::ApiKey));
+                            }
                         }
                         KeyCode::Char('i') => match app.current_screen {
                             Screen::InputMenu(_) => {
