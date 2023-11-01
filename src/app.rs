@@ -53,8 +53,6 @@ pub struct App<'a> {
 
 impl<'a> Default for App<'a> {
     fn default() -> Self {
-
-
         Self {
             config: Config::default(),
             running: true,
@@ -359,6 +357,7 @@ impl<'a> App<'a> {
     fn toggle_app_option(&mut self, opt: AppOptions) {
         if self.has_app_option(&opt) {
             self.remove_app_option(&opt);
+            self.redraw();
             return;
         }
         match opt {
@@ -390,6 +389,7 @@ impl<'a> App<'a> {
         self.opts.push(opt);
         self.redraw();
     }
+
 #[rustfmt::skip]
     pub fn add_app_option(&mut self, opt: AppOptions) {
         if self.should_toggle(&opt) {
