@@ -383,8 +383,7 @@ impl<'a> CmdOpts for Curl<'a> {
             } else {
                 Err(String::from("Error making connection"))
             }
-        } else {
-            self.curl.perform().unwrap();
+        } else if self.curl.perform().is_ok() {
             let contents = self.curl.get_ref();
             let res = String::from_utf8_lossy(&contents.0);
             if let Ok(json) =
@@ -396,6 +395,8 @@ impl<'a> CmdOpts for Curl<'a> {
                 self.resp = Some(res.to_string());
                 Ok(())
             }
+        } else {
+            return Err(String::from("Error executing command"));
         }
     }
 }
