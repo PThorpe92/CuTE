@@ -184,17 +184,11 @@ impl<'a> App<'a> {
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        if self
+        self
             .command
             .as_mut()
             .unwrap()
             .execute(Some(&mut self.db))
-            .is_ok()
-        {
-            Ok(())
-        } else {
-            Err("Failed to execute command".to_string())
-        }
     }
 
     pub fn get_saved_keys(&self) -> Result<Vec<SavedKey>, rusqlite::Error> {
@@ -232,6 +226,14 @@ impl<'a> App<'a> {
             Ok(())
             } else {
             Err("Failed to copy to clipboard".to_string()) 
+        }
+    }
+
+    pub fn get_from_clipboard(&self) -> String {
+        if let Ok(mut clipboard) = Clipboard::new() {
+            clipboard.get_text().unwrap_or_default()
+        } else {
+            String::new()
         }
     }
 

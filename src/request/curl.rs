@@ -73,6 +73,7 @@ impl Display for Method {
 }
 impl<'a> Eq for Curl<'a> {}
 
+// cannot derive (serialze, deserialize) due to curl::Easy2 (libcurl)
 impl<'a> Serialize for Curl<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -655,19 +656,9 @@ impl<'a> Curl<'a> {
                     self.curl.wildcard_match(true).unwrap();
                 }
                 CurlFlag::User(..) => {}
-                CurlFlag::Bearer(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_bearer_auth(val);
-                    }
-                }
                 CurlFlag::Digest(..) => {
                     if let Some(login) = opt.get_arg() {
                         self.set_digest_auth(&login);
-                    }
-                }
-                CurlFlag::Basic(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_basic_auth(val);
                     }
                 }
                 CurlFlag::AnyAuth(..) => self.set_any_auth(),
@@ -718,6 +709,7 @@ impl<'a> Curl<'a> {
                         self.set_request_body(&val);
                     }
                 }
+                _ => {}
             }
         }
     }
@@ -815,7 +807,7 @@ impl<'a> Curl<'a> {
     pub fn set_bearer_auth(&mut self, token: String) {
         self.add_flag(CurlFlag::Bearer(
             CurlFlagType::Bearer.get_value(),
-            Some(format!("Authorization: Bearer {token}")),
+            Some(format!("Authorization: Bearer {}", token)),
         ));
         self.auth = AuthKind::Bearer(token);
     }
@@ -862,6 +854,7 @@ impl<'a> Curl<'a> {
                 self.curl
                     .password(login.split(':').last().unwrap())
                     .unwrap();
+                println!("login: {}", login);
                 let _ = self.curl.http_auth(Auth::new().basic(true));
             }
             AuthKind::Bearer(token) => {
@@ -908,6 +901,8 @@ impl<'a> Curl<'a> {
 // We may have "--verbose" which is a flag with no value
 // But each enum variant has the default flag stored as a static string, so we can use that
 // to build the command incrementally by just providing the argument value when we create the flag.
+// YES, I know this ended up being more verbose than just passing in the flag values in the first
+// place but at this point its been refactored so many times that screw it, who cares
 #[macro_export]
 macro_rules! define_curl_flags {
     (
@@ -1094,12 +1089,13 @@ mod tests {
         assert_eq!(curl.cmd, new_curl.cmd);
         assert_eq!(curl.opts.len(), new_curl.opts.len());
     }
+
     #[test]
     fn test_deserialize_raw_str() {
         let json = json!(
         {
                 "method": "Get",
-                "auth": {"Basic": "username:password"},
+                "auth": {"Bearer": "12345678910"},
                 "cmd": "curl -X GET https://example.com",
                 "headers": [],
                 "url": "https://example.com",
@@ -1111,7 +1107,7 @@ mod tests {
         );
         let binding = json.to_string();
         let curl: Curl = serde_json::from_str(&binding).unwrap();
-        assert_eq!(curl.auth, AuthKind::Basic("username:password".to_string()));
+        assert_eq!(curl.auth, AuthKind::Bearer("12345678910".to_string()));
         assert_eq!(curl.cmd, "curl -X GET https://example.com");
         assert_eq!(curl.url, "https://example.com");
         assert_eq!(curl.opts.len(), 0);
