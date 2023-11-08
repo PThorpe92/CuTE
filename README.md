@@ -94,9 +94,10 @@ This tool is for when you don't need something as complex as Postman, but you al
 
 ## Contributing
 
-Contributions to this project are welcome! If you encounter any bugs, have suggestions for improvements, or want to add new features, feel free to open an issue or submit a pull request.
+Contributions to this project are welcome and encouraged! If you encounter any bugs, have suggestions for improvements, or want to add a new feature, feel free to open an issue or submit a PR.
 
 Before contributing, please review the [Contribution Guidelines](CONTRIBUTING.md).
+
 
 ## License
 
@@ -104,10 +105,10 @@ This project is licensed under the [GPL3.0 License](LICENSE).
 
 ---
 
-If you have any questions or need assistance, feel free to [reach out](preston@unlockedlabs.org)
+If you have any questions or need assistance, feel free to [reach out](p@eza.rocks)
 
-**Fun fact:** This project was written in the Maine State Prison system, the main author and 2nd largest contributor are both currently incarcerated. I would like to bring whatever awareness possible to the importance of education and rehabilitation for those 2.2 million Americans currently incarcerated. Access to education and technology is severely limited in the carceral system and I am incredibly fortunate to be in a situation where I am permitted to have remote employment and access to participate in Open source projects. This is incredibly rare, and I am very grateful for the opportunity, but I recognize that this is very much the exception and not the rule. We need to do better as a society.
 
-If you are interested in helping support the education of incarcerated and justice-impacted individuals, please consider donating to a company like the one I currently work for, [Unlocked Labs](https://unlockedlabs.org/) or similar non-profits like [The Last Mile](https://thelastmile.org/) or [Recidiviz](https://www.recidiviz.org/)
+**Fun fact:**
+>This project was developed in the Maine State Prison system, where the author is currently incarcerated. I would like to bring whatever awareness possible to the importance of education and rehabilitation for those 2.2 million Americans currently incarcerated. I have a [blog post](https://pthorpe92.github.io/intro/my-story/) if you are interested in reading about my story.
 
 **Disclaimer:** This project is provided as-is, and its creators are not responsible for any misuse or potential security vulnerabilities resulting from the usage of API keys.
