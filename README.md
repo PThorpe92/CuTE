@@ -23,7 +23,7 @@ This tool is for when you don't need something as complex as Postman, but you al
 
 - **Response Visualization**: Pretty-print JSON responses in a human-readable format within the TUI, or allows you to choose to write the response to a file. 
 
-- **Cross Platform**: This application builds and runs on Linux, MacOS and even _Windows_.
+- **Cross Platform**: This application builds and runs on Linux, MacOS and even _Windows_. **Note** Recursive downloading is powered by `GNU Wget` (not the fake wget command you get on windows), so this functionality is only available through `Msys2` or `WSL` on Windows.
 
 
 ## Why?
@@ -104,11 +104,12 @@ Before contributing, please review the [Contribution Guidelines](CONTRIBUTING.md
 This project is licensed under the [GPL3.0 License](LICENSE).
 
 ---
-
 If you have any questions or need assistance, feel free to [reach out](p@eza.rocks)
 
 
-**Fun fact:**
+## **Fun fact:**
+
 >This project was developed in the Maine State Prison system, where the author is currently incarcerated. I would like to bring whatever awareness possible to the importance of education and rehabilitation for those 2.2 million Americans currently incarcerated. I have a [blog post](https://pthorpe92.github.io/intro/my-story/) if you are interested in reading about my story.
+
 
 **Disclaimer:** This project is provided as-is, and its creators are not responsible for any misuse or potential security vulnerabilities resulting from the usage of API keys.
