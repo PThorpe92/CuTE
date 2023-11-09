@@ -2,7 +2,7 @@ use crate::database::db::{SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::AppOptions;
 use crate::request::command::{CmdOpts, CMD};
-use crate::request::curl::Curl;
+use crate::request::curl::{Curl, AuthKind};
 use crate::screens::screen::Screen;
 use crate::Config;
 use std::{error, mem};
@@ -189,6 +189,7 @@ impl<'a> App<'a> {
             .as_mut()
             .unwrap()
             .execute(Some(&mut self.db))
+        
     }
 
     pub fn get_saved_keys(&self) -> Result<Vec<SavedKey>, rusqlite::Error> {
@@ -386,6 +387,8 @@ impl<'a> App<'a> {
             AppOptions::TcpKeepAlive => self.command.as_mut().unwrap().set_tcp_keepalive(true),
 
             AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(true),
+            // Auth will be toggled for all types except for Basic, Bearer and digest 
+            AppOptions::Auth(ref kind) => self.command.as_mut().unwrap().set_auth(kind.clone()),
             _ => {}
         }
         self.opts.push(opt);
@@ -402,6 +405,20 @@ impl<'a> App<'a> {
         if self.should_add_option(&opt) {
             self.opts.push(opt.clone());
             match opt {
+                // other options will be set at the input menu
+                // TODO: Consolidate this garbage spaghetti nonsense
+                AppOptions::Auth(authkind) => match authkind {
+                    AuthKind::Spnego => {
+                        self.command.as_mut().unwrap().set_auth(authkind);
+                    }
+                    AuthKind::Ntlm => {
+                        self.command.as_mut().unwrap().set_auth(authkind);
+                    }
+                    AuthKind::AwsSigv4 => {
+                        self.command.as_mut().unwrap().set_auth(authkind);
+                    }
+                    _ => {}
+                }
                 AppOptions::UnixSocket(socket) =>  self.command.as_mut().unwrap().set_unix_socket(&socket),
 
                 AppOptions::Headers(value) => self.command.as_mut().unwrap().add_headers(value),

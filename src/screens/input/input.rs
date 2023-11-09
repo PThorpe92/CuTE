@@ -256,17 +256,25 @@ fn validate_path(path: &str) -> bool {
 }
 
 fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
-    if app.has_app_option(&AppOptions::Auth(String::new())) {
-        app.remove_app_option(&AppOptions::Auth(String::new()));
+    if app.has_app_option(&AppOptions::Auth(AuthKind::None)) {
+        // will till toggle no matter what kind of auth due to mem::descriminate
+        app.remove_app_option(&AppOptions::Auth(AuthKind::None));
     }
+    println!("Auth set: {message}");
     app.command.as_mut().unwrap().set_auth(match auth {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
         AuthType::Digest => AuthKind::Digest(String::from(message)),
-        AuthType::AWSSignatureV4 => AuthKind::AwsSigv4,
-        AuthType::SPNEGO => AuthKind::Spnego,
-        AuthType::NTLM => AuthKind::Ntlm,
+        // above are the only auth options that would ever send us here
+        _ => AuthKind::None,
     });
-    app.add_app_option(AppOptions::Auth(String::from(message)));
+
+    app.add_app_option(AppOptions::Auth(match auth {
+        AuthType::Basic => AuthKind::Basic(String::from(message)),
+        AuthType::Bearer => AuthKind::Bearer(String::from(message)),
+        AuthType::Digest => AuthKind::Digest(String::from(message)),
+        // above are the only auth options that would ever send us here
+        _ => AuthKind::None,
+    }));
     app.goto_screen(Screen::RequestMenu(String::new()));
 }

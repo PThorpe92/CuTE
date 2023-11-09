@@ -58,39 +58,41 @@ pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cm
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
-    let show_cmds = app.get_saved_commands().unwrap();
-    let selected = show_cmds.get(cmd).unwrap().clone();
-    let paragraph = Paragraph::new(format!("{:?}", selected.get_command()))
-        .block(Block::default().borders(Borders::ALL).title("Command"))
-        .alignment(tui::layout::Alignment::Center);
-    frame.render_widget(paragraph, cmd_str);
-    frame.render_widget(alert_text_chunk, alert_box);
-    frame.render_stateful_widget(list, options_box, &mut list_state);
-    match app.selected {
-        // execute saved command
-        Some(0) => {
-            app.execute_saved_command(cmd);
-            app.goto_screen(Screen::Response(app.response.clone().unwrap()));
-        }
-        // delete item
-        Some(1) => {
-            if let Err(e) = app.delete_item(selected.get_id()) {
-                app.goto_screen(Screen::Error(e.to_string()));
-            } else {
+    let show_cmds = app.get_saved_commands().unwrap_or_default();
+    if let Some(selected) = show_cmds.get(cmd) {
+        let paragraph = Paragraph::new(format!("{:?}", selected.get_command()))
+            .block(Block::default().borders(Borders::ALL).title("Command"))
+            .alignment(tui::layout::Alignment::Center);
+        frame.render_widget(paragraph, cmd_str);
+        frame.render_widget(alert_text_chunk, alert_box);
+        frame.render_stateful_widget(list, options_box, &mut list_state);
+
+        match app.selected {
+            // execute saved command
+            Some(0) => {
+                app.execute_saved_command(cmd);
+                app.goto_screen(Screen::Response(app.response.clone().unwrap()));
+            }
+            // delete item
+            Some(1) => {
+                if let Err(e) = app.delete_item(selected.get_id()) {
+                    app.goto_screen(Screen::Error(e.to_string()));
+                } else {
+                    app.goto_screen(Screen::Success);
+                }
+            }
+            // copy to clipboard
+            Some(2) => {
+                if let Err(e) = app.copy_to_clipboard(selected.get_command()) {
+                    app.goto_screen(Screen::Error(e.to_string()));
+                }
                 app.goto_screen(Screen::Success);
             }
-        }
-        // copy to clipboard
-        Some(2) => {
-            if let Err(e) = app.copy_to_clipboard(selected.get_command()) {
-                app.goto_screen(Screen::Error(e.to_string()));
+            // cancel
+            Some(3) => {
+                app.goto_screen(Screen::SavedCommands);
             }
-            app.goto_screen(Screen::Success);
+            _ => {}
         }
-        // cancel
-        Some(3) => {
-            app.goto_screen(Screen::SavedCommands);
-        }
-        _ => {}
     }
 }

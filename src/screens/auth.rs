@@ -12,10 +12,9 @@ use crate::request::curl::AuthKind;
 use crate::screens::screen::Screen;
 
 // This is the display auth not to be confused with the request auth
-
+// it needs to be done away with and combined into one
 #[derive(Debug, Clone, PartialEq)]
 pub enum AuthType {
-    // OAuth looks impossible to implement
     Basic,
     Bearer,
     Digest,
@@ -24,15 +23,16 @@ pub enum AuthType {
     SPNEGO,
 }
 
+#[rustfmt::skip]
 impl Display for AuthType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let auth = match self {
-            AuthType::Basic => "Basic",
-            AuthType::Bearer => "Bearer",
-            AuthType::Digest => "Digest",
+            AuthType::Basic          => "Basic",
+            AuthType::Bearer         => "Bearer",
+            AuthType::Digest         => "Digest",
             AuthType::AWSSignatureV4 => "AWS Signature V4",
-            AuthType::NTLM => "NTLM",
-            AuthType::SPNEGO => "SPNEGO",
+            AuthType::NTLM           => "NTLM",
+            AuthType::SPNEGO         => "SPNEGO",
         };
         write!(f, "{}", auth)
     }
@@ -47,18 +47,17 @@ pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame
             3 => {
                 if varify_aws_auth() {
                     app.goto_screen(Screen::RequestMenu(String::from(AWS_AUTH_MSG)));
-                    app.add_app_option(AppOptions::Auth(AuthType::AWSSignatureV4.to_string()));
+                    app.add_app_option(AppOptions::Auth(AuthKind::AwsSigv4));
                 } else {
                     app.goto_screen(Screen::RequestMenu(String::from(AWS_AUTH_ERROR_MSG)));
                 }
             }
             4 => {
-                app.command.as_mut().unwrap().set_auth(AuthKind::Spnego);
-                app.add_app_option(AppOptions::Auth(AuthType::SPNEGO.to_string()));
+                app.add_app_option(AppOptions::Auth(AuthKind::Spnego));
                 app.goto_screen(Screen::RequestMenu(String::from("")));
             }
             5 => {
-                app.command.as_mut().unwrap().set_auth(AuthKind::Ntlm);
+                app.add_app_option(AppOptions::Auth(AuthKind::Ntlm));
                 app.goto_screen(Screen::RequestMenu(String::from(
                     "Alert: NTLM Auth Enabled",
                 )));

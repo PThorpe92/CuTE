@@ -1,5 +1,6 @@
-use crate::display::menuopts::{
-    DISPLAY_OPT_MAX_REC, DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER,
+use crate::{
+    display::menuopts::{DISPLAY_OPT_MAX_REC, DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER},
+    request::curl::AuthKind,
 };
 
 use self::menuopts::{
@@ -34,7 +35,7 @@ pub enum AppOptions {
     SaveCommand,
     Response(String),
     RecDownload(usize),
-    Auth(String),
+    Auth(AuthKind),
     SaveToken,
     UnixSocket(String),
     FollowRedirects,
@@ -72,9 +73,6 @@ impl AppOptions {
             }
             AppOptions::RecDownload(ref mut level) => {
                 *level = val.parse::<usize>().unwrap();
-            }
-            AppOptions::Auth(ref mut auth) => {
-                *auth = val;
             }
             AppOptions::UnixSocket(ref mut socket) => {
                 *socket = val;
