@@ -66,7 +66,7 @@ impl DB {
         conn.execute("BEGIN;", params![])?;
 
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS commands (id INTEGER PRIMARY KEY, command TEXT, curl_json JSON);",
+            "CREATE TABLE IF NOT EXISTS commands (id INTEGER PRIMARY KEY, command TEXT, curl_json TEXT);",
             params![],
         )?;
 
