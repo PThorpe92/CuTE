@@ -2,11 +2,11 @@ use crate::database::db::{SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::AppOptions;
 use crate::request::command::{CmdOpts, CMD};
-use crate::request::curl::{Curl, AuthKind};
+use crate::request::curl::{AuthKind, Curl};
 use crate::screens::screen::Screen;
 use crate::Config;
-use std::{error, mem};
 use arboard::Clipboard;
+use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
 pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
@@ -95,7 +95,6 @@ impl<'a> App<'a> {
     }
 
     pub fn goto_screen(&mut self, screen: Screen) {
-
         // Push New/Next Screen Onto The Screen Stack
         self.screen_stack.push(screen.clone());
 
@@ -145,6 +144,10 @@ impl<'a> App<'a> {
             }
             // is that recursion in prod????? o_0
             Some(screen) if screen == &self.current_screen => self.go_back_screen(),
+            Some(Screen::RequestMenu(_)) => {
+                // This is to remove errors from the stack
+                self.goto_screen(Screen::RequestMenu(String::new()));
+            }
             Some(screen) => {
                 self.goto_screen(screen.clone());
             }
@@ -176,20 +179,15 @@ impl<'a> App<'a> {
 
     pub fn select_item(&mut self) {
         if let Some(state) = self.state.as_mut() {
-        if let Some(selected) = state.selected() {
-            // ^^^ returns usize index
-            self.selected = Some(selected);
+            if let Some(selected) = state.selected() {
+                // ^^^ returns usize index
+                self.selected = Some(selected);
+            }
         }
-    } 
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        self
-            .command
-            .as_mut()
-            .unwrap()
-            .execute(Some(&mut self.db))
-        
+        self.command.as_mut().unwrap().execute(Some(&mut self.db))
     }
 
     pub fn get_saved_keys(&self) -> Result<Vec<SavedKey>, rusqlite::Error> {
@@ -207,26 +205,36 @@ impl<'a> App<'a> {
         self.db.as_ref().get_commands()
     }
 
+    // Takes an array index of the selected item
     pub fn execute_saved_command(&mut self, index: usize) {
-        let saved_commands = self.get_saved_commands().unwrap();
-        let cmd = saved_commands.get(index).unwrap();
-        let mut command: Curl = serde_json::from_str(cmd.get_curl_json()).unwrap();
-        command.easy_from_opts();
-        match command.execute(None) {
-            Ok(_) => self.set_response(command.get_response().clone()),
-            Err(e) => self.set_response(e.to_string()),
-        };
-        self.goto_screen(Screen::Response(self.response.clone().unwrap()));
+        if let Ok(saved_commands) = self.get_saved_commands() {
+            match saved_commands.get(index) {
+                Some(cmd) => {
+                    let mut command: Curl = serde_json::from_str(cmd.get_curl_json())
+                        .map_err(|e| e.to_string())
+                        .unwrap();
+                    command.easy_from_opts();
+                    match command.execute(None) {
+                        Ok(_) => self.set_response(command.get_response().clone()),
+                        Err(e) => self.set_response(e.to_string()),
+                    };
+                    self.goto_screen(Screen::Response(self.response.clone().unwrap()));
+                }
+                None => self.goto_screen(Screen::Error("Saved command not found".to_string())),
+            }
+        } else {
+            self.goto_screen(Screen::Error("Saved command not found".to_string()));
+        }
     }
 
     pub fn copy_to_clipboard(&self, opt: &str) -> Result<(), String> {
-            if let Ok(mut clipboard) = Clipboard::new() {
+        if let Ok(mut clipboard) = Clipboard::new() {
             if let Err(e) = clipboard.set_text(opt) {
                 return Err(e.to_string());
-            } 
+            }
             Ok(())
-            } else {
-            Err("Failed to copy to clipboard".to_string()) 
+        } else {
+            Err("Failed to copy to clipboard".to_string())
         }
     }
 
@@ -239,7 +247,10 @@ impl<'a> App<'a> {
     }
 
     pub fn get_response(&self) -> &str {
-        self.response.as_ref().unwrap().as_str()
+        match self.response {
+            Some(ref response) => response,
+            None => "Error: No response",
+        }
     }
 
     pub fn delete_saved_command(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
@@ -274,36 +285,37 @@ impl<'a> App<'a> {
         }
     }
 
-    // Have to skip rustfmt due to enormous verbosity of all these match statments
+    // I know this is a hideous slab of code but due to the enormous verbosity of all these match statments
+    // this is better than the alternative
 #[rustfmt::skip]
     pub fn remove_app_option(&mut self, opt: &AppOptions) {
         match opt {
-            AppOptions::URL(_) => self.command.as_mut().unwrap().set_url(""),
-            AppOptions::Outfile(_) => self.command.as_mut().unwrap().set_outfile(""),
-            AppOptions::UploadFile(_) => self.command.as_mut().unwrap().set_upload_file(""),
-            AppOptions::UnixSocket(_) => self.command.as_mut().unwrap().set_unix_socket(""),
-            AppOptions::ProgressBar => self.command.as_mut().unwrap().enable_progress_bar(false),
-            AppOptions::FailOnError => self.command.as_mut().unwrap().set_fail_on_error(false),
-            AppOptions::Verbose => self.command.as_mut().unwrap().set_verbose(false),
-            AppOptions::Response(_) => self.command.as_mut().unwrap().set_response(""),
-            AppOptions::SaveCommand => self.command.as_mut().unwrap().save_command(false),
-            AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(false),
-            AppOptions::FollowRedirects => self.command.as_mut().unwrap().set_follow_redirects(false),
+            AppOptions::URL(_)           => self.command.as_mut().unwrap().set_url(""),
+            AppOptions::Outfile(_)       => self.command.as_mut().unwrap().set_outfile(""),
+            AppOptions::UploadFile(_)    => self.command.as_mut().unwrap().set_upload_file(""),
+            AppOptions::UnixSocket(_)    => self.command.as_mut().unwrap().set_unix_socket(""),
+            AppOptions::ProgressBar      => self.command.as_mut().unwrap().enable_progress_bar(false),
+            AppOptions::FailOnError      => self.command.as_mut().unwrap().set_fail_on_error(false),
+            AppOptions::Verbose          => self.command.as_mut().unwrap().set_verbose(false),
+            AppOptions::Response(_)      => self.command.as_mut().unwrap().set_response(""),
+            AppOptions::SaveCommand      => self.command.as_mut().unwrap().save_command(false),
+            AppOptions::SaveToken        => self.command.as_mut().unwrap().save_token(false),
+            AppOptions::FollowRedirects  => self.command.as_mut().unwrap().set_follow_redirects(false),
             AppOptions::UnrestrictedAuth => self.command.as_mut().unwrap().set_unrestricted_auth(false),
-            AppOptions::TcpKeepAlive => self.command.as_mut().unwrap().set_tcp_keepalive(false),
-            AppOptions::ProxyTunnel => self.command.as_mut().unwrap().set_proxy_tunnel(false),
-            AppOptions::CertInfo => self.command.as_mut().unwrap().set_cert_info(false),
-            AppOptions::MatchWildcard => self.command.as_mut().unwrap().match_wildcard(false),
-            AppOptions::CaPath(_) => self.command.as_mut().unwrap().set_ca_path(""),
-            AppOptions::MaxRedirects(_) => self.command.as_mut().unwrap().set_max_redirects(0),
-            AppOptions::UserAgent(_) => self.command.as_mut().unwrap().set_user_agent(""),
-            AppOptions::Referrer(_) => self.command.as_mut().unwrap().set_referrer(""),
-            AppOptions::RecDownload(_) => self.command.as_mut().unwrap().set_rec_download_level(0),
-            AppOptions::RequestBody(_) => self.command.as_mut().unwrap().set_request_body(""),
-            AppOptions::Cookie(_) => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
-            AppOptions::Headers(_) => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
-            AppOptions::Auth(_) => self.command.as_mut().unwrap().set_auth(crate::request::curl::AuthKind::None),
-            AppOptions::EnableHeaders => self.command.as_mut().unwrap().enable_response_headers(false),
+            AppOptions::TcpKeepAlive     => self.command.as_mut().unwrap().set_tcp_keepalive(false),
+            AppOptions::ProxyTunnel      => self.command.as_mut().unwrap().set_proxy_tunnel(false),
+            AppOptions::CertInfo         => self.command.as_mut().unwrap().set_cert_info(false),
+            AppOptions::MatchWildcard    => self.command.as_mut().unwrap().match_wildcard(false),
+            AppOptions::CaPath(_)        => self.command.as_mut().unwrap().set_ca_path(""),
+            AppOptions::MaxRedirects(_)  => self.command.as_mut().unwrap().set_max_redirects(0),
+            AppOptions::UserAgent(_)     => self.command.as_mut().unwrap().set_user_agent(""),
+            AppOptions::Referrer(_)      => self.command.as_mut().unwrap().set_referrer(""),
+            AppOptions::RecDownload(_)   => self.command.as_mut().unwrap().set_rec_download_level(0),
+            AppOptions::RequestBody(_)   => self.command.as_mut().unwrap().set_request_body(""),
+            AppOptions::Cookie(_)        => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
+            AppOptions::Headers(_)       => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
+            AppOptions::Auth(_)          => self.command.as_mut().unwrap().set_auth(crate::request::curl::AuthKind::None),
+            AppOptions::EnableHeaders    => self.command.as_mut().unwrap().enable_response_headers(false),
         }
         self.opts
             .retain(|x| mem::discriminant(x) != mem::discriminant(opt));
@@ -364,31 +376,20 @@ impl<'a> App<'a> {
             return;
         }
         match opt {
-            AppOptions::Verbose => self.command.as_mut().unwrap().set_verbose(true),
-
-            AppOptions::EnableHeaders =>  self.command.as_mut().unwrap().enable_response_headers(true),
-
-            AppOptions::ProgressBar => self.command.as_mut().unwrap().enable_progress_bar(true),
-
-            AppOptions::FailOnError => self.command.as_mut().unwrap().set_fail_on_error(true),
-
-            AppOptions::MatchWildcard => self.command.as_mut().unwrap().match_wildcard(true),
-            
-            AppOptions::CertInfo => self.command.as_mut().unwrap().set_cert_info(true),
-
-            AppOptions::ProxyTunnel => self.command.as_mut().unwrap().set_proxy_tunnel(true),
-
-            AppOptions::SaveCommand => self.command.as_mut().unwrap().save_command(true),
-            
-            AppOptions::FollowRedirects => self.command.as_mut().unwrap().set_follow_redirects(true),
-
+            AppOptions::Verbose          => self.command.as_mut().unwrap().set_verbose(true),
+            AppOptions::EnableHeaders    => self.command.as_mut().unwrap().enable_response_headers(true),
+            AppOptions::ProgressBar      => self.command.as_mut().unwrap().enable_progress_bar(true),
+            AppOptions::FailOnError      => self.command.as_mut().unwrap().set_fail_on_error(true),
+            AppOptions::MatchWildcard    => self.command.as_mut().unwrap().match_wildcard(true),
+            AppOptions::CertInfo         => self.command.as_mut().unwrap().set_cert_info(true),
+            AppOptions::ProxyTunnel      => self.command.as_mut().unwrap().set_proxy_tunnel(true),
+            AppOptions::SaveCommand      => self.command.as_mut().unwrap().save_command(true),
+            AppOptions::FollowRedirects  => self.command.as_mut().unwrap().set_follow_redirects(true),
             AppOptions::UnrestrictedAuth => self.command.as_mut().unwrap().set_unrestricted_auth(true),
-
-            AppOptions::TcpKeepAlive => self.command.as_mut().unwrap().set_tcp_keepalive(true),
-
-            AppOptions::SaveToken => self.command.as_mut().unwrap().save_token(true),
+            AppOptions::TcpKeepAlive     => self.command.as_mut().unwrap().set_tcp_keepalive(true),
+            AppOptions::SaveToken        => self.command.as_mut().unwrap().save_token(true),
+            AppOptions::Auth(ref kind)   => self.command.as_mut().unwrap().set_auth(kind.clone()),
             // Auth will be toggled for all types except for Basic, Bearer and digest 
-            AppOptions::Auth(ref kind) => self.command.as_mut().unwrap().set_auth(kind.clone()),
             _ => {}
         }
         self.opts.push(opt);
@@ -404,7 +405,7 @@ impl<'a> App<'a> {
 
         if self.should_add_option(&opt) {
             self.opts.push(opt.clone());
-            match opt {
+            match opt.clone() {
                 // other options will be set at the input menu
                 // TODO: Consolidate this garbage spaghetti nonsense
                 AppOptions::Auth(authkind) => match authkind {
@@ -417,7 +418,8 @@ impl<'a> App<'a> {
                     AuthKind::AwsSigv4 => {
                         self.command.as_mut().unwrap().set_auth(authkind);
                     }
-                    _ => {}
+                    // all auth that doesn't take input is toggled
+                    _ => self.toggle_app_option(opt),
                 }
                 AppOptions::UnixSocket(socket) =>  self.command.as_mut().unwrap().set_unix_socket(&socket),
 
