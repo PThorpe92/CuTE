@@ -221,6 +221,10 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 app.goto_screen(Screen::Downloads(String::from(PARSE_INT_ERROR)));
             }
         }
+        InputOpt::KeyLabel(id) => match app.set_key_label(id, &message) {
+            Ok(_) => app.goto_screen(Screen::SavedKeys),
+            Err(e) => app.goto_screen(Screen::Error(e)),
+        },
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);
         }

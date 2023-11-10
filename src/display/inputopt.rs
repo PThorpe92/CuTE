@@ -24,6 +24,7 @@ pub enum InputOpt {
     FtpAccount,
     CaPath,
     CaCert,
+    KeyLabel(i32),
 }
 
 impl Display for InputOpt {
@@ -48,6 +49,7 @@ impl Display for InputOpt {
             InputOpt::CaCert => write!(f, "| Ca Cert"),
             InputOpt::VerifyPeer => write!(f, "| Verify Peer DNS-Over-HTTPS"),
             InputOpt::FtpAccount => write!(f, "| FTP Account"),
+            InputOpt::KeyLabel(_) => write!(f, "| Key Label"),
         }
     }
 }

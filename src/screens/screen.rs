@@ -158,7 +158,7 @@ impl<'a> Screen {
                     len = items.as_ref().unwrap().len();
                 }
                 return items
-                    .unwrap_or(vec!["No Saved Commands".to_string()])
+                    .unwrap_or(vec!["No Saved Keys".to_string()])
                     .iter()
                     .map(|c| ListItem::new(format!("{}{}", c, determine_line_size(len))))
                     .collect();

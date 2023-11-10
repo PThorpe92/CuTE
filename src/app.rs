@@ -215,8 +215,8 @@ impl<'a> App<'a> {
                         .unwrap();
                     command.easy_from_opts();
                     match command.execute(None) {
-                        Ok(_) => self.set_response(command.get_response().clone()),
-                        Err(e) => self.set_response(e.to_string()),
+                        Ok(_) => self.set_response(&command.get_response()),
+                        Err(e) => self.set_response(&e),
                     };
                     self.goto_screen(Screen::Response(self.response.clone().unwrap()));
                 }
@@ -225,6 +225,10 @@ impl<'a> App<'a> {
         } else {
             self.goto_screen(Screen::Error("Saved command not found".to_string()));
         }
+    }
+
+    pub fn set_key_label(&self, key: i32, label: &str) -> Result<(), String> {
+        self.db.set_key_label(key, label).map_err(|e| e.to_string())
     }
 
     pub fn copy_to_clipboard(&self, opt: &str) -> Result<(), String> {
@@ -342,10 +346,10 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn set_response(&mut self, response: String) {
-        self.response = Some(response.clone());
+    pub fn set_response(&mut self, response: &str) {
+        self.response = Some(response.to_string());
         if self.command.is_some() {
-            self.command.as_mut().unwrap().set_response(&response);
+            self.command.as_mut().unwrap().set_response(response);
         }
     }
 

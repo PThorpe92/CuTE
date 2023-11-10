@@ -1121,7 +1121,7 @@ mod tests {
                 "url": "https://example.com",
                 "opts": [],
                 "resp": "This is a response",
-                "upload_file": "file.txt",
+                "upload_file": "",
                 "outfile": "output.txt",
         }
         );
