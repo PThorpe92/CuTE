@@ -79,10 +79,10 @@ pub fn handle_key_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cmd:
     frame.render_widget(alert_text_chunk, alert_box);
     frame.render_stateful_widget(list, options_box, &mut list_state);
     match app.selected {
-        // Add a new key
+        // Add/Edit Label
         Some(0) => {
             app.goto_screen(Screen::InputMenu(
-                crate::display::inputopt::InputOpt::ApiKey,
+                crate::display::inputopt::InputOpt::KeyLabel(selected.get_id()),
             ));
         }
         // delete item

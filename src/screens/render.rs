@@ -97,16 +97,16 @@ pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
         Screen::SavedKeys => {
             items = Some(
                 app.get_saved_keys()
-                    .unwrap()
+                    .unwrap_or_default()
                     .into_iter()
-                    .map(|x| format!("{:?}", x))
+                    .map(|x| x.to_string())
                     .collect::<Vec<String>>(),
             );
         }
         Screen::SavedCommands => {
             items = Some(
                 app.get_saved_commands()
-                    .unwrap()
+                    .unwrap_or_default()
                     .into_iter()
                     .map(|x| format!("{:?}", x))
                     .collect::<Vec<String>>(),
@@ -148,7 +148,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         Screen::Method => handle_method_select_screen(app, frame),
         Screen::ViewBody => {
             let area = default_rect(frame.size());
-            let response = app.response.clone().unwrap();
+            let response = app.response.clone().unwrap_or_default();
             let paragraph = Paragraph::new(Text::from(response.as_str()))
                 .style(app.config.get_style())
                 .alignment(Alignment::Center);
@@ -182,7 +182,7 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         }
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
-            app.set_response(resp.clone());
+            app.set_response(&resp);
             handle_response_screen(app, frame, resp.to_string());
         }
         Screen::SavedCommands => {

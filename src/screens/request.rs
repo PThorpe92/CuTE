@@ -54,7 +54,7 @@ pub fn handle_request_menu_screen<B: Backend>(
             match app.execute_command() {
                 Ok(()) => {
                     let response = app.command.as_mut().unwrap().get_response();
-                    app.response = Some(response.clone());
+                    app.set_response(&response);
                     app.goto_screen(Screen::Response(response));
                 }
                 Err(e) => {

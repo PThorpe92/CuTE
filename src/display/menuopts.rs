@@ -118,7 +118,7 @@ lazy_static! {
         "Cancel   ",
     ];
     pub static ref KEY_MENU_OPTIONS: [&'static str; 4] = [
-        "Add a new key  ",
+        "Add a Label  ",
         "Delete   ",
         "Copy to Clipboard  󰅎 ",
         "Cancel   ",

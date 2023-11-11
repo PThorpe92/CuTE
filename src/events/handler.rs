@@ -28,7 +28,6 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                                 app.input.reset(); // If we leave the page, we should clear the input buffer
                             }
                         }
-                        // Other handlers you could add here.
                         KeyCode::Up => {
                             app.move_cursor_up();
                         }
@@ -85,15 +84,6 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
 
         InputMode::Editing => match key_event.kind {
             KeyEventKind::Press => match key_event.code {
-                KeyCode::Char('v') | KeyCode::Char('V') => {
-                    if key_event.modifiers == KeyModifiers::CONTROL {
-                        let mut new_str = app.input.value().to_string();
-                        let value = app.get_from_clipboard();
-                        new_str.push_str(&value);
-                        app.input.reset();
-                        app.input = tui_input::Input::from(new_str);
-                    }
-                }
                 KeyCode::Enter => {
                     app.messages.push(app.input.value().to_string());
                     app.input.reset();

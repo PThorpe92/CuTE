@@ -19,6 +19,7 @@ pub struct SavedCommand {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedKey {
     id: i32,
+    label: Option<String>,
     key: String,
 }
 
@@ -53,7 +54,6 @@ impl DB {
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         );
 
-        // We Need To Handle Some Errors Here Related To Opening SQLite3 Database Files
         let conn = match conn_result {
             Ok(connection) => connection,
             Err(e) => {
@@ -71,7 +71,7 @@ impl DB {
         )?;
 
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, key TEXT);",
+            "CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, key TEXT, label TEXT);",
             params![],
         )?;
 
@@ -148,12 +148,21 @@ impl DB {
         Ok(())
     }
 
+    pub fn set_key_label(&self, key: i32, label: &str) -> Result<()> {
+        let mut stmt = self
+            .conn
+            .prepare("UPDATE keys SET label = ?1 WHERE id = ?2")?;
+        stmt.execute(params![label, key])?;
+        Ok(())
+    }
+
     pub fn get_keys(&self) -> Result<Vec<SavedKey>> {
-        let mut stmt = self.conn.prepare("SELECT id, key FROM keys")?;
+        let mut stmt = self.conn.prepare("SELECT id, key, label FROM keys")?;
         let rows = stmt.query_map(params![], |row| {
             Ok(SavedKey {
                 id: row.get(0)?,
                 key: row.get(1)?,
+                label: row.get(2)?,
             })
         })?;
         let mut keys = Vec::new();
@@ -196,7 +205,11 @@ impl SavedCommand {
 
 impl Display for SavedKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, " ID: {} | Key: {}", self.id, self.key)
+        if self.label.is_some() {
+            write!(f, "Label: {:?} |  : {}", self.get_label(), self.key)
+        } else {
+            write!(f, " : {}", self.key)
+        }
     }
 }
 
@@ -205,9 +218,16 @@ impl SavedKey {
         SavedKey {
             id: 0,
             key: key.to_string(),
+            label: None,
         }
     }
 
+    pub fn get_label(&self) -> &str {
+        match &self.label {
+            Some(label) => label,
+            None => "",
+        }
+    }
     pub fn get_id(&self) -> i32 {
         self.id
     }
