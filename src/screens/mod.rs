@@ -32,8 +32,8 @@ use ::tui::prelude::{Color, Text};
 use ::tui::style::Style;
 use ::tui::widgets::{Block, Borders, Paragraph, Wrap};
 pub use screen::Screen;
-
 pub mod error;
+pub mod headers;
 pub mod saved_commands;
 
 pub fn small_alert_box(r: Rect) -> Rect {

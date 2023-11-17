@@ -2,7 +2,7 @@ use super::{
     curl::{AuthKind, Curl},
     wget::Wget,
 };
-use crate::database::db::DB;
+use crate::{database::db::DB, display::HeaderKind};
 use std::fmt::{Display, Error, Formatter};
 
 pub enum Cmd<'a> {
@@ -104,6 +104,11 @@ impl<'a> CurlOpts for Cmd<'a> {
             curl.has_unix_socket()
         } else {
             false
+        }
+    }
+    fn set_content_header(&mut self, kind: HeaderKind) {
+        if let Cmd::Curl(curl) = self {
+            curl.set_content_header(kind);
         }
     }
     fn set_upload_file(&mut self, file: &str) {
@@ -256,6 +261,7 @@ pub trait CmdOpts {
     fn has_auth(&self) -> bool;
 }
 pub trait CurlOpts {
+    fn set_content_header(&mut self, kind: HeaderKind);
     fn set_request_body(&mut self, body: &str);
     fn set_upload_file(&mut self, file: &str);
     fn add_cookie(&mut self, cookie: String);

@@ -1,6 +1,6 @@
 use crate::database::db::{SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
-use crate::display::AppOptions;
+use crate::display::{AppOptions, HeaderKind};
 use crate::request::command::{CmdOpts, CMD};
 use crate::request::curl::{AuthKind, Curl};
 use crate::screens::screen::Screen;
@@ -320,6 +320,7 @@ impl<'a> App<'a> {
             AppOptions::Headers(_)       => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
             AppOptions::Auth(_)          => self.command.as_mut().unwrap().set_auth(crate::request::curl::AuthKind::None),
             AppOptions::EnableHeaders    => self.command.as_mut().unwrap().enable_response_headers(false),
+            AppOptions::ContentHeaders(_)=> self.command.as_mut().unwrap().set_content_header(HeaderKind::None),
         }
         self.opts
             .retain(|x| mem::discriminant(x) != mem::discriminant(opt));
@@ -367,6 +368,7 @@ impl<'a> App<'a> {
             | AppOptions::ProgressBar
             | AppOptions::SaveCommand
             | AppOptions::SaveToken
+            | AppOptions::ContentHeaders(_) // Headers can be pushed but these are pre-defined
             | AppOptions::EnableHeaders => true,
             _ => false,
         }
@@ -392,6 +394,7 @@ impl<'a> App<'a> {
             AppOptions::UnrestrictedAuth => self.command.as_mut().unwrap().set_unrestricted_auth(true),
             AppOptions::TcpKeepAlive     => self.command.as_mut().unwrap().set_tcp_keepalive(true),
             AppOptions::SaveToken        => self.command.as_mut().unwrap().save_token(true),
+            AppOptions::ContentHeaders(k)=> self.command.as_mut().unwrap().set_content_header(k),
             AppOptions::Auth(ref kind)   => self.command.as_mut().unwrap().set_auth(kind.clone()),
             // Auth will be toggled for all types except for Basic, Bearer and digest 
             _ => {}

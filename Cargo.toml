@@ -5,6 +5,7 @@ authors = ["PThorpe92 <preston@unlockedlabs.org>"]
 description = "A (ratatui) TUI for HTTP requests with libcurl, recursive downloads with wget, command storage and API key management"
 license = "GPL-3.0"
 edition = "2021"
+repository = "https://github.com/PThorpe92/CuTE"
 
 [[bin]]
 name = "cute"

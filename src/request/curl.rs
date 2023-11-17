@@ -1,4 +1,5 @@
 use crate::database::db::DB;
+use crate::display::HeaderKind;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -492,6 +493,26 @@ impl<'a> CurlOpts for Curl<'a> {
         let flag = CurlFlag::Progress(CurlFlagType::Progress.get_value(), None);
         self.toggle_flag(&flag);
         self.curl.progress(on).unwrap();
+    }
+
+    fn set_content_header(&mut self, kind: HeaderKind) {
+        if kind == HeaderKind::None && self.headers.is_some() {
+            self.headers
+                .as_mut()
+                .unwrap()
+                .retain(|x| !x.contains("application/json"));
+        }
+        let header_value = match kind {
+            HeaderKind::Accept => "Accept: application/json",
+            HeaderKind::ContentType => "Content-Type: application/json",
+            HeaderKind::None => "",
+        };
+
+        if let Some(ref mut headers) = self.headers {
+            headers.push(String::from(header_value));
+        } else {
+            self.headers = Some(vec![String::from(header_value)]);
+        }
     }
 
     fn save_command(&mut self, opt: bool) {
@@ -1008,7 +1029,6 @@ mod tests {
     use super::*;
     use mockito::ServerGuard;
     use serde_json::json;
-
     fn setup(method: &str) -> ServerGuard {
         let mut server = mockito::Server::new();
         // Start a mock server
@@ -1026,6 +1046,26 @@ mod tests {
         assert_eq!(curl.cmd, "curl");
         assert_eq!(curl.opts.len(), 0);
         assert_eq!(curl.resp, None);
+    }
+    #[test]
+    fn test_set_content_headers() {
+        let mut curl = Curl::new();
+        curl.set_content_header(HeaderKind::ContentType);
+        assert_eq!(curl.headers.as_ref().unwrap().len(), 1);
+        assert_eq!(
+            curl.headers.as_ref().unwrap()[0],
+            "Content-Type: application/json"
+        );
+    }
+
+    #[test]
+    fn test_remove_content_headers() {
+        let mut curl = Curl::new();
+        curl.add_headers("Authorization: Bearer 12345678910".to_string());
+        curl.set_content_header(HeaderKind::ContentType);
+        curl.remove_headers("Content-Type: application/json".to_string());
+        assert_eq!(curl.headers.as_ref().unwrap().len(), 1);
+        assert!(curl.headers.is_some());
     }
 
     #[test]

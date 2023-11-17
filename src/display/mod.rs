@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use crate::{
     display::menuopts::{DISPLAY_OPT_MAX_REC, DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER},
     request::curl::AuthKind,
@@ -5,14 +7,30 @@ use crate::{
 
 use self::menuopts::{
     DISPLAY_OPT_AUTH, DISPLAY_OPT_BODY, DISPLAY_OPT_CA_PATH, DISPLAY_OPT_CERT_INFO,
-    DISPLAY_OPT_COMMAND_SAVED, DISPLAY_OPT_COOKIE, DISPLAY_OPT_FAIL_ON_ERROR,
-    DISPLAY_OPT_FOLLOW_REDIRECTS, DISPLAY_OPT_HEADERS, DISPLAY_OPT_MATCH_WILDCARD,
-    DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROGRESS_BAR, DISPLAY_OPT_PROXY_TUNNEL,
-    DISPLAY_OPT_TCP_KEEPALIVE, DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_UNIX_SOCKET,
-    DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL, DISPLAY_OPT_USERAGENT,
-    DISPLAY_OPT_VERBOSE,
+    DISPLAY_OPT_COMMAND_SAVED, DISPLAY_OPT_CONTENT_HEADERS, DISPLAY_OPT_COOKIE,
+    DISPLAY_OPT_FAIL_ON_ERROR, DISPLAY_OPT_FOLLOW_REDIRECTS, DISPLAY_OPT_HEADERS,
+    DISPLAY_OPT_MATCH_WILDCARD, DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROGRESS_BAR,
+    DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_TCP_KEEPALIVE, DISPLAY_OPT_TOKEN_SAVED,
+    DISPLAY_OPT_UNIX_SOCKET, DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL,
+    DISPLAY_OPT_USERAGENT, DISPLAY_OPT_VERBOSE,
 };
 
+// TODO: clean all this up
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum HeaderKind {
+    Accept,
+    ContentType,
+    None,
+}
+impl Display for HeaderKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HeaderKind::Accept => write!(f, "Accept: Application/json"),
+            HeaderKind::ContentType => write!(f, "Content-Type: Application/json"),
+            HeaderKind::None => write!(f, ""),
+        }
+    }
+}
 /*
 * Display - This is For Structures That Represent Display Items
 * Or Are Related To Display Items In Some Way
@@ -41,6 +59,7 @@ pub enum AppOptions {
     FollowRedirects,
     Cookie(String),
     EnableHeaders,
+    ContentHeaders(HeaderKind),
     ProgressBar,
     FailOnError,
     ProxyTunnel,
@@ -59,6 +78,11 @@ pub enum AppOptions {
 impl AppOptions {
     pub fn replace_value(&mut self, val: String) {
         match self {
+            AppOptions::ContentHeaders(ref mut kind) => match val.as_str() {
+                "Accept" => *kind = HeaderKind::Accept,
+                "Content-Type" => *kind = HeaderKind::ContentType,
+                _ => *kind = HeaderKind::None,
+            },
             AppOptions::Headers(ref mut key) => {
                 *key = val;
             }
@@ -138,6 +162,7 @@ impl AppOptions {
             AppOptions::UnrestrictedAuth => format!("{}{}", DISPLAY_OPT_UNRESTRICTED_AUTH, "󰄨"),
             AppOptions::UploadFile(file) => format!("{}{}", DISPLAY_OPT_UPLOAD, file.clone()),
             AppOptions::RequestBody(body) => format!("{}{}", DISPLAY_OPT_BODY, body.clone()),
+            AppOptions::ContentHeaders(kind) => format!("{}{}", DISPLAY_OPT_CONTENT_HEADERS, kind),
         }
     }
 }

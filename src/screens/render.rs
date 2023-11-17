@@ -9,6 +9,7 @@ use crate::screens::input::input::handle_default_input_screen;
 
 use super::auth::handle_authentication_screen;
 use super::downloads::handle_downloads_screen;
+use super::headers::handle_headers_screen;
 use super::home::handle_home_screen;
 use super::input::request_body_input::handle_req_body_input_screen;
 use super::method::handle_method_select_screen;
@@ -187,6 +188,9 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         }
         Screen::SavedCommands => {
             handle_saved_commands_screen(app, frame);
+        }
+        Screen::Headers => {
+            handle_headers_screen(app, frame);
         }
         Screen::Error(e) => {
             handle_error_screen(app, frame, e);

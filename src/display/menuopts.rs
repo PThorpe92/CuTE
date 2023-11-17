@@ -97,6 +97,7 @@ pub const DISPLAY_OPT_COOKIE: &str = "  Add Cookie: ";
 pub const DISPLAY_OPT_USERAGENT: &str = "  Specify User-Agent: ";
 pub const DISPLAY_OPT_PROXY_TUNNEL: &str = "  Enable HTTP Proxy-Tunnel 󱠾 ";
 pub const DISPLAY_OPT_URL: &str = "  Request URL: ";
+pub const DISPLAY_OPT_CONTENT_HEADERS: &str = "  Headers: ";
 pub const UPLOAD_FILEPATH_ERROR: &str =
     "Error: Invalid file path. Please enter an absolute path or a valid relative path.";
 pub const SOCKET_ERROR: &str =
@@ -131,14 +132,13 @@ lazy_static! {
         "View my stored API keys 󱂛  ",
         "View or execute my saved commands  ",
     ];
-    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 13] = [
+    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 12] = [
         "Add a URL 󰖟 ",
         "Add a file for uploads  ",
         "Add Unix Socket address 󰟩 ",
-        "Add Authentication 󰯄 ",
-        "Add Headers  ",
+        "Authentication 󰯄 ",
+        "Header Options  ",
         "Enable verbose output [-v]",
-        "Enable response Headers 󰃁 ",
         "Add Request Body 󰘦 ",
         "Save this Command  ",
         "Save your API token or login information  ",
@@ -160,6 +160,13 @@ lazy_static! {
         "DELETE",
         "PATCH",
         "HEAD",
+    ];
+    pub static ref HEADER_MENU_OPTIONS: [&'static str; 5] = [
+        "Add Custom Header 󰖟 ",
+        "Add Content-Type: Application/Json  ",
+        "Add Accept: Application/Json  ",
+        "Enable Response Headers 󰰀 ",
+        "Return to request menu  ",
     ];
     pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 6] = [
         "Basic",
