@@ -6,9 +6,10 @@ use std::fmt::{Display, Formatter};
 
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    AUTHENTICATION_MENU_OPTIONS, CMD_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, KEY_MENU_OPTIONS,
-    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE, OPTION_PADDING_MAX,
-    OPTION_PADDING_MID, OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
+    AUTHENTICATION_MENU_OPTIONS, CMD_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, HEADER_MENU_OPTIONS,
+    KEY_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE,
+    OPTION_PADDING_MAX, OPTION_PADDING_MID, OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS,
+    RESPONSE_MENU_OPTIONS,
 };
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
@@ -30,6 +31,7 @@ pub enum Screen {
     Error(String),
     ViewBody,
     MoreFlags,
+    Headers,
     CmdMenu(usize),
     KeysMenu(usize),
     RequestBodyInput,
@@ -52,6 +54,7 @@ impl Display for Screen {
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
             Screen::MoreFlags => "MoreFlags",
+            Screen::Headers => "Headers",
             Screen::CmdMenu(_) => "CmdMenu",
             Screen::KeysMenu(_) => "KeysMenu",
             Screen::RequestBodyInput => "RequestBodyInput",
@@ -119,6 +122,13 @@ impl<'a> Screen {
             }
             Screen::InputMenu(_) => {
                 vec![ListItem::new("Input Menu").style(Style::default().fg(Color::Green))]
+            }
+            Screen::Headers => {
+                return HEADER_MENU_OPTIONS
+                    .iter()
+                    .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
+                    .map(|i| ListItem::new(i.clone()))
+                    .collect();
             }
             Screen::Authentication => {
                 let len = AUTHENTICATION_MENU_OPTIONS.len();

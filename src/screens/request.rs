@@ -28,17 +28,15 @@ pub fn handle_request_menu_screen<B: Backend>(
         // Auth
         Some(3) => app.goto_screen(Screen::Authentication),
         // Headers
-        Some(4) => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
+        Some(4) => app.goto_screen(Screen::Headers),
         // Verbose
         Some(5) => app.add_app_option(AppOptions::Verbose),
-        // Enable headers in response
-        Some(6) => app.add_app_option(AppOptions::EnableHeaders),
         // Request Body
-        Some(7) => app.goto_screen(Screen::RequestBodyInput),
+        Some(6) => app.goto_screen(Screen::RequestBodyInput),
         // Save this command
-        Some(8) => app.add_app_option(AppOptions::SaveCommand),
+        Some(7) => app.add_app_option(AppOptions::SaveCommand),
         // Save your token or login
-        Some(9) => {
+        Some(8) => {
             if !app.has_auth() {
                 app.goto_screen(Screen::RequestMenu(String::from(SAVE_AUTH_ERROR)));
                 return;
@@ -46,7 +44,7 @@ pub fn handle_request_menu_screen<B: Backend>(
             app.add_app_option(AppOptions::SaveToken);
         }
         // Execute command
-        Some(10) => {
+        Some(9) => {
             if !app.has_url() && !app.has_unix_socket() {
                 app.goto_screen(Screen::RequestMenu(String::from(VALID_COMMAND_ERROR)));
                 return;
@@ -63,9 +61,9 @@ pub fn handle_request_menu_screen<B: Backend>(
             }
         }
         // more options
-        Some(11) => app.goto_screen(Screen::MoreFlags),
+        Some(10) => app.goto_screen(Screen::MoreFlags),
         // clear options
-        Some(12) => {
+        Some(11) => {
             app.remove_all_app_options();
             app.goto_screen(Screen::Method);
         }
