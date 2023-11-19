@@ -1,7 +1,7 @@
 use crate::app::{App, InputMode};
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
-use crate::screens::{default_rect, small_alert_box};
+use crate::screens::{default_rect, small_alert_box, Screen};
 use tui::text::{Line, Text};
 use tui::widgets::{Block, Borders, Paragraph};
 use tui::{
@@ -77,8 +77,7 @@ pub fn handle_req_body_input_screen<B: Backend>(
     }
     // we have input (the user has typed something and pressed Enter while in insert mode)
     if !app.messages.is_empty() {
-        app.add_app_option(AppOptions::RequestBody(
-            app.messages.iter().map(|x| x.to_string()).collect(),
-        ));
+        app.add_app_option(AppOptions::RequestBody(app.messages[0].clone()));
+        app.goto_screen(Screen::RequestMenu(String::new()));
     }
 }

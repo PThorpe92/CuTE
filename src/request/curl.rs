@@ -597,11 +597,10 @@ impl<'a> CurlOpts for Curl<'a> {
         self.curl.follow_location(opt).unwrap();
     }
 
-    fn add_cookie(&mut self, cookie: String) {
-        // we are removing it
-        let flag = CurlFlag::Cookie(CurlFlagType::Cookie.get_value(), Some(cookie.clone()));
+    fn add_cookie(&mut self, cookie: &str) {
+        let flag = CurlFlag::Cookie(CurlFlagType::Cookie.get_value(), Some(String::from(cookie)));
         self.toggle_flag(&flag);
-        self.curl.cookie(cookie.as_str()).unwrap();
+        self.curl.cookie(cookie).unwrap();
     }
 
     fn set_upload_file(&mut self, file: &str) {
@@ -658,9 +657,7 @@ impl<'a> Curl<'a> {
     fn has_flag(&self, flag: &CurlFlag<'a>) -> bool {
         self.opts
             .iter()
-            .filter(|has| std::mem::discriminant(*has) == std::mem::discriminant(flag))
-            .count()
-            > 0
+            .any(|has| std::mem::discriminant(has) == std::mem::discriminant(flag))
     }
 
     // This is a hack because when we deseialize json from the DB, we get a curl struct with no curl::Easy
@@ -691,7 +688,7 @@ impl<'a> Curl<'a> {
                 }
                 CurlFlag::Cookie(..) => {
                     if let Some(val) = opt.get_arg() {
-                        self.add_cookie(val);
+                        self.add_cookie(&val);
                     }
                 }
                 CurlFlag::MatchWildcard(..) => {
