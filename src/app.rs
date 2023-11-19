@@ -436,7 +436,7 @@ impl<'a> App<'a> {
 
                 AppOptions::Outfile(outfile) => self.command.as_mut().unwrap().set_outfile(&outfile),
 
-                AppOptions::Cookie(cookie) => self.command.as_mut().unwrap().add_cookie(cookie),
+                AppOptions::Cookie(cookie) => self.command.as_mut().unwrap().add_cookie(&cookie),
 
                 AppOptions::RecDownload(i) => self.command.as_mut().unwrap().set_rec_download_level(i),
 
@@ -507,7 +507,7 @@ impl<'a> App<'a> {
                 AppOptions::Cookie(_) => {
                     if let AppOptions::Cookie(ref mut cookie) = opt {
                         option.replace_value(cookie.clone());
-                        self.command.as_mut().unwrap().add_cookie(cookie.clone());
+                        self.command.as_mut().unwrap().add_cookie(cookie);
                     }
                 }
                 AppOptions::CaPath(_) => {

@@ -94,7 +94,7 @@ impl<'a> CmdOpts for Cmd<'a> {
 }
 
 impl<'a> CurlOpts for Cmd<'a> {
-    fn add_cookie(&mut self, cookie: String) {
+    fn add_cookie(&mut self, cookie: &str) {
         if let Cmd::Curl(curl) = self {
             curl.add_cookie(cookie);
         }
@@ -264,7 +264,7 @@ pub trait CurlOpts {
     fn set_content_header(&mut self, kind: HeaderKind);
     fn set_request_body(&mut self, body: &str);
     fn set_upload_file(&mut self, file: &str);
-    fn add_cookie(&mut self, cookie: String);
+    fn add_cookie(&mut self, cookie: &str);
     fn set_follow_redirects(&mut self, opt: bool);
     fn set_proxy_tunnel(&mut self, opt: bool);
     fn match_wildcard(&mut self, opt: bool);
