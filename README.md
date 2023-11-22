@@ -3,8 +3,8 @@
 ![image](imgs/cute.png)
 # Rust TUI HTTP Client with API Key Management
 
-#### This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
-#### I am distracted with work and a new project at the moment, so I am not able to put in as much time as I would like here and I am afraid that if I don't open source it now, it will end up in the side-project graveyard. Collaboration is welcome and encouraged, there is LOTS of low-hanging fruit here, while still being a useful tool.
+#### This project is still in active development and although it is definitely useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
+#### Collaboration is welcome and encouraged! There is lots of low hanging fruit 👍and cool ideas for additional features.
 ![image](imgs/demo.gif)
 
 Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.

@@ -66,7 +66,6 @@ pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cm
         frame.render_widget(paragraph, cmd_str);
         frame.render_widget(alert_text_chunk, alert_box);
         frame.render_stateful_widget(list, options_box, &mut list_state);
-
         match app.selected {
             // execute saved command
             Some(0) => {

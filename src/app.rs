@@ -156,6 +156,13 @@ impl<'a> App<'a> {
     }
 
     pub fn quit(&mut self) {
+        if let Some(resp) = self.response.as_ref() {
+            let _ = std::process::Command::new("echo")
+                .arg(resp)
+                .spawn()
+                .map_err(|e| e.to_string())
+                .unwrap();
+        }
         self.running = false;
     }
 
@@ -251,9 +258,9 @@ impl<'a> App<'a> {
     }
 
     pub fn get_response(&self) -> &str {
-        match self.response {
-            Some(ref response) => response,
-            None => "Error: No response",
+        match self.response.as_ref() {
+            Some(response) => response,
+            None => "",
         }
     }
 
