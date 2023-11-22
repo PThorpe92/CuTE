@@ -47,7 +47,7 @@ pub static CONFIG_PATH: Lazy<String> = Lazy::new(|| {
 fn parse_cmdline() -> Option<Config> {
     let args = Command::new("CuTE")
         .author("PThorpe92 <preston@unlockedlabs.org>")
-        .version("0.1.0")
+        .version("0.0.1")
         .about("Simple TUI for libcurl powered http requests, wget powered recursive downloads, and API key/command storage")
         .after_help("Arguments are '--dump-config {path}' to write the default config file to the specified path,
             \nand '--db-path' to define a custom path to the database\nDB path can also be defined in the config file at $CONFIG/CuTE/config.toml\n

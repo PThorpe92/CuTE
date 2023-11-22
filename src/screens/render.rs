@@ -1,3 +1,6 @@
+use super::request::handle_request_menu_screen;
+use super::saved_keys::handle_key_menu;
+use super::*;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     API_KEY_PARAGRAPH, API_KEY_TITLE, AUTH_MENU_TITLE, DEFAULT_MENU_PARAGRAPH, DEFAULT_MENU_TITLE,
@@ -5,20 +8,6 @@ use crate::display::menuopts::{
     SUCCESS_MENU_TITLE, VIEW_BODY_TITLE,
 };
 use crate::display::AppOptions;
-use crate::screens::input::input::handle_default_input_screen;
-
-use super::auth::handle_authentication_screen;
-use super::downloads::handle_downloads_screen;
-use super::headers::handle_headers_screen;
-use super::home::handle_home_screen;
-use super::input::request_body_input::handle_req_body_input_screen;
-use super::method::handle_method_select_screen;
-use super::more_flags::handle_more_flags_screen;
-use super::request::handle_request_menu_screen;
-use super::response::handle_response_screen;
-use super::saved_commands::{handle_alert_menu, handle_saved_commands_screen};
-use super::saved_keys::{handle_key_menu, handle_saved_keys_screen};
-use crate::screens::error::handle_error_screen;
 use crate::{app::App, display::menuopts::SAVED_COMMANDS_PARAGRAPH};
 use tui::style::Stylize;
 use tui::text::Line;
@@ -145,8 +134,8 @@ pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
 
 pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen: Screen) {
     match screen {
-        Screen::Home => handle_home_screen(app, frame),
-        Screen::Method => handle_method_select_screen(app, frame),
+        Screen::Home => home::handle_home_screen(app, frame),
+        Screen::Method => method::handle_method_select_screen(app, frame),
         Screen::ViewBody => {
             let area = default_rect(frame.size());
             let response = app.response.clone().unwrap_or_default();
@@ -156,55 +145,65 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
             frame.render_widget(paragraph, area);
         }
         Screen::Downloads(e) => {
-            if is_prompt(&e) {
-                handle_downloads_screen(app, frame, &e);
-            } else {
-                handle_downloads_screen(app, frame, "");
-            }
+            downloads::handle_downloads_screen(
+                app,
+                frame,
+                match is_prompt(&e) {
+                    true => &e,
+                    false => "",
+                },
+            );
         }
         //
         // REQUEST MENU *********************************************************
         Screen::RequestMenu(e) => {
-            if is_prompt(&e) {
-                handle_request_menu_screen(app, frame, e);
-            } else {
-                handle_request_menu_screen(app, frame, "".to_string());
-            }
+            handle_request_menu_screen(
+                app,
+                frame,
+                match is_prompt(&e) {
+                    true => e,
+                    false => String::new(),
+                },
+            );
         }
         // AUTHENTICATION SCREEN ************************************************
         Screen::Authentication => {
-            handle_authentication_screen(app, frame);
+            auth::handle_authentication_screen(app, frame);
         }
         // SUCESSS SCREEN *******************************************************
         Screen::Success => handle_screen_defaults(app, frame),
         // INPUT MENU SCREEN ****************************************************
         Screen::InputMenu(opt) => {
-            handle_default_input_screen(app, frame, opt.clone());
+            input::input::handle_default_input_screen(app, frame, opt.clone());
         }
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
             app.set_response(&resp);
-            handle_response_screen(app, frame, resp.to_string());
+            response::handle_response_screen(app, frame, resp.to_string());
         }
         Screen::SavedCommands => {
-            handle_saved_commands_screen(app, frame);
+            saved_commands::handle_saved_commands_screen(app, frame);
         }
         Screen::Headers => {
-            handle_headers_screen(app, frame);
+            headers::handle_headers_screen(app, frame);
         }
         Screen::Error(e) => {
-            handle_error_screen(app, frame, e);
+            error::handle_error_screen(app, frame, e);
         }
         Screen::MoreFlags => {
-            handle_more_flags_screen(app, frame);
+            more_flags::handle_more_flags_screen(app, frame);
         }
         Screen::SavedKeys => {
-            handle_saved_keys_screen(app, frame);
+            saved_keys::handle_saved_keys_screen(app, frame);
         }
         Screen::CmdMenu(cmd) => {
-            handle_alert_menu(app, frame, cmd);
+            saved_commands::handle_alert_menu(app, frame, cmd);
         }
-        Screen::RequestBodyInput => handle_req_body_input_screen(app, frame, InputOpt::RequestBody),
+        Screen::RequestBodyInput => input::request_body_input::handle_req_body_input_screen(
+            app,
+            frame,
+            InputOpt::RequestBody,
+        ),
         Screen::KeysMenu(cmd) => handle_key_menu(app, frame, cmd),
         _ => {}
     }
@@ -220,11 +219,8 @@ fn handle_display_options(opts: &[AppOptions]) -> Vec<Line> {
         .collect::<Vec<Line>>()
 }
 
-pub fn render_header_paragraph(
-    para: &'static str,
-    title: &'static str,
-    style: Style,
-) -> Paragraph<'static> {
+#[rustfmt::skip]
+pub fn render_header_paragraph(para: &'static str, title: &'static str, style: Style) -> Paragraph<'static> {
     Paragraph::new(para)
         .block(
             Block::default()
