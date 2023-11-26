@@ -1,4 +1,8 @@
-![image](imgs/cute.png)
+<div class="parent_div" style="text-align:center;">
+<img src="imgs/cute.png" class=" img-rounded " align="center" />
+</div>
+
+
 # Rust TUI HTTP Client with API Key Management
 
 #### This project is still in active development and although it is definitely useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
