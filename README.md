@@ -1,4 +1,5 @@
-![image](imgs/logo.gif)
+![CuteLogo](https://github.com/PThorpe92/CuTE/assets/132282028/de7c7a32-6a79-4122-a8ec-eb478c181d76)
+
 
 ![image](imgs/cute.png)
 # Rust TUI HTTP Client with API Key Management
