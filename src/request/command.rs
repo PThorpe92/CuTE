@@ -4,7 +4,6 @@ use super::{
 };
 use crate::{database::db::DB, display::HeaderKind};
 use std::fmt::{Display, Error, Formatter};
-
 pub enum Cmd<'a> {
     Curl(Curl<'a>),
     Wget(Wget),
@@ -25,10 +24,8 @@ impl Display for CmdType {
     }
 }
 pub trait CMD: CurlOpts + CmdOpts {}
-
-impl<'a> CMD for Cmd<'a> {}
-
-impl<'a> CmdOpts for Cmd<'a> {
+impl CMD for Cmd<'_> {}
+impl CmdOpts for Cmd<'_> {
     fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String> {
         match self {
             Cmd::Curl(curl) => curl.execute(db),
@@ -49,7 +46,7 @@ impl<'a> CmdOpts for Cmd<'a> {
         }
     }
 
-    fn get_url(&self) -> String {
+    fn get_url(&self) -> &str {
         match self {
             Cmd::Curl(curl) => curl.get_url(),
             Cmd::Wget(wget) => wget.get_url(),
@@ -85,7 +82,13 @@ impl<'a> CmdOpts for Cmd<'a> {
             Cmd::Wget(wget) => wget.set_response(response),
         }
     }
-    fn get_command_string(&mut self) -> String {
+    fn build_command_string(&mut self) {
+        match self {
+            Cmd::Curl(curl) => curl.build_command_string(),
+            Cmd::Wget(wget) => wget.build_command_string(),
+        }
+    }
+    fn get_command_string(&self) -> String {
         match self {
             Cmd::Curl(curl) => curl.get_command_string(),
             Cmd::Wget(wget) => wget.get_command_string(),
@@ -93,7 +96,7 @@ impl<'a> CmdOpts for Cmd<'a> {
     }
 }
 
-impl<'a> CurlOpts for Cmd<'a> {
+impl CurlOpts for Cmd<'_> {
     fn add_cookie(&mut self, cookie: &str) {
         if let Cmd::Curl(curl) = self {
             curl.add_cookie(cookie);
@@ -143,7 +146,7 @@ impl<'a> CurlOpts for Cmd<'a> {
             Ok(())
         }
     }
-    fn set_method(&mut self, method: String) {
+    fn set_method(&mut self, method: &str) {
         if let Cmd::Curl(curl) = self {
             curl.set_method(method);
         }
@@ -153,7 +156,7 @@ impl<'a> CurlOpts for Cmd<'a> {
             curl.set_auth(auth);
         }
     }
-    fn add_headers(&mut self, headers: String) {
+    fn add_headers(&mut self, headers: &str) {
         if let Cmd::Curl(curl) = self {
             curl.add_headers(headers);
         }
@@ -205,7 +208,7 @@ impl<'a> CurlOpts for Cmd<'a> {
             None
         }
     }
-    fn remove_headers(&mut self, headers: String) {
+    fn remove_headers(&mut self, headers: &str) {
         if let Cmd::Curl(curl) = self {
             curl.remove_headers(headers);
         }
@@ -251,13 +254,14 @@ impl<'a> CurlOpts for Cmd<'a> {
 pub trait CmdOpts {
     fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String>;
     fn add_basic_auth(&mut self, info: &str);
-    fn get_url(&self) -> String;
+    fn get_url(&self) -> &str;
     fn set_outfile(&mut self, file: &str);
     fn get_response(&self) -> String;
     fn set_rec_download_level(&mut self, level: usize);
     fn set_url(&mut self, url: &str);
     fn set_response(&mut self, response: &str);
-    fn get_command_string(&mut self) -> String;
+    fn get_command_string(&self) -> String;
+    fn build_command_string(&mut self);
     fn has_auth(&self) -> bool;
 }
 pub trait CurlOpts {
@@ -269,9 +273,9 @@ pub trait CurlOpts {
     fn set_proxy_tunnel(&mut self, opt: bool);
     fn match_wildcard(&mut self, opt: bool);
     fn write_output(&mut self) -> Result<(), std::io::Error>;
-    fn set_method(&mut self, method: String);
+    fn set_method(&mut self, method: &str);
     fn set_auth(&mut self, auth: AuthKind);
-    fn add_headers(&mut self, headers: String);
+    fn add_headers(&mut self, headers: &str);
     fn enable_response_headers(&mut self, opt: bool);
     fn enable_progress_bar(&mut self, opt: bool);
     fn set_cert_info(&mut self, opt: bool);
@@ -282,7 +286,7 @@ pub trait CurlOpts {
     fn set_unix_socket(&mut self, socket: &str);
     fn save_token(&mut self, opt: bool);
     fn get_token(&self) -> Option<String>;
-    fn remove_headers(&mut self, headers: String);
+    fn remove_headers(&mut self, headers: &str);
     fn will_save_command(&self) -> bool;
     fn set_tcp_keepalive(&mut self, opt: bool);
     fn set_unrestricted_auth(&mut self, opt: bool);

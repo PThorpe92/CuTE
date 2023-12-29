@@ -13,7 +13,6 @@ pub struct Wget {
 }
 
 impl CmdOpts for Wget {
-
     // This is just if we want to build a string from the command. Not sure if we are going
     // to need this, but we may end up storing download commands in DB
 
@@ -32,7 +31,6 @@ impl CmdOpts for Wget {
         }
     }
 
-
     fn add_basic_auth(&mut self, info: &str) {
         let mut split = info.split(':');
         let usr = split.next().unwrap();
@@ -40,15 +38,13 @@ impl CmdOpts for Wget {
         self.auth = Some(format!("--user={} --password={}", usr, pwd));
     }
 
-
-    fn get_url(&self) -> String {
-        self.url.clone()
+    fn get_url(&self) -> &str {
+        self.url.as_str()
     }
 
     fn set_outfile(&mut self, file: &str) {
         self.output = file.to_string();
     }
-
 
     fn get_response(&self) -> String {
         self.response
@@ -68,7 +64,11 @@ impl CmdOpts for Wget {
         self.response = Some(response.to_string());
     }
 
-    fn get_command_string(&mut self) -> String {
+    fn get_command_string(&self) -> String {
+        self.cmd.join(" ").trim().to_string()
+    }
+
+    fn build_command_string(&mut self) {
         let mut cmdstr = vec![String::from("wget")];
         if self.has_url() {
             cmdstr.push(self.url.clone());
@@ -82,8 +82,9 @@ impl CmdOpts for Wget {
         if self.has_output() {
             cmdstr.push(format!("-O {}", self.output));
         }
-        return cmdstr.join(" ").trim().to_string();
+        self.cmd = cmdstr;
     }
+
     fn has_auth(&self) -> bool {
         self.auth.is_some()
     }
@@ -95,7 +96,6 @@ impl Default for Wget {
     }
 }
 impl Wget {
-
     pub fn new() -> Self {
         Wget {
             cmd: vec![String::from("wget")],
@@ -106,7 +106,6 @@ impl Wget {
             response: None,
         }
     }
-
 
     pub fn has_url(&self) -> bool {
         !self.url.is_empty()
@@ -162,30 +161,29 @@ mod tests {
         assert_eq!("", wget.output);
     }
 
-
     #[test]
     fn test_set_url() {
         let mut wget = Wget::new();
         wget.set_url("https://www.google.com");
+        wget.build_command_string();
         assert_eq!("wget https://www.google.com", wget.get_command_string());
     }
-
 
     #[test]
     fn test_set_output() {
         let mut wget = Wget::new();
         wget.set_outfile("output.txt");
+        wget.build_command_string();
         assert_eq!("wget -O output.txt", wget.get_command_string());
     }
-
 
     #[test]
     fn test_add_auth() {
         let mut wget = Wget::new();
         wget.add_basic_auth("usr:pwd");
+        wget.build_command_string();
         assert_eq!("wget --user=usr --password=pwd", wget.get_command_string());
     }
-
 
     #[test]
     fn test_build_string() {
@@ -193,18 +191,18 @@ mod tests {
         wget.add_basic_auth("usr:pwd");
         wget.set_url("http://www.google.com");
         wget.set_outfile("output");
+        wget.build_command_string();
         assert_eq!(
             "wget http://www.google.com --user=usr --password=pwd -O output",
             wget.get_command_string()
         );
     }
 
-
-
     #[test]
     fn test_increase_rec_level() {
         let mut wget = Wget::new();
         wget.set_rec_download_level(2);
+        wget.build_command_string();
         assert_eq!("wget -r 2", wget.get_command_string());
         assert_eq!(2, wget.rec_level.unwrap());
     }
@@ -218,11 +216,11 @@ mod tests {
         let mut wget = Wget::new();
         wget.set_url(url.clone().as_str());
         wget.set_outfile("output");
+        wget.build_command_string();
         assert_eq!(format!("wget {} -O output", url), wget.get_command_string());
         if wget.execute(None).is_ok() {
             assert!(std::fs::metadata("output").is_ok());
             std::fs::remove_file("output").unwrap();
         }
     }
-
 }

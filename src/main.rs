@@ -1,3 +1,4 @@
+#![warn(clippy::all)]
 #![allow(non_snake_case)]
 use clap::builder::Command;
 use clap::Arg;
