@@ -54,10 +54,14 @@ pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
                         app.goto_screen(Screen::Error(e));
                     });
                 } else {
-                    let _ = app.copy_to_clipboard(
+                    app.copy_to_clipboard(
                         app.command.as_ref().unwrap().get_command_string().as_str(),
-                    );
+                    )
+                    .unwrap_or_else(|e| {
+                        app.goto_screen(Screen::Error(e));
+                    });
                 }
+                app.goto_screen(Screen::Success);
             }
             4 => {
                 // Return To Home
