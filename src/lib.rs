@@ -26,6 +26,10 @@ pub mod request;
 // Events & Event Handler
 pub mod events;
 
+
+// Utility Modules 
+pub mod utils;
+
 pub mod tui_cute;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
