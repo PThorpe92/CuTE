@@ -8,8 +8,6 @@ use tui::Frame;
 
 pub fn handle_home_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     handle_screen_defaults(app, frame);
-    
-
 
     if let Some(num) = app.selected {
         match num {

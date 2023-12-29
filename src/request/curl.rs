@@ -207,7 +207,7 @@ impl<'a> Clone for Curl<'a> {
             // our cmd string has been built
             curl.cmd = self.cmd.clone();
         }
-        curl.build_command_str();
+        curl.build_command_string();
         Self {
             curl: Easy2::new(Collector(Vec::new())),
             method: self.method.clone(),
@@ -295,8 +295,8 @@ impl<'a> Default for Curl<'a> {
     }
 }
 impl<'a> CmdOpts for Curl<'a> {
-    fn get_url(&self) -> String {
-        self.url.clone()
+    fn get_url(&self) -> &str {
+        &self.url
     }
     fn add_basic_auth(&mut self, info: &str) {
         self.add_flag(CurlFlag::Basic(
@@ -305,11 +305,32 @@ impl<'a> CmdOpts for Curl<'a> {
         ));
         self.auth = AuthKind::Basic(String::from(info));
     }
+
+    fn build_command_string(&mut self) {
+        let mut cmd: Vec<String> = vec![self.cmd.clone()];
+        if let Some(ref method) = &self.method {
+            cmd.push(String::from("-X"));
+            cmd.push(method.to_string());
+        }
+        cmd.push(self.url.clone());
+        for flag in &self.opts {
+            cmd.push(flag.get_value().to_string());
+            if let Some(arg) = &flag.get_arg() {
+                cmd.push(arg.to_owned());
+            }
+        }
+        if self.headers.is_some() {
+            self.headers.as_ref().unwrap().iter().for_each(|h| {
+                cmd.push(String::from("-H"));
+                cmd.push(h.clone());
+            });
+        }
+        self.cmd = cmd.join(" ").trim().to_string();
+    }
     //
     // this is only called after execution, we need to
     // find out if its been built already
-    fn get_command_string(&mut self) -> String {
-        self.build_command_str();
+    fn get_command_string(&self) -> String {
         self.cmd.clone()
     }
 
@@ -437,8 +458,8 @@ impl<'a> CurlOpts for Curl<'a> {
         let flag = &CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
         self.has_flag(flag)
     }
-    fn set_method(&mut self, method: String) {
-        match method.as_str() {
+    fn set_method(&mut self, method: &str) {
+        match method {
             "GET" => self.set_get_method(),
             "POST" => self.set_post_method(),
             "PUT" => self.set_put_method(),
@@ -519,11 +540,11 @@ impl<'a> CurlOpts for Curl<'a> {
         self.save.0 = opt;
     }
 
-    fn add_headers(&mut self, headers: String) {
+    fn add_headers(&mut self, headers: &str) {
         if self.headers.is_some() {
-            self.headers.as_mut().unwrap().push(headers);
+            self.headers.as_mut().unwrap().push(headers.to_string());
         } else {
-            self.headers = Some(vec![headers]);
+            self.headers = Some(vec![headers.to_string()]);
         }
     }
 
@@ -535,7 +556,7 @@ impl<'a> CurlOpts for Curl<'a> {
         self.auth.get_token()
     }
 
-    fn remove_headers(&mut self, headers: String) {
+    fn remove_headers(&mut self, headers: &str) {
         if self.headers.is_some() {
             self.headers
                 .as_mut()
@@ -680,7 +701,7 @@ impl<'a> Curl<'a> {
         for opt in opts {
             match opt {
                 CurlFlag::Verbose(..) => self.set_verbose(true),
-                CurlFlag::Headers(_, val) => self.add_headers(val.unwrap_or(String::new())),
+                CurlFlag::Headers(_, val) => self.add_headers(&val.unwrap_or("".to_string())),
                 CurlFlag::Output(..) => {
                     if let Some(val) = opt.get_arg() {
                         self.set_outfile(&val);
@@ -857,28 +878,6 @@ impl<'a> Curl<'a> {
             Some(file.to_string()),
         ));
         self.curl.show_header(true).unwrap();
-    }
-
-    fn build_command_str(&mut self) {
-        let mut cmd: Vec<String> = vec![self.cmd.clone()];
-        if let Some(ref method) = &self.method {
-            cmd.push(String::from("-X"));
-            cmd.push(method.to_string());
-        }
-        cmd.push(self.url.clone());
-        for flag in &self.opts {
-            cmd.push(flag.get_value().to_string());
-            if let Some(arg) = &flag.get_arg() {
-                cmd.push(arg.to_owned());
-            }
-        }
-        if self.headers.is_some() {
-            self.headers.as_ref().unwrap().iter().for_each(|h| {
-                cmd.push(String::from("-H"));
-                cmd.push(h.clone());
-            });
-        }
-        self.cmd = cmd.join(" ").trim().to_string();
     }
 
     fn handle_auth_exec(&mut self, list: &mut List) -> bool {
@@ -1058,9 +1057,9 @@ mod tests {
     #[test]
     fn test_remove_content_headers() {
         let mut curl = Curl::new();
-        curl.add_headers("Authorization: Bearer 12345678910".to_string());
+        curl.add_headers("Authorization: Bearer 12345678910");
         curl.set_content_header(HeaderKind::ContentType);
-        curl.remove_headers("Content-Type: application/json".to_string());
+        curl.remove_headers("Content-Type: application/json");
         assert_eq!(curl.headers.as_ref().unwrap().len(), 1);
         assert!(curl.headers.is_some());
     }
@@ -1072,7 +1071,7 @@ mod tests {
         curl.set_get_method();
         curl.set_verbose(true);
         curl.set_url(&url);
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.cmd, format!("curl -X GET {} -v", url));
         assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.resp, None);
@@ -1083,13 +1082,13 @@ mod tests {
         // test POST method
         let mut curl = Curl::new();
         curl.set_post_method();
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.cmd, "curl -X POST");
 
         // Test setting method to GET
         let mut curl_get = Curl::new();
         curl_get.set_get_method();
-        curl_get.build_command_str();
+        curl_get.build_command_string();
         assert_eq!(curl_get.cmd, "curl -X GET");
     }
 
@@ -1099,7 +1098,7 @@ mod tests {
         let url = "https://example.com";
         curl.set_url(url);
         curl.set_get_method();
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.url, url);
         // get is default method
         assert_eq!(curl.cmd, format!("curl -X GET {}", url));
@@ -1240,7 +1239,7 @@ mod tests {
     fn test_add_headers() {
         let mut curl = Curl::new();
         let headers = String::from("Header2: Value2");
-        curl.add_headers(headers.clone());
+        curl.add_headers(&headers);
         assert_eq!(curl.opts.len(), 0);
         assert!(curl.headers.is_some());
         assert!(curl.headers.as_ref().unwrap().contains(&headers));
@@ -1316,7 +1315,7 @@ mod tests {
     fn test_set_aws_sigv4_auth() {
         let mut curl = Curl::new();
         curl.set_aws_sigv4_auth();
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.auth, AuthKind::AwsSigv4);
         assert_eq!(curl.cmd, "curl  --aws-sigv4");
@@ -1330,7 +1329,7 @@ mod tests {
     fn test_set_spnego_auth() {
         let mut curl = Curl::new();
         curl.set_spnego_auth();
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.opts.len(), 1);
         assert_eq!(curl.auth, AuthKind::Spnego);
         assert!(curl.opts.contains(&CurlFlag::SpnegoAuth(
@@ -1346,7 +1345,7 @@ mod tests {
         curl.set_get_method();
         let url = server.deref_mut().url();
         curl.set_url(&url);
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.cmd, format!("curl -X GET {}", url));
         curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
@@ -1359,7 +1358,7 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_post_method();
         curl.set_url(&url);
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.cmd, format!("curl -X POST {}", url));
         curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
@@ -1373,7 +1372,7 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_put_method();
         curl.set_url(&url);
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.cmd, format!("curl -X PUT {}", url));
         curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
@@ -1388,7 +1387,7 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_patch_method();
         curl.set_url(&url);
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.cmd, format!("curl -X PATCH {}", url));
         curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
@@ -1403,7 +1402,7 @@ mod tests {
         let mut curl = Curl::new();
         curl.set_delete_method();
         curl.set_url(&url);
-        curl.build_command_str();
+        curl.build_command_string();
         assert_eq!(curl.cmd, format!("curl -X DELETE {}", url));
         curl.execute(None).unwrap();
         assert!(curl.resp.is_some());

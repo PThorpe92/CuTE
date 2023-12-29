@@ -1,11 +1,12 @@
 use crate::database::db::{SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::{AppOptions, HeaderKind};
-use crate::request::command::{CmdOpts, CMD};
+use crate::request::command::{Cmd, CmdOpts, CMD};
 use crate::request::curl::{AuthKind, Curl};
 use crate::screens::screen::Screen;
 use crate::Config;
 use arboard::Clipboard;
+use std::rc::Rc;
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
@@ -91,6 +92,36 @@ impl<'a> App<'a> {
             self.goto_screen(self.current_screen.clone());
             self.state.as_mut().unwrap().select(selected.0);
             self.cursor = selected.1;
+        }
+    }
+
+    pub fn copy_to_clipboard_from_response(&self) -> Result<(), String> {
+        if let Some(resp) = self.response.as_ref() {
+            if let Ok(mut clipboard) = Clipboard::new() {
+                if let Err(e) = clipboard.set_text(resp) {
+                    return Err(e.to_string());
+                }
+                Ok(())
+            } else {
+                Err("Failed to copy to clipboard".to_string())
+            }
+        } else {
+            Err("No response to copy".to_string())
+        }
+    }
+
+    pub fn copy_to_clipboard_from_command(&mut self) -> Result<(), String> {
+        if let Some(cmd) = self.command.as_ref() {
+            if let Ok(mut clipboard) = Clipboard::new() {
+                if let Err(e) = clipboard.set_text(cmd.get_command_string()) {
+                    return Err(e.to_string());
+                }
+                Ok(())
+            } else {
+                Err("Failed to copy to clipboard".to_string())
+            }
+        } else {
+            Err("No command to copy".to_string())
         }
     }
 
@@ -323,8 +354,8 @@ impl<'a> App<'a> {
             AppOptions::Referrer(_)      => self.command.as_mut().unwrap().set_referrer(""),
             AppOptions::RecDownload(_)   => self.command.as_mut().unwrap().set_rec_download_level(0),
             AppOptions::RequestBody(_)   => self.command.as_mut().unwrap().set_request_body(""),
-            AppOptions::Cookie(_)        => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
-            AppOptions::Headers(_)       => self.command.as_mut().unwrap().remove_headers(opt.get_value()),
+            AppOptions::Cookie(_)        => self.command.as_mut().unwrap().remove_headers(&opt.get_value()),
+            AppOptions::Headers(_)       => self.command.as_mut().unwrap().remove_headers(&opt.get_value()),
             AppOptions::Auth(_)          => self.command.as_mut().unwrap().set_auth(crate::request::curl::AuthKind::None),
             AppOptions::EnableHeaders    => self.command.as_mut().unwrap().enable_response_headers(false),
             AppOptions::ContentHeaders(_)=> self.command.as_mut().unwrap().set_content_header(HeaderKind::None),
@@ -437,7 +468,7 @@ impl<'a> App<'a> {
                 }
                 AppOptions::UnixSocket(socket) =>  self.command.as_mut().unwrap().set_unix_socket(&socket),
 
-                AppOptions::Headers(value) => self.command.as_mut().unwrap().add_headers(value),
+                AppOptions::Headers(value) => self.command.as_mut().unwrap().add_headers(&value),
 
                 AppOptions::URL(url) => self.command.as_mut().unwrap().set_url(&url),
 
