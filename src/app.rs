@@ -1,12 +1,11 @@
 use crate::database::db::{SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::{AppOptions, HeaderKind};
-use crate::request::command::{Cmd, CmdOpts, CMD};
+use crate::request::command::{CmdOpts, CMD};
 use crate::request::curl::{AuthKind, Curl};
 use crate::screens::screen::Screen;
 use crate::Config;
 use arboard::Clipboard;
-use std::rc::Rc;
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
