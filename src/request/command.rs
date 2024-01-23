@@ -23,9 +23,7 @@ impl Display for CmdType {
         }
     }
 }
-pub trait CMD: CurlOpts + CmdOpts {}
-impl CMD for Cmd<'_> {}
-impl CmdOpts for Cmd<'_> {
+impl CMD for Cmd<'_> {
     fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String> {
         match self {
             Cmd::Curl(curl) => curl.execute(db),
@@ -94,9 +92,6 @@ impl CmdOpts for Cmd<'_> {
             Cmd::Wget(wget) => wget.get_command_string(),
         }
     }
-}
-
-impl CurlOpts for Cmd<'_> {
     fn add_cookie(&mut self, cookie: &str) {
         if let Cmd::Curl(curl) = self {
             curl.add_cookie(cookie);
@@ -251,7 +246,7 @@ impl CurlOpts for Cmd<'_> {
         }
     }
 }
-pub trait CmdOpts {
+pub trait CMD {
     fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String>;
     fn add_basic_auth(&mut self, info: &str);
     fn get_url(&self) -> &str;
@@ -263,8 +258,6 @@ pub trait CmdOpts {
     fn get_command_string(&self) -> String;
     fn build_command_string(&mut self);
     fn has_auth(&self) -> bool;
-}
-pub trait CurlOpts {
     fn set_content_header(&mut self, kind: HeaderKind);
     fn set_request_body(&mut self, body: &str);
     fn set_upload_file(&mut self, file: &str);

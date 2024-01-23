@@ -1,7 +1,7 @@
 use crate::database::db::{SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::{AppOptions, HeaderKind};
-use crate::request::command::{CmdOpts, CMD};
+use crate::request::command::CMD;
 use crate::request::curl::{AuthKind, Curl};
 use crate::screens::screen::Screen;
 use crate::Config;

@@ -12,7 +12,7 @@ use std::{
     io::Write,
 };
 
-use super::command::{CmdOpts, CurlOpts, CMD};
+use super::command::CMD;
 use crate::display::menuopts::CURL;
 
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
@@ -275,8 +275,6 @@ impl Display for AuthKind {
     }
 }
 
-impl<'a> CMD for Curl<'a> {}
-
 impl<'a> Default for Curl<'a> {
     fn default() -> Self {
         Self {
@@ -294,7 +292,7 @@ impl<'a> Default for Curl<'a> {
         }
     }
 }
-impl<'a> CmdOpts for Curl<'a> {
+impl<'a> CMD for Curl<'a> {
     fn get_url(&self) -> &str {
         &self.url
     }
@@ -439,9 +437,7 @@ impl<'a> CmdOpts for Curl<'a> {
         }
         Ok(())
     }
-}
 
-impl<'a> CurlOpts for Curl<'a> {
     fn set_auth(&mut self, auth: AuthKind) {
         match auth {
             AuthKind::Basic(ref info) => self.set_basic_auth(info),

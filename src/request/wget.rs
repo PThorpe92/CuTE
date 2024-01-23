@@ -1,6 +1,6 @@
 use crate::database::db::DB;
 
-use super::command::CmdOpts;
+use super::command::CMD;
 
 #[derive(Debug, Eq, Clone, PartialEq)]
 pub struct Wget {
@@ -12,7 +12,7 @@ pub struct Wget {
     response: Option<String>,
 }
 
-impl CmdOpts for Wget {
+impl CMD for Wget {
     // This is just if we want to build a string from the command. Not sure if we are going
     // to need this, but we may end up storing download commands in DB
 
@@ -87,6 +87,43 @@ impl CmdOpts for Wget {
 
     fn has_auth(&self) -> bool {
         self.auth.is_some()
+    }
+    fn set_content_header(&mut self, _kind: crate::display::HeaderKind) {}
+    fn set_request_body(&mut self, _body: &str) {}
+    fn set_upload_file(&mut self, _file: &str) {}
+    fn set_follow_redirects(&mut self, _opt: bool) {}
+    fn set_unrestricted_auth(&mut self, _opt: bool) {}
+    fn set_proxy_tunnel(&mut self, _opt: bool) {}
+    fn add_cookie(&mut self, _cookie: &str) {}
+    fn has_unix_socket(&self) -> bool {
+        false
+    }
+    fn set_unix_socket(&mut self, _socket: &str) {}
+    fn match_wildcard(&mut self, _opt: bool) {}
+    fn set_method(&mut self, _method: &str) {}
+    fn write_output(&mut self) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+    fn set_auth(&mut self, _auth: super::curl::AuthKind) {}
+    fn add_headers(&mut self, _headers: &str) {}
+    fn enable_response_headers(&mut self, _opt: bool) {}
+    fn enable_progress_bar(&mut self, _opt: bool) {}
+    fn set_referrer(&mut self, _referrer: &str) {}
+    fn set_user_agent(&mut self, _agent: &str) {}
+    fn set_max_redirects(&mut self, _redirects: usize) {}
+    fn set_ca_path(&mut self, _path: &str) {}
+    fn set_tcp_keepalive(&mut self, _opt: bool) {}
+    fn set_fail_on_error(&mut self, _opt: bool) {}
+    fn set_cert_info(&mut self, _opt: bool) {}
+    fn save_command(&mut self, _opt: bool) {}
+    fn set_verbose(&mut self, _opt: bool) {}
+    fn save_token(&mut self, _opt: bool) {}
+    fn get_token(&self) -> Option<String> {
+        None
+    }
+    fn remove_headers(&mut self, _headers: &str) {}
+    fn will_save_command(&self) -> bool {
+        false
     }
 }
 
