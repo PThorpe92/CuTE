@@ -27,8 +27,8 @@ pub mod render;
 
 pub mod saved_keys;
 
-use ::tui::prelude::{Backend, Constraint, Direction, Frame, Layout, Rect};
 use ::tui::prelude::{Color, Text};
+use ::tui::prelude::{Constraint, Direction, Frame, Layout, Rect};
 use ::tui::style::Style;
 use ::tui::widgets::{Block, Borders, Paragraph, Wrap};
 pub use screen::Screen;
@@ -44,7 +44,7 @@ pub fn default_rect(r: Rect) -> Rect {
     centered_rect(70, 60, r)
 }
 
-pub fn error_alert_box<B: Backend>(frame: &mut Frame<'_, B>, error_message: &str) -> Rect {
+pub fn error_alert_box(frame: &mut Frame<'_>, error_message: &str) -> Rect {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![

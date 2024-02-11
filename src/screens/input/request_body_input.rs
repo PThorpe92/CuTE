@@ -5,7 +5,7 @@ use crate::screens::{default_rect, small_alert_box, Screen};
 use tui::text::{Line, Text};
 use tui::widgets::{Block, Borders, Paragraph};
 use tui::{
-    prelude::{Backend, Constraint, Direction, Layout},
+    prelude::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::Span,
     Frame,
@@ -13,11 +13,7 @@ use tui::{
 
 use super::input::render_input_with_prompt;
 
-pub fn handle_req_body_input_screen<B: Backend>(
-    app: &mut App,
-    frame: &mut Frame<'_, B>,
-    _opt: InputOpt,
-) {
+pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -49,11 +45,11 @@ pub fn handle_req_body_input_screen<B: Backend>(
             Style::default(),
         ),
     };
-    let mut prompt = Text::from(
+    let prompt = Text::from(
         "Enter your Request body,\n press ESC to exit Insert Mode\n then press Enter to submit",
     );
     let msg = Paragraph::new(Line::from(msg));
-    prompt.patch_style(style);
+    let prompt = prompt.patch_style(style);
     frame.render_widget(msg, small_alert_box(frame.size()));
     render_input_with_prompt(frame, prompt);
 

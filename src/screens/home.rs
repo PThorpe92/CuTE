@@ -3,10 +3,10 @@ use crate::app::App;
 use crate::request::command::Cmd;
 use crate::request::wget::Wget;
 use crate::screens::screen::Screen;
-use tui::backend::Backend;
+
 use tui::Frame;
 
-pub fn handle_home_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_home_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
 
     if let Some(num) = app.selected {

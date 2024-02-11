@@ -16,7 +16,7 @@ use tui::style::Color;
 use tui::widgets::Paragraph;
 use tui::widgets::{Block, Borders};
 use tui::{
-    prelude::{Backend, Constraint, Direction, Layout},
+    prelude::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::{Span, Text},
     Frame,
@@ -41,11 +41,7 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
     }
 }
 
-pub fn handle_default_input_screen<B: Backend>(
-    app: &mut App,
-    frame: &mut Frame<'_, B>,
-    opt: InputOpt,
-) {
+pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
@@ -79,8 +75,8 @@ pub fn handle_default_input_screen<B: Backend>(
             Style::default(),
         ),
     };
-    let mut prompt = get_input_prompt(opt.clone());
-    prompt.patch_style(style);
+    let prompt = get_input_prompt(opt.clone());
+    let prompt = prompt.patch_style(style);
     render_input_with_prompt(frame, prompt);
 
     let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
@@ -232,7 +228,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     }
 }
 
-pub fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) {
+pub fn render_input_with_prompt(frame: &mut Frame<'_>, prompt: Text) {
     // Render the input with the provided prompt
     let chunks = Layout::default()
         .direction(Direction::Vertical)

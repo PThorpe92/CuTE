@@ -2,13 +2,12 @@ use super::render::handle_screen_defaults;
 use super::{centered_rect, small_alert_box, Screen};
 use crate::app::App;
 use crate::display::menuopts::KEY_MENU_OPTIONS;
-use tui::backend::Backend;
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
-pub fn handle_saved_keys_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_saved_keys_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     if app.items.is_empty() {
         let paragraph = Paragraph::new("No Keys Found. Press 'a' to add a new key.").block(
@@ -28,7 +27,7 @@ pub fn handle_saved_keys_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_,
     }
 }
 
-pub fn handle_key_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cmd: usize) {
+pub fn handle_key_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(

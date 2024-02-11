@@ -1,4 +1,4 @@
-use tui::backend::Backend;
+
 use tui::Frame;
 
 use crate::app::App;
@@ -8,7 +8,7 @@ use crate::screens::screen::Screen;
 
 use super::render::handle_screen_defaults;
 
-pub fn handle_more_flags_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_more_flags_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     match app.selected {
         // follow redirects

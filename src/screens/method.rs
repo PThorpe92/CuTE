@@ -4,10 +4,10 @@ use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::request::command::Cmd;
 use crate::request::curl::Curl;
 use crate::screens::screen::Screen;
-use tui::backend::Backend;
+
 use tui::Frame;
 
-pub fn handle_method_select_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_method_select_screen(app: &mut App, frame: &mut Frame<'_>) {
     app.remove_all_app_options();
     app.set_command(Box::new(Cmd::Curl(Curl::new())));
     handle_screen_defaults(app, frame);

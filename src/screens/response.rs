@@ -4,12 +4,11 @@ use crate::display::inputopt::InputOpt;
 
 use crate::request::response::Response;
 use crate::screens::screen::Screen;
-use tui::backend::Backend;
 use tui::text::Text;
 use tui::widgets::{ListState, Paragraph};
 use tui::Frame;
 
-pub fn handle_response_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, resp: String) {
+pub fn handle_response_screen(app: &mut App, frame: &mut Frame<'_>, resp: String) {
     let area = default_rect(small_alert_box(frame.size()));
     let new_list = app.current_screen.get_list(None);
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));

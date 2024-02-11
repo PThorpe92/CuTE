@@ -1,6 +1,5 @@
 use crate::app::App;
 use crate::screens::{default_rect, small_alert_box};
-use tui::backend::Backend;
 use tui::layout::{Constraint, Layout};
 use tui::prelude::Direction;
 use tui::style::{Color, Style};
@@ -8,7 +7,7 @@ use tui::text::Text;
 use tui::widgets::{Block, Borders, ListState, Paragraph, Wrap};
 use tui::Frame;
 
-fn err_box<B: Backend>(frame: &mut Frame<'_, B>, error_msg: String) {
+fn err_box(frame: &mut Frame<'_>, error_msg: String) {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -52,7 +51,7 @@ fn err_box<B: Backend>(frame: &mut Frame<'_, B>, error_msg: String) {
     );
 }
 
-pub fn handle_error_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, error_msg: String) {
+pub fn handle_error_screen(app: &mut App, frame: &mut Frame<'_>, error_msg: String) {
     let area = default_rect(small_alert_box(frame.size()));
     let new_list = app.current_screen.get_list(None);
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));

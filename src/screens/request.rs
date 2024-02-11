@@ -6,12 +6,12 @@ use crate::display::AppOptions;
 use crate::request::command::CmdType;
 use crate::screens::error_alert_box;
 use crate::screens::screen::Screen;
-use tui::backend::Backend;
+
 use tui::Frame;
 
-pub fn handle_request_menu_screen<B: Backend>(
+pub fn handle_request_menu_screen(
     app: &mut App,
-    frame: &mut Frame<'_, B>,
+    frame: &mut Frame<'_>,
     err: String,
 ) {
     handle_screen_defaults(app, frame);

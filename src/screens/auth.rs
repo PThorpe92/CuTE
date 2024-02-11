@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use tui::backend::Backend;
+
 use tui::Frame;
 
 use super::render::handle_screen_defaults;
@@ -37,7 +37,7 @@ impl Display for AuthType {
         write!(f, "{}", auth)
     }
 }
-pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_authentication_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     if let Some(num) = app.selected {
         match num {
