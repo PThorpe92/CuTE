@@ -20,14 +20,19 @@ tui = { package = "ratatui", features = [
   "macros",
 ], version = "0.26.0" }
 tui-input = "0.8.0"
-tui-widget-list = "0.3.1"
+tui-widget-list = "0.7.1"
 lazy_static = "1.4.0"
 rusqlite = { version = "0.30.0", features = ["bundled"] }
 serde_json = { version = "1.0.113", features = ["std"] }
 serde = { version = "1.0.196", features = ["derive"] }
-curl = { features = ["ntlm", "http2"], version = "0.4.45" }
 mockito = "1.2.0"
 regex = "1.10.3"
+curl = { version = "0.4.45", features = [
+  "http2",
+  "spnego",
+  "static-curl",
+  "ssl",
+] }
 dirs = "5.0.1"
 http = "1.0.0"
 toml = "0.8.10"
@@ -35,3 +40,7 @@ arboard = "3.3.0"
 log = "0.4.20"
 clap = "4.5.0"
 once_cell = "1.19.0"
+
+
+[profile.release]
+strip = "debuginfo"
