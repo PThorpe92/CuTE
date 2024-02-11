@@ -27,12 +27,7 @@ serde_json = { version = "1.0.113", features = ["std"] }
 serde = { version = "1.0.196", features = ["derive"] }
 mockito = "1.2.0"
 regex = "1.10.3"
-curl = { version = "0.4.45", features = [
-  "http2",
-  "spnego",
-  "static-curl",
-  "ssl",
-] }
+curl = { version = "0.4.45", features = ["http2", "ntlm", "spnego", "ssl"] }
 dirs = "5.0.1"
 http = "1.0.0"
 toml = "0.8.10"
