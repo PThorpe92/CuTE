@@ -197,11 +197,8 @@ impl<'a> App<'a> {
     }
 
     pub fn move_cursor_down(&mut self) {
-        if self.items.is_empty() || self.cursor >= self.items.len() - 1 {
-            return;
-        }
-        if let Some(res) = self.cursor.checked_add(1) {
-            self.cursor = res;
+        if !self.items.is_empty() && self.cursor < self.items.len() - 1 {
+            self.cursor += 1;
         }
     }
 

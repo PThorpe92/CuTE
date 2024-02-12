@@ -36,6 +36,13 @@ log = "0.4.20"
 clap = "4.5.0"
 once_cell = "1.19.0"
 
+[target.'cfg(windows)'.dependencies]
+curl = { version = "0.4.45", features = [
+  "http2",
+  "ntlm",
+  "windows-static-ssl",
+  "ssl",
+] }
 
 [profile.release]
 strip = "debuginfo"
