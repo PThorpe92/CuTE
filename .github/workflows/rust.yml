@@ -28,6 +28,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: install deps on windows
+        if: runner.os == 'windows'
+        run: choco install -y openssl
       - name: Build
         run: cargo build --verbose
       - name: Run tests
