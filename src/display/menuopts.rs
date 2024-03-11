@@ -1,7 +1,6 @@
 /*
 * Screen Menu Options
  */
-use lazy_static::lazy_static;
 
 pub const SAVED_COMMANDS_PARAGRAPH: &str =
     "\nPress q to exit\nPress Enter to Execute command\nPress 'ESC' or 'h' to go back\n";
@@ -111,91 +110,88 @@ pub const SAVE_AUTH_ERROR: &str =
 pub const VALID_COMMAND_ERROR: &str =
     "Error: Invalid command.\n You must add either a URL or Unix Socket to execute a command";
 
-lazy_static! {
-    pub static ref CMD_MENU_OPTIONS: [&'static str; 4] = [
-        "Execute   ",
-        "Delete   ",
-        "Copy to Clipboard  󰅎 ",
-        "Cancel   ",
-    ];
-    pub static ref KEY_MENU_OPTIONS: [&'static str; 4] = [
-        "Add a Label  ",
-        "Delete   ",
-        "Copy to Clipboard  󰅎 ",
-        "Cancel   ",
-    ];
-    pub static ref ALERT_MENU_OPTIONS_KEY: [&'static str; 3] =
-        ["Delete", "Copy to Clipboard", "Cancel"];
-    pub static ref MAIN_MENU_OPTIONS: [&'static str; 4] = [
-        "Build and send an HTTP request 󰖟 ",
-        "Download a remote file or directory 󰧩 ",
-        "View my stored API keys 󱂛  ",
-        "View or execute my saved commands  ",
-    ];
-    pub static ref REQUEST_MENU_OPTIONS: [&'static str; 12] = [
-        "Add a URL 󰖟 ",
-        "Add a file for uploads  ",
-        "Add Unix Socket address 󰟩 ",
-        "Authentication 󰯄 ",
-        "Header Options  ",
-        "Enable verbose output [-v]",
-        "Add Request Body 󰘦 ",
-        "Save this Command  ",
-        "Save your API token or login information  ",
-        "Execute command  ",
-        "More Options  ",
-        "Clear all options  ",
-    ];
-    pub static ref DOWNLOAD_MENU_OPTIONS: [&'static str; 4] = [
-        "Specify recursive depth 󰆙 ",
-        "Add a URL 󰖟  ",
-        "Specify output filepath  ",
-        "Begin Download  ",
-    ];
-    pub static ref METHOD_MENU_OPTIONS: [&'static str; 7] = [
-        "OTHER (custom command)",
-        "GET",
-        "POST",
-        "PUT",
-        "DELETE",
-        "PATCH",
-        "HEAD",
-    ];
-    pub static ref HEADER_MENU_OPTIONS: [&'static str; 5] = [
-        "Add Custom Header 󰖟 ",
-        "Add Content-Type: Application/Json  ",
-        "Add Accept: Application/Json  ",
-        "Enable Response Headers 󰰀 ",
-        "Return to request menu  ",
-    ];
-    pub static ref AUTHENTICATION_MENU_OPTIONS: [&'static str; 6] = [
-        "Basic",
-        "Bearer",
-        "Digest",
-        "AWS SignatureV4",
-        "Ntlm",
-        "SPNEGO",
-    ];
-    pub static ref MORE_FLAGS_MENU: [&'static str; 13] = [
-        "Follow Redirects 󱀀 ",
-        "Specify Max redirects 󱀀 ",
-        "Add Cookie  󰆘 ",
-        "Enable HTTP Proxy-Tunnel  󱠾 ",
-        "Unrestricted Auth  ",
-        "Specify Referrer  󰆽 ",
-        "Specify SSL Certificate path 󰄤 ",
-        "Request Certificate Info 󰄤 ",
-        "Add Progress Bar 󰦖 ",
-        "Fail on Error  ",
-        "Match wildcard 󰛄 ",
-        "Specify User-Agent  󰖟 ",
-        "Enable TCP keepalive 󰗶 ",
-    ];
-    pub static ref RESPONSE_MENU_OPTIONS: [&'static str; 5] = [
-        "Write to file? 󱇧 ",
-        "View response headers 󰰀 ",
-        "View response body 󰈮 ",
-        "Copy command to clipboard 󰅎 ",
-        "Return to main menu  ",
-    ];
-}
+pub const CMD_MENU_OPTIONS: [&str; 4] = [
+    "Execute   ",
+    "Delete   ",
+    "Copy to Clipboard  󰅎 ",
+    "Cancel   ",
+];
+pub const KEY_MENU_OPTIONS: [&str; 4] = [
+    "Add a Label  ",
+    "Delete   ",
+    "Copy to Clipboard  󰅎 ",
+    "Cancel   ",
+];
+pub const ALERT_MENU_OPTIONS_KEY: [&str; 3] = ["Delete", "Copy to Clipboard", "Cancel"];
+pub const MAIN_MENU_OPTIONS: [&str; 4] = [
+    "Build and send an HTTP request 󰖟 ",
+    "Download a remote file or directory 󰧩 ",
+    "View my stored API keys 󱂛  ",
+    "View or execute my saved commands  ",
+];
+pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
+    "Add a URL 󰖟 ",
+    "Add a file for uploads  ",
+    "Add Unix Socket address 󰟩 ",
+    "Authentication 󰯄 ",
+    "Header Options  ",
+    "Enable verbose output [-v]",
+    "Add Request Body 󰘦 ",
+    "Save this Command  ",
+    "Save your API token or login information  ",
+    "Execute command  ",
+    "More Options  ",
+    "Clear all options  ",
+];
+pub const DOWNLOAD_MENU_OPTIONS: [&str; 4] = [
+    "Specify recursive depth 󰆙 ",
+    "Add a URL 󰖟  ",
+    "Specify output filepath  ",
+    "Begin Download  ",
+];
+pub const METHOD_MENU_OPTIONS: [&str; 7] = [
+    "OTHER (custom command)",
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "PATCH",
+    "HEAD",
+];
+pub const HEADER_MENU_OPTIONS: [&str; 5] = [
+    "Add Custom Header 󰖟 ",
+    "Add Content-Type: Application/Json  ",
+    "Add Accept: Application/Json  ",
+    "Enable Response Headers 󰰀 ",
+    "Return to request menu  ",
+];
+pub const AUTHENTICATION_MENU_OPTIONS: [&str; 6] = [
+    "Basic",
+    "Bearer",
+    "Digest",
+    "AWS SignatureV4",
+    "Ntlm",
+    "SPNEGO",
+];
+pub const MORE_FLAGS_MENU: [&str; 13] = [
+    "Follow Redirects 󱀀 ",
+    "Specify Max redirects 󱀀 ",
+    "Add Cookie  󰆘 ",
+    "Enable HTTP Proxy-Tunnel  󱠾 ",
+    "Unrestricted Auth  ",
+    "Specify Referrer  󰆽 ",
+    "Specify SSL Certificate path 󰄤 ",
+    "Request Certificate Info 󰄤 ",
+    "Add Progress Bar 󰦖 ",
+    "Fail on Error  ",
+    "Match wildcard 󰛄 ",
+    "Specify User-Agent  󰖟 ",
+    "Enable TCP keepalive 󰗶 ",
+];
+pub const RESPONSE_MENU_OPTIONS: [&str; 5] = [
+    "Write to file? 󱇧 ",
+    "View response headers 󰰀 ",
+    "View response body 󰈮 ",
+    "Copy command to clipboard 󰅎 ",
+    "Return to main menu  ",
+];

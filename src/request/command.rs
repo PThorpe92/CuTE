@@ -1,12 +1,20 @@
 use super::{
-    curl::{AuthKind, Curl},
+    curl::{AuthKind, Curl, Method},
     wget::Wget,
 };
 use crate::{database::db::DB, display::HeaderKind};
 use std::fmt::{Display, Error, Formatter};
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Cmd<'a> {
     Curl(Curl<'a>),
     Wget(Wget),
+}
+
+impl<'a> Default for Cmd<'a> {
+    fn default() -> Self {
+        Self::Curl(Curl::new())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,6 +49,13 @@ impl CMD for Cmd<'_> {
             curl.has_auth()
         } else {
             false
+        }
+    }
+
+    fn get_request_body(&self) -> Option<String> {
+        match self {
+            Cmd::Curl(curl) => curl.get_request_body(),
+            Cmd::Wget(_) => None,
         }
     }
 
@@ -117,6 +132,14 @@ impl CMD for Cmd<'_> {
     fn set_follow_redirects(&mut self, opt: bool) {
         if let Cmd::Curl(curl) = self {
             curl.set_follow_redirects(opt);
+        }
+    }
+
+    fn get_upload_file(&self) -> Option<String> {
+        if let Cmd::Curl(curl) = self {
+            curl.get_upload_file()
+        } else {
+            None
         }
     }
     fn set_proxy_tunnel(&mut self, opt: bool) {
@@ -245,10 +268,19 @@ impl CMD for Cmd<'_> {
             curl.set_user_agent(ua);
         }
     }
+    fn get_method(&self) -> Option<Method> {
+        if let Cmd::Curl(curl) = self {
+            curl.get_method()
+        } else {
+            None
+        }
+    }
 }
 pub trait CMD {
     fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String>;
+    fn get_method(&self) -> Option<Method>;
     fn add_basic_auth(&mut self, info: &str);
+    fn get_upload_file(&self) -> Option<String>;
     fn get_url(&self) -> &str;
     fn set_outfile(&mut self, file: &str);
     fn get_response(&self) -> String;
@@ -287,4 +319,5 @@ pub trait CMD {
     fn set_max_redirects(&mut self, redirects: usize);
     fn set_ca_path(&mut self, path: &str);
     fn set_user_agent(&mut self, ua: &str);
+    fn get_request_body(&self) -> Option<String>;
 }

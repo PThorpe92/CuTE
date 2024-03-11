@@ -4,16 +4,13 @@ use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{SAVE_AUTH_ERROR, VALID_COMMAND_ERROR};
 use crate::display::AppOptions;
 use crate::request::command::CmdType;
+use crate::request::command::CMD;
 use crate::screens::error_alert_box;
 use crate::screens::screen::Screen;
-use tui::backend::Backend;
+
 use tui::Frame;
 
-pub fn handle_request_menu_screen<B: Backend>(
-    app: &mut App,
-    frame: &mut Frame<'_, B>,
-    err: String,
-) {
+pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: String) {
     handle_screen_defaults(app, frame);
     if !err.is_empty() {
         error_alert_box(frame, &err);
@@ -51,7 +48,7 @@ pub fn handle_request_menu_screen<B: Backend>(
             }
             match app.execute_command() {
                 Ok(()) => {
-                    let response = app.command.as_mut().unwrap().get_response();
+                    let response = app.command.get_response();
                     app.set_response(&response);
                     app.goto_screen(Screen::Response(response));
                 }

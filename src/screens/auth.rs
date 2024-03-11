@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
 
-use tui::backend::Backend;
 use tui::Frame;
 
 use super::render::handle_screen_defaults;
@@ -13,7 +12,7 @@ use crate::screens::screen::Screen;
 
 // This is the display auth not to be confused with the request auth
 // it needs to be done away with and combined into one
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AuthType {
     Basic,
     Bearer,
@@ -37,7 +36,7 @@ impl Display for AuthType {
         write!(f, "{}", auth)
     }
 }
-pub fn handle_authentication_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_authentication_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     if let Some(num) = app.selected {
         match num {

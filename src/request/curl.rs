@@ -296,6 +296,9 @@ impl<'a> CMD for Curl<'a> {
     fn get_url(&self) -> &str {
         &self.url
     }
+    fn get_method(&self) -> Option<Method> {
+        self.method.clone()
+    }
     fn add_basic_auth(&mut self, info: &str) {
         self.add_flag(CurlFlag::Basic(
             CurlFlagType::Basic.get_value(),
@@ -338,7 +341,7 @@ impl<'a> CMD for Curl<'a> {
     }
 
     fn set_url(&mut self, url: &str) {
-        self.url = String::from(url);
+        self.url = String::from(url.trim());
         self.curl.url(url).unwrap();
     }
 
@@ -354,6 +357,10 @@ impl<'a> CMD for Curl<'a> {
 
     fn get_response(&self) -> String {
         self.resp.clone().unwrap_or_default()
+    }
+
+    fn get_upload_file(&self) -> Option<String> {
+        self.upload_file.clone()
     }
 
     fn execute(&mut self, mut db: Option<&mut Box<DB>>) -> Result<(), String> {
@@ -584,40 +591,55 @@ impl<'a> CMD for Curl<'a> {
             Some(redirects.to_string()),
         );
         self.toggle_flag(&flag);
-        self.curl.max_redirections(redirects as u32).unwrap();
+        self.curl
+            .max_redirections(redirects as u32)
+            .unwrap_or_default();
     }
 
     fn set_ca_path(&mut self, ca_path: &str) {
         let flag = CurlFlag::CaPath(CurlFlagType::CaPath.get_value(), None);
         self.toggle_flag(&flag);
-        self.curl.cainfo(ca_path).unwrap();
+        self.curl.cainfo(ca_path).unwrap_or_default();
     }
 
     fn set_tcp_keepalive(&mut self, opt: bool) {
         let flag = CurlFlag::TcpKeepAlive(CurlFlagType::TcpKeepAlive.get_value(), None);
         self.toggle_flag(&flag);
-        self.curl.tcp_keepalive(opt).unwrap();
+        self.curl.tcp_keepalive(opt).unwrap_or_default();
+    }
+
+    fn get_request_body(&self) -> Option<String> {
+        let flag = self.opts.iter().find(|pos| {
+            std::mem::discriminant(*pos)
+                == std::mem::discriminant(&CurlFlag::RequestBody(
+                    CurlFlagType::RequestBody.get_value(),
+                    None,
+                ))
+        });
+        flag.and_then(|pos| pos.get_arg())
     }
 
     fn set_request_body(&mut self, body: &str) {
         let flag = CurlFlag::RequestBody(
             CurlFlagType::RequestBody.get_value(),
-            Some(body.to_string()),
+            Some(body.trim().to_string()),
         );
         self.toggle_flag(&flag);
-        self.curl.post_fields_copy(body.as_bytes()).unwrap();
+        self.curl
+            .post_fields_copy(body.as_bytes())
+            .unwrap_or_default();
     }
 
     fn set_follow_redirects(&mut self, opt: bool) {
         let flag = CurlFlag::FollowRedirects(CurlFlagType::FollowRedirects.get_value(), None);
         self.toggle_flag(&flag);
-        self.curl.follow_location(opt).unwrap();
+        self.curl.follow_location(opt).unwrap_or_default();
     }
 
     fn add_cookie(&mut self, cookie: &str) {
         let flag = CurlFlag::Cookie(CurlFlagType::Cookie.get_value(), Some(String::from(cookie)));
         self.toggle_flag(&flag);
-        self.curl.cookie(cookie).unwrap();
+        self.curl.cookie(cookie).unwrap_or_default();
     }
 
     fn set_upload_file(&mut self, file: &str) {
@@ -626,7 +648,7 @@ impl<'a> CMD for Curl<'a> {
             Some(file.to_string()),
         ));
         self.upload_file = Some(file.to_string());
-        self.curl.upload(true).unwrap();
+        self.curl.upload(true).unwrap_or_default();
     }
 
     fn write_output(&mut self) -> Result<(), std::io::Error> {
@@ -640,7 +662,6 @@ impl<'a> CMD for Curl<'a> {
                         return Err(e);
                     }
                 };
-
                 let mut writer = std::io::BufWriter::new(&mut file);
 
                 if let Some(resp) = &self.resp {
@@ -655,9 +676,8 @@ impl<'a> CMD for Curl<'a> {
             None => Ok(()),
         }
     }
-
     fn enable_response_headers(&mut self, opt: bool) {
-        self.curl.show_header(opt).unwrap();
+        self.curl.show_header(opt).unwrap_or_default();
     }
 }
 
@@ -676,7 +696,6 @@ impl<'a> Curl<'a> {
             .iter()
             .any(|has| std::mem::discriminant(has) == std::mem::discriminant(flag))
     }
-
     // This is a hack because when we deseialize json from the DB, we get a curl struct with no curl::Easy
     // field, so we have to manually add, then set the options one at a time from the opts vector.
     // ANY time we get a command from the database to run, we have to call this method first.

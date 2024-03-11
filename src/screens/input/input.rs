@@ -6,9 +6,10 @@ use crate::display::menuopts::{
 };
 use crate::display::AppOptions;
 use crate::request::command::CmdType;
+use crate::request::command::CMD;
 use crate::request::curl::AuthKind;
 use crate::screens::auth::AuthType;
-use crate::screens::Screen;
+use crate::screens::{default_rect, Screen};
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use std::path::Path;
 use tui::prelude::Line;
@@ -16,11 +17,12 @@ use tui::style::Color;
 use tui::widgets::Paragraph;
 use tui::widgets::{Block, Borders};
 use tui::{
-    prelude::{Backend, Constraint, Direction, Layout},
+    prelude::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::{Span, Text},
     Frame,
 };
+use tui_input::InputRequest;
 
 // Takes the current option and returns a prompt for that screen
 pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
@@ -41,56 +43,83 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
     }
 }
 
-pub fn handle_default_input_screen<B: Backend>(
-    app: &mut App,
-    frame: &mut Frame<'_, B>,
-    opt: InputOpt,
-) {
+pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .margin(2)
         .constraints(
             [
-                Constraint::Length(1),
-                Constraint::Length(3),
-                Constraint::Min(1),
+                Constraint::Percentage(15),
+                Constraint::Percentage(10),
+                Constraint::Percentage(75),
             ]
             .as_ref(),
         )
-        .split(frame.size());
-    let (_msg, style) = match app.input_mode {
+        .split(default_rect(frame.size()));
+    let (msg, style) = match app.input_mode {
         InputMode::Normal => (
             vec![
-                Span::raw("Press h"),
-                Span::raw("to go back."),
-                Span::styled("Press i", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled("Press 'h'", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("to go back..."),
+                Span::styled("Press 'i'", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw("to start editing."),
             ],
             Style::default(),
         ),
         InputMode::Editing => (
             vec![
-                Span::raw("Press "),
-                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing, "),
-                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled("Press Esc\n", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to stop editing...\n"),
+                Span::styled("Press Enter", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw(" to submit."),
             ],
             Style::default(),
         ),
     };
-    let mut prompt = get_input_prompt(opt.clone());
-    prompt.patch_style(style);
+    let message = Paragraph::new(Line::from(msg));
+    let prompt = get_input_prompt(opt.clone());
+    let prompt = prompt.patch_style(style);
+    frame.render_widget(message, chunks[0]);
     render_input_with_prompt(frame, prompt);
 
     let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
     let scroll = app.input.visual_scroll(width as usize);
+    match opt {
+        InputOpt::URL(_) => {
+            let url = app.command.get_url();
+            if !url.is_empty() && app.input.value().is_empty() {
+                for ch in url.to_string().chars() {
+                    if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                }
+                app.command.set_url("");
+            }
+        }
+        InputOpt::Auth(kind) => {
+            if kind == AuthType::Basic || kind == AuthType::Bearer {
+                let auth = app.command.get_token();
+                if auth.is_some() && app.input.value().is_empty() {
+                    for ch in auth.unwrap().chars() {
+                        if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                    }
+                    app.command.set_auth(AuthKind::None);
+                }
+            }
+        }
+        InputOpt::UploadFile => {
+            let file = app.command.get_upload_file();
+            if file.is_some() && app.input.value().is_empty() {
+                for ch in file.unwrap().chars() {
+                    if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                }
+                app.command.set_upload_file("");
+            }
+        }
+        _ => {}
+    }
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
-            InputMode::Normal => Style::default(),
+            InputMode::Normal => Style::default().fg(app.config.get_body_color()),
             InputMode::Editing => Style::default().fg(Color::LightBlue),
         })
-        .scroll((0, scroll as u16))
         .block(Block::default().borders(Borders::ALL).title("Input"));
     frame.render_widget(input, chunks[1]);
     match app.input_mode {
@@ -202,8 +231,8 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
-            app.command.as_mut().unwrap().set_outfile(&message);
-            if let Err(e) = app.command.as_mut().unwrap().write_output() {
+            app.command.set_outfile(&message);
+            if let Err(e) = app.command.write_output() {
                 app.goto_screen(Screen::Error(e.to_string()));
             } else {
                 app.goto_screen(Screen::Response(String::from(app.get_response())));
@@ -232,7 +261,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     }
 }
 
-pub fn render_input_with_prompt<B: Backend>(frame: &mut Frame<'_, B>, prompt: Text) {
+pub fn render_input_with_prompt(frame: &mut Frame<'_>, prompt: Text) {
     // Render the input with the provided prompt
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -265,7 +294,7 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         app.remove_app_option(&AppOptions::Auth(AuthKind::None));
     }
     println!("Auth set: {message}");
-    app.command.as_mut().unwrap().set_auth(match auth {
+    app.command.set_auth(match auth {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
         AuthType::Digest => AuthKind::Digest(String::from(message)),

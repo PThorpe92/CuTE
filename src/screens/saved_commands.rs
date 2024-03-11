@@ -2,13 +2,12 @@ use super::render::handle_screen_defaults;
 use super::Screen;
 use crate::app::App;
 use crate::display::menuopts::CMD_MENU_OPTIONS;
-use tui::backend::Backend;
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
-pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     // if we select a command, open options
     if let Some(cmd) = app.selected {
@@ -16,7 +15,7 @@ pub fn handle_saved_commands_screen<B: Backend>(app: &mut App, frame: &mut Frame
     }
 }
 
-pub fn handle_alert_menu<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, cmd: usize) {
+pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(

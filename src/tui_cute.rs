@@ -3,7 +3,7 @@ use std::panic;
 
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
-use tui::backend::{Backend, CrosstermBackend};
+use tui::backend::CrosstermBackend;
 use tui::Terminal;
 
 use crate::app::{App, AppResult};
@@ -15,16 +15,16 @@ use crate::screens::render::render;
 /// It is responsible for setting up the terminal,
 /// initializing the interface and handling the draw events.
 #[derive(Debug)]
-pub struct Tui<B: Backend> {
+pub struct Tui {
     /// Interface to the Terminal.
-    terminal: Terminal<B>,
+    terminal: Terminal<CrosstermBackend<io::Stdout>>,
     /// Terminal event handler.
     pub events: EventHandler,
 }
 
-impl<B: Backend> Tui<B> {
+impl Tui {
     /// Constructs a new instance of [`Tui`].
-    pub fn new(terminal: Terminal<B>, events: EventHandler) -> Self {
+    pub fn new(terminal: Terminal<CrosstermBackend<io::Stdout>>, events: EventHandler) -> Self {
         Self { terminal, events }
     }
 

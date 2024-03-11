@@ -75,68 +75,64 @@ impl<'a> Screen {
         match &self {
             Screen::Home => {
                 let len = MAIN_MENU_OPTIONS.len();
-                return MAIN_MENU_OPTIONS
+                MAIN_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
-                    .collect();
+                    .collect()
             }
             Screen::Method => {
                 let len = METHOD_MENU_OPTIONS.len();
-                return METHOD_MENU_OPTIONS
+                METHOD_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
-                    .collect();
+                    .collect()
             }
             Screen::HeaderAddRemove => {
                 let len = METHOD_MENU_OPTIONS.len();
-                return METHOD_MENU_OPTIONS
+                METHOD_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
-                    .collect();
+                    .collect()
             }
             Screen::RequestMenu(_) => {
                 let len = REQUEST_MENU_OPTIONS.len();
-                return REQUEST_MENU_OPTIONS
+                REQUEST_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
-                    .collect();
+                    .collect()
             }
             Screen::SavedCommands => {
                 let len = REQUEST_MENU_OPTIONS.len();
-                return items
+                items
                     .unwrap_or(vec!["No Saved Commands".to_string()])
                     .iter()
                     .map(|c| ListItem::new(format!("{}{}", c, determine_line_size(len))))
-                    .collect();
+                    .collect()
             }
-            Screen::Response(_) => {
-                return RESPONSE_MENU_OPTIONS
-                    .iter()
-                    .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
-                    .map(|i| ListItem::new(i.clone()))
-                    .collect();
-            }
+            Screen::Response(_) => RESPONSE_MENU_OPTIONS
+                .iter()
+                .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
+                .map(|i| ListItem::new(i.clone()))
+                .collect(),
             Screen::InputMenu(_) => {
                 vec![ListItem::new("Input Menu").style(Style::default().fg(Color::Green))]
             }
-            Screen::Headers => {
-                return HEADER_MENU_OPTIONS
-                    .iter()
-                    .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
-                    .map(|i| ListItem::new(i.clone()))
-                    .collect();
-            }
+            Screen::Headers => HEADER_MENU_OPTIONS
+                .iter()
+                .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
+                .map(|i| ListItem::new(i.clone()))
+                .collect(),
             Screen::Authentication => {
                 let len = AUTHENTICATION_MENU_OPTIONS.len();
-                return AUTHENTICATION_MENU_OPTIONS
+                AUTHENTICATION_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
-                    .collect();
+                    .collect()
             }
             Screen::Success => {
                 vec![ListItem::new("Success!").style(Style::default().fg(Color::Green))]
@@ -156,22 +152,22 @@ impl<'a> Screen {
                 .collect(),
             Screen::Downloads(_) => {
                 let len = DOWNLOAD_MENU_OPTIONS.len();
-                return DOWNLOAD_MENU_OPTIONS
+                DOWNLOAD_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
                     .map(|i| ListItem::new(i.clone()))
-                    .collect();
+                    .collect()
             }
             Screen::SavedKeys => {
                 let mut len = 0;
                 if items.is_some() {
                     len = items.as_ref().unwrap().len();
                 }
-                return items
+                items
                     .unwrap_or(vec!["No Saved Keys".to_string()])
                     .iter()
                     .map(|c| ListItem::new(format!("{}{}", c, determine_line_size(len))))
-                    .collect();
+                    .collect()
             }
             Screen::KeysMenu(_) => KEY_MENU_OPTIONS
                 .iter()
@@ -179,13 +175,13 @@ impl<'a> Screen {
                 .collect(),
             Screen::MoreFlags => {
                 let len = MORE_FLAGS_MENU.len();
-                return MORE_FLAGS_MENU
+                MORE_FLAGS_MENU
                     .iter()
                     .map(|i| {
                         ListItem::new(format!("{}{}", i, determine_line_size(len)))
                             .style(Style::default().fg(Color::Red))
                     })
-                    .collect();
+                    .collect()
             }
         }
     }

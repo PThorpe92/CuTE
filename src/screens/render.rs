@@ -14,7 +14,6 @@ use tui::text::Line;
 use tui::widgets::ListState;
 use tui::widgets::{Block, Borders};
 use tui::{
-    backend::Backend,
     layout::Alignment,
     style::Style,
     text::Text,
@@ -25,7 +24,7 @@ use tui::{
 use super::{centered_rect, default_rect, small_rect, Screen};
 
 /// Renders the user interface widgets.
-pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn render(app: &mut App, frame: &mut Frame<'_>) {
     if app.response.is_none() {
         // Render Display Options *******************************************
         // This is the box of options the user has selected so far in their current
@@ -81,7 +80,7 @@ pub fn render<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
     handle_screen(app, frame, app.current_screen.clone());
 }
 
-pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
     let mut items: Option<Vec<String>> = None;
     match app.current_screen {
         Screen::SavedKeys => {
@@ -132,10 +131,16 @@ pub fn handle_screen_defaults<B: Backend>(app: &mut App, frame: &mut Frame<'_, B
     );
 }
 
-pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen: Screen) {
+pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
     match screen {
+        // HOME SCREEN *********************************************************
         Screen::Home => home::handle_home_screen(app, frame),
+        // METHOD MENU SCREEN ***************************************************
         Screen::Method => method::handle_method_select_screen(app, frame),
+        // INPUT SCREEN ****************************************************
+        Screen::InputMenu(opt) => {
+            input::input::handle_default_input_screen(app, frame, opt.clone());
+        }
         Screen::ViewBody => {
             let area = default_rect(frame.size());
             let response = app.response.clone().unwrap_or_default();
@@ -172,10 +177,6 @@ pub fn handle_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>, screen
         }
         // SUCESSS SCREEN *******************************************************
         Screen::Success => handle_screen_defaults(app, frame),
-        // INPUT MENU SCREEN ****************************************************
-        Screen::InputMenu(opt) => {
-            input::input::handle_default_input_screen(app, frame, opt.clone());
-        }
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
             app.set_response(&resp);

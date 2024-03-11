@@ -1,4 +1,4 @@
-use tui::prelude::Backend;
+
 use tui::Frame;
 
 use super::render::handle_screen_defaults;
@@ -7,7 +7,7 @@ use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::{AppOptions, HeaderKind};
 
-pub fn handle_headers_screen<B: Backend>(app: &mut App, frame: &mut Frame<'_, B>) {
+pub fn handle_headers_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
 
     match app.selected {
