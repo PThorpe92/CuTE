@@ -2,6 +2,7 @@ use super::render::handle_screen_defaults;
 use crate::app::App;
 use crate::display::menuopts::METHOD_MENU_OPTIONS;
 use crate::request::command::Cmd;
+use crate::request::command::CMD;
 use crate::request::curl::Curl;
 use crate::screens::screen::Screen;
 
@@ -12,10 +13,7 @@ pub fn handle_method_select_screen(app: &mut App, frame: &mut Frame<'_>) {
     app.set_command(Box::new(Cmd::Curl(Curl::new())));
     handle_screen_defaults(app, frame);
     if let Some(num) = app.selected {
-        app.command
-            .as_mut()
-            .unwrap()
-            .set_method(METHOD_MENU_OPTIONS[num]); // safe index
+        app.command.set_method(METHOD_MENU_OPTIONS[num]); // safe index
         app.goto_screen(Screen::RequestMenu(String::from(METHOD_MENU_OPTIONS[num])));
     }
 }

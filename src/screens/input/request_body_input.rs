@@ -1,6 +1,8 @@
 use crate::app::{App, InputMode};
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
+use crate::request::command::CMD;
+use crate::request::curl::Method;
 use crate::screens::{default_rect, small_alert_box, Screen};
 use tui::text::{Line, Text};
 use tui::widgets::{Block, Borders, Paragraph};
@@ -18,9 +20,9 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Percentage(15),
-                Constraint::Percentage(70),
-                Constraint::Percentage(15),
+                Constraint::Percentage(25),
+                Constraint::Percentage(50),
+                Constraint::Percentage(25),
             ]
             .as_ref(),
         )
@@ -48,6 +50,20 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     let prompt = Text::from(
         "Enter your Request body,\n press ESC to exit Insert Mode\n then press Enter to submit",
     );
+    match app.command.get_method() {
+        Some(Method::Get | Method::Delete | Method::Head) => {
+            app.goto_screen(Screen::RequestMenu(String::from(
+                "Alert: Request Bodies are not allowed for this HTTP method",
+            )));
+        }
+        Some(_) => {}
+        None => {
+            app.goto_screen(Screen::RequestMenu(String::from(
+                "Alert: Please select a HTTP method first",
+            )));
+        }
+    }
+
     let msg = Paragraph::new(Line::from(msg));
     let prompt = prompt.patch_style(style);
     frame.render_widget(msg, small_alert_box(frame.size()));
@@ -55,6 +71,18 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
 
     let width = chunks[0].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
+    if app
+        .command
+        .get_request_body()
+        .is_some_and(|s| !s.is_empty())
+        && app.input.value().is_empty()
+    {
+        let body = app.command.get_request_body().unwrap();
+        for ch in body.chars() {
+            app.input.handle(tui_input::InputRequest::InsertChar(ch));
+        }
+        app.command.set_request_body("");
+    }
     let input = Paragraph::new(app.input.value())
         .wrap(tui::widgets::Wrap { trim: (true) })
         .style(match app.input_mode {
@@ -75,5 +103,6 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     if !app.messages.is_empty() {
         app.add_app_option(AppOptions::RequestBody(app.messages[0].clone()));
         app.goto_screen(Screen::RequestMenu(String::new()));
+        app.messages.clear();
     }
 }

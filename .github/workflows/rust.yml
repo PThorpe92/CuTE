@@ -1,4 +1,4 @@
-name: Rust
+name: Build + Tests
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v3
@@ -28,9 +28,6 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-      - name: install deps on windows
-        if: runner.os == 'windows'
-        run: choco install -y openssl
       - name: Build
         run: cargo build --verbose
       - name: Run tests

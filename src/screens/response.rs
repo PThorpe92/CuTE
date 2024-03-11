@@ -1,6 +1,7 @@
 use super::{default_rect, small_alert_box};
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
+use crate::request::command::CMD;
 
 use crate::request::response::Response;
 use crate::screens::screen::Screen;
@@ -48,17 +49,15 @@ pub fn handle_response_screen(app: &mut App, frame: &mut Frame<'_>, resp: String
             }
             // Copy to clipboard
             3 => {
-                if app.command.is_none() {
+                if app.response.is_some() {
                     app.copy_to_clipboard_from_response().unwrap_or_else(|e| {
                         app.goto_screen(Screen::Error(e));
                     });
                 } else {
-                    app.copy_to_clipboard(
-                        app.command.as_ref().unwrap().get_command_string().as_str(),
-                    )
-                    .unwrap_or_else(|e| {
-                        app.goto_screen(Screen::Error(e));
-                    });
+                    app.copy_to_clipboard(app.command.get_command_string().as_str())
+                        .unwrap_or_else(|e| {
+                            app.goto_screen(Screen::Error(e));
+                        });
                 }
                 app.goto_screen(Screen::Success);
             }

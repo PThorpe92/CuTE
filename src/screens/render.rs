@@ -133,8 +133,14 @@ pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
 
 pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
     match screen {
+        // HOME SCREEN *********************************************************
         Screen::Home => home::handle_home_screen(app, frame),
+        // METHOD MENU SCREEN ***************************************************
         Screen::Method => method::handle_method_select_screen(app, frame),
+        // INPUT SCREEN ****************************************************
+        Screen::InputMenu(opt) => {
+            input::input::handle_default_input_screen(app, frame, opt.clone());
+        }
         Screen::ViewBody => {
             let area = default_rect(frame.size());
             let response = app.response.clone().unwrap_or_default();
@@ -171,10 +177,6 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         }
         // SUCESSS SCREEN *******************************************************
         Screen::Success => handle_screen_defaults(app, frame),
-        // INPUT MENU SCREEN ****************************************************
-        Screen::InputMenu(opt) => {
-            input::input::handle_default_input_screen(app, frame, opt.clone());
-        }
         // RESPONSE SCREEN ******************************************************
         Screen::Response(resp) => {
             app.set_response(&resp);

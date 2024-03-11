@@ -1,6 +1,5 @@
+use super::{command::CMD, curl::Method};
 use crate::database::db::DB;
-
-use super::command::CMD;
 
 #[derive(Debug, Eq, Clone, PartialEq)]
 pub struct Wget {
@@ -37,7 +36,15 @@ impl CMD for Wget {
         let pwd = split.next().unwrap();
         self.auth = Some(format!("--user={} --password={}", usr, pwd));
     }
-
+    fn get_request_body(&self) -> Option<String> {
+        None
+    }
+    fn get_upload_file(&self) -> Option<String> {
+        None
+    }
+    fn get_method(&self) -> Option<Method> {
+        None
+    }
     fn get_url(&self) -> &str {
         self.url.as_str()
     }
@@ -194,7 +201,7 @@ mod tests {
     #[test]
     fn test_new_wget() {
         let wget = Wget::new();
-        assert_eq!("wget", wget.cmd.get(0).unwrap());
+        assert_eq!("wget", wget.cmd.first().unwrap());
         assert_eq!("", wget.url);
         assert_eq!("", wget.output);
     }

@@ -1,41 +1,43 @@
 <div class="parent_div" style="text-align:center;">
-<img src="imgs/cute.png" class=" img-rounded " align="center" />
+<img src="imgs/cute.png" class="img-rounded " align="center" />
 </div>
 
 
-# Rust TUI HTTP Client with API Key Management
+# TUI HTTP Client with API/Auth Key Management and Request History/Storage
 
-#### This project is still in active development and although it is definitely useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
-#### Collaboration is welcome and encouraged! There is lots of low hanging fruit 👍and cool ideas for additional features.
+#### This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
+#### Collaboration is welcome and encouraged! There is lots of low hanging fruit 👍 and cool ideas for additional features.
 ![image](imgs/demo.gif)
 
-Terminal user interface (TUI) HTTP client in Rust designed to simplify the process of making various types of HTTP requests while supporting various different kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.
+Curl TUI Environment (CuTE). HTTP client/libcurl front-end in Rust, using the awesome [ratatui](https://github.com/ratatui-org/ratatui) library designed to simplify the process of making various types of HTTP requests, supporting various kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.
 
-This tool is for when you don't need something as complex as Postman, but you also don't want to have to remember the syntax for `curl` (or `wget`) commands. 
+This tool is for when you don't need something as complex as Postman, but you also don't want to have to remember the syntax for `curl` (or `wget`) commands. You can make a few requests to your back-end for testing, set up with your API key and save the requests to be executed again later.
+
+<img src="imgs/saved_request.png" class="img-rounded " align="center" />
 
 ## Features
 
 - **Interactive TUI Interface**: The application offers an intuitive TUI interface that makes it easy to construct and execute HTTP requests without leaving the terminal.
 
-- **Intuitive VIM keybindings:**  Vim keybindings are defaulted. Support to change them will eventually make it into the config file.
+- **Intuitive VIM keybindings:**  Vim-like keybindings are _defaulted_. Support to change them will eventually make it into the config file.
+(`h` or `b` is used to go back a page, `j` and `k` move the cursor up and down. `i` for insert mode while in an input box, `enter` to submit the form and `esc` to exit insert mode)
 
-- **Multiple Request Types**: Support for GET, POST, PUT, PATCH, HEAD, DELETE and custom requests.
+- **API Key Management**: Very simple sqlite based API key storage system. You can choose to save a Key from a request, or add/edit/delete/rename them.
 
-- **API Key Management**: Very simple sqlite based API key storage system. You can choose to save a Key from a request, or just add/edit/delete them manually.
+- **Response Visualization**: Pretty-print JSON responses in a human-readable format within the TUI, or choose to write the response to a file after inspecting the response. 
 
-- **Response Visualization**: Pretty-print JSON responses in a human-readable format within the TUI, or allows you to choose to write the response to a file. 
-
-- **Cross Platform**: This application builds and runs on Linux, MacOS and even _Windows_. **Note** Recursive downloading is powered by `GNU Wget` (not the fake wget command you get on windows), so this functionality is only available through `Msys2` or `WSL` on Windows.
-
+- This application builds and runs on Linux **and** MacOS.
 
 ## Why?
 
 - Have __you__ even ran `curl --help all` ?
 
+- I made this because I needed it. As a back-end dev that is testing API's daily, Postman is great but I have enough electron apps running as it is, and I live in the terminal.
+
 
 ## Installation
 
-#### Prebuilt binaries for Windows and x86_64 Linux are available on the [Releases](https://github.com/PThorpe92/CuTE/tags) page.
+#### Prebuilt binaries for non `smelly-nerds` are available on the [Releases](https://github.com/PThorpe92/CuTE/tags) page (currently just x86-linux)
 
 ### Install with Cargo:
 
@@ -46,7 +48,7 @@ This tool is for when you don't need something as complex as Postman, but you al
  2. make sure that your `~/.cargo/bin` directory is in your PATH
 
  3. `cute` or `cute --dump-config .`  # this will put a config.toml file in your cwd. You can edit this and place it
-                          in a dir `CuTE` in your `~/.config/` path (see below) to customize the colors of the application.
+                          in a dir in the `~/.config/CuTE` path (see below) to customize the colors and some behavior of the application.
 
 
 ### Build from source:
@@ -54,26 +56,21 @@ This tool is for when you don't need something as complex as Postman, but you al
 
 2. **Clone the Repository**: Clone this repository to your local machine using the following command:
    ```
-   git clone https://github.com/PThorpe92/CuTE.git
+   git clone https://github.com/PThorpe92/CuTE.git && cd CuTE
    ```
 
-3. **Navigate to Project Directory**: Move into the project directory:
-   ```
-   cd CuTE
-   ```
-
-4. **Build and Run**: Build and run the application using Cargo:
+3. **Build and Run**: Build and run the application using Cargo:
    ```
    cargo build --release 
    ```
-5. **Move Binary**: Move the binary to a location in your PATH of your choosing:
+4. **Move Binary**: Move the binary to a location in your PATH of your choosing:
    ```
-   sudo cp target/release/cute /usr/local/bin
+   sudo cp target/release/cute ~/.local/bin/ 
    ```
 
 ## Command Line Options
 
-##### cute [OPTIONAL] '--dump-config <PATH>' or '--db-path <'/PATH/to/cute.db'>'
+#### cute [OPTIONAL] '--dump-config <PATH>' or '--db-path <'/PATH/to/cute.db'>'
 
 - **--dump-config**: Dumps the default config.toml file to the specified path. If no path is specified, it will output it to the current working directory.
   - This `config.toml` file needs to be placed in `~/.config/CuTE/{config.toml}` in order for the application to read it.

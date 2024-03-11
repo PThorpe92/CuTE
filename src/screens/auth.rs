@@ -1,6 +1,5 @@
 use std::fmt::{Display, Formatter};
 
-
 use tui::Frame;
 
 use super::render::handle_screen_defaults;
@@ -13,7 +12,7 @@ use crate::screens::screen::Screen;
 
 // This is the display auth not to be confused with the request auth
 // it needs to be done away with and combined into one
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AuthType {
     Basic,
     Bearer,
