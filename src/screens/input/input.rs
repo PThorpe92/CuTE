@@ -86,31 +86,30 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     match opt {
         InputOpt::URL(_) => {
             let url = app.command.get_url();
-            if !url.is_empty() && app.input.value().is_empty() {
+            // if the url has been entered already we populate the input box with it
+            // we need to prevent this from happening multiple times, without clearning the app url
+            if !url.is_empty() && app.input.value().is_empty() && app.input.cursor() == 0 {
                 for ch in url.to_string().chars() {
                     if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
                 }
-                app.command.set_url("");
             }
         }
         InputOpt::Auth(kind) => {
             if kind == AuthType::Basic || kind == AuthType::Bearer {
                 let auth = app.command.get_token();
-                if auth.is_some() && app.input.value().is_empty() {
+                if auth.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
                     for ch in auth.unwrap().chars() {
                         if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
                     }
-                    app.command.set_auth(AuthKind::None);
                 }
             }
         }
         InputOpt::UploadFile => {
             let file = app.command.get_upload_file();
-            if file.is_some() && app.input.value().is_empty() {
+            if file.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
                 for ch in file.unwrap().chars() {
                     if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
                 }
-                app.command.set_upload_file("");
             }
         }
         _ => {}
@@ -289,11 +288,6 @@ fn validate_path(path: &str) -> bool {
 }
 
 fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
-    if app.has_app_option(&AppOptions::Auth(AuthKind::None)) {
-        // will till toggle no matter what kind of auth due to mem::descriminate
-        app.remove_app_option(&AppOptions::Auth(AuthKind::None));
-    }
-    println!("Auth set: {message}");
     app.command.set_auth(match auth {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
@@ -301,8 +295,13 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     });
-
-    app.add_app_option(AppOptions::Auth(match auth {
+    if app.has_auth() {
+        app.opts.retain(|x| match x {
+            AppOptions::Auth(_) => false,
+            _ => true,
+        });
+    }
+    app.opts.push(AppOptions::Auth(match auth {
         AuthType::Basic => AuthKind::Basic(String::from(message)),
         AuthType::Bearer => AuthKind::Bearer(String::from(message)),
         AuthType::Digest => AuthKind::Digest(String::from(message)),

@@ -137,7 +137,7 @@ pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Header Options  ",
     "Enable verbose output [-v]",
     "Add Request Body 󰘦 ",
-    "Save this Command  ",
+    "Save this Request  ",
     "Save your API token or login information  ",
     "Execute command  ",
     "More Options  ",
