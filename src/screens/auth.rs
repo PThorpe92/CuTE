@@ -52,10 +52,16 @@ pub fn handle_authentication_screen(app: &mut App, frame: &mut Frame<'_>) {
                 }
             }
             4 => {
+                if app.has_auth() {
+                    app.remove_app_option(&AppOptions::Auth(AuthKind::None));
+                }
                 app.add_app_option(AppOptions::Auth(AuthKind::Spnego));
                 app.goto_screen(Screen::RequestMenu(String::from("")));
             }
             5 => {
+                if app.has_auth() {
+                    app.remove_app_option(&AppOptions::Auth(AuthKind::None));
+                }
                 app.add_app_option(AppOptions::Auth(AuthKind::Ntlm));
                 app.goto_screen(Screen::RequestMenu(String::from(
                     "Alert: NTLM Auth Enabled",
