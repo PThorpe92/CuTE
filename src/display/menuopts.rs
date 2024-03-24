@@ -1,9 +1,8 @@
 /*
-* Screen Menu Options
+* String literals for Menus/Options
  */
-
 pub const SAVED_COMMANDS_PARAGRAPH: &str =
-    "\nPress q to exit\nPress Enter to Execute command\nPress 'ESC' or 'h' to go back\n";
+    "\nPress q to exit\nPress Enter to Send Request\nPress 'ESC' or 'h' to go back\n";
 pub const CURL: &str = "curl";
 pub const WGET: &str = "wget";
 pub const CUSTOM: &str = "custom";
@@ -12,7 +11,7 @@ pub const API_KEY_PARAGRAPH: &str =
     "Press q to quit\nPress 'ESC' or 'h' to go back\nPress Enter for Menu\n";
 pub const HTTP_REQUEST: &str = "HTTP Request";
 pub const DEFAULT_MENU_PARAGRAPH: &str =
-    "\nPress q to exit \n Press Enter to select \n Please select a Menu item\n keybindings to navigate";
+    "\nPress q to exit. 'h' to go back \n Press Enter to select \n Please select a Menu item\n keybindings to navigate";
 pub const AWS_AUTH_MSG: &str =
     "Alert: AWS Signature V4 Authentication is using the following ENV VARs:
     \nAWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION";
@@ -29,7 +28,7 @@ pub const INPUT_MENU_TITLE: &str = "** Press i to enter Insert mode **";
 pub const DOWNLOAD_MENU_TITLE: &str = "* CuTE ** Downloads *";
 pub const ERROR_MENU_TITLE: &str = "* CuTE ** Error! *";
 pub const SUCCESS_MENU_TITLE: &str = "* CuTE ** Success! *";
-pub const SUCCESS_MESSAGE: &str = "Command saved successfully";
+pub const SUCCESS_MESSAGE: &str = "Request saved successfully";
 pub const INPUT_OPT_URL: &str = "Enter a URL for your {}\n and press Enter";
 pub const INPUT_OPT_HEADERS: &str =
     "MUST be \"Key:Value\" pair and press Enter \n Example: Content-Type: application/json";
@@ -47,7 +46,6 @@ pub const NEWLINE: &str = "\n";
 #[rustfmt::skip]
 pub const CUTE_LOGO: &str =
 "    . . . . . . .  .  .  .  . . .    . .p  o  w .. e  r e  d.  . ..b.y ..
-     ``*`*`*`*``*``*` .uuuu.    uuuuu, ``*`*'*'*'*''*'`*`*`*`*`'*'*'`**`'*'*'*`*`l             *&%&*   *&%&*
     $#$#$#$#$#$#$#$` $#$#$``|  #$#$#$''$#$#$#$#$#$#$#$#$#$#$ '#%#%#%#%#%#%#%##``i   **       *&%&*   *&%&*
      %%%%#``;;;;;;;`  %%%%#``|  %%%%#``| **`;; %%%%&*+`` **;;| %%%%%%`   %%%%%%``b  *%%*     *&%&*   *&%&*
      %%%%#``| *.      %%%%#``|  %%%%#``| ~   ` %%%%$*+`  ` .   %%%%%%`===#####``     **     *&%&*   *&%&*
@@ -63,7 +61,7 @@ pub const CUTE_LOGO2: &str = "
 @@@@@@@@. @@@  @@@  @@@@@@@  @@@@@@@@  
 !@@ ````  @@!  @@@    @@!    @@!       
 !@!'      !@!  @!@    !@!    !@!       
-!@!'      @!@  !@!    @!!    @!!!:!    
+!@!'      @!@  !@!    @!!    @!@!%!    
  !!'      !@!  !!!    !!!    !!!!!:    
 :!!'      !!:  !!!    !!:    !!:       
 :!:'.. .  :!:  !:!    :!:    :!:       
@@ -72,7 +70,7 @@ pub const CUTE_LOGO2: &str = "
                                        ";
 
 pub const DISPLAY_OPT_VERBOSE: &str = " Verbose";
-pub const DISPLAY_OPT_COMMAND_SAVED: &str = " Command will be saved  ";
+pub const DISPLAY_OPT_COMMAND_SAVED: &str = " Request will be saved  ";
 pub const DISPLAY_OPT_HEADERS: &str = " Response headers included 󱈝 ";
 pub const DISPLAY_OPT_PROGRESS_BAR: &str = " Enable Progress Bar 󰦖 ";
 pub const DISPLAY_OPT_FAIL_ON_ERROR: &str = " Fail on error  ";
@@ -82,7 +80,7 @@ pub const DISPLAY_OPT_UNRESTRICTED_AUTH: &str = "- Send auth to hosts if redirec
 pub const DISPLAY_OPT_MAX_REDIRECTS: &str = " Max redirects: ";
 pub const DISPLAY_OPT_UNIX_SOCKET: &str = "  Unix Socket: ";
 pub const DISPLAY_OPT_CA_PATH: &str = "  󰄤 SSL Certificate path: ";
-pub const DISPLAY_OPT_AUTH: &str = "  Authentication: ";
+pub const DISPLAY_OPT_AUTH: &str = "  Auth: ";
 pub const DISPLAY_OPT_MATCH_WILDCARD: &str = "  Match glob wildcard 󰛄 ";
 pub const DISPLAY_OPT_CERT_INFO: &str = "  Request certificate info 󰄤 ";
 pub const DISPLAY_OPT_BODY: &str = "  Request Body: ";
@@ -126,8 +124,8 @@ pub const ALERT_MENU_OPTIONS_KEY: [&str; 3] = ["Delete", "Copy to Clipboard", "C
 pub const MAIN_MENU_OPTIONS: [&str; 4] = [
     "Build and send an HTTP request 󰖟 ",
     "Download a remote file or directory 󰧩 ",
-    "View my stored API keys 󱂛  ",
-    "View or execute my saved commands  ",
+    "View Saved API keys 󱂛  ",
+    "View saved requests  ",
 ];
 pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Add a URL 󰖟 ",
@@ -139,7 +137,7 @@ pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Add Request Body 󰘦 ",
     "Save this Request  ",
     "Save your API token or login information  ",
-    "Execute command  ",
+    "Send Request  ",
     "More Options  ",
     "Clear all options  ",
 ];
@@ -192,6 +190,6 @@ pub const RESPONSE_MENU_OPTIONS: [&str; 5] = [
     "Write to file? 󱇧 ",
     "View response headers 󰰀 ",
     "View response body 󰈮 ",
-    "Copy command to clipboard 󰅎 ",
+    "Copy CLI command to clipboard 󰅎 ",
     "Return to main menu  ",
 ];

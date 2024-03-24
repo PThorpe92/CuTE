@@ -296,10 +296,7 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         _ => AuthKind::None,
     });
     if app.has_auth() {
-        app.opts.retain(|x| match x {
-            AppOptions::Auth(_) => false,
-            _ => true,
-        });
+        app.opts.retain(|x| !matches!(x, AppOptions::Auth(_)));
     }
     app.opts.push(AppOptions::Auth(match auth {
         AuthType::Basic => AuthKind::Basic(String::from(message)),

@@ -15,7 +15,7 @@ impl CMD for Wget {
     // This is just if we want to build a string from the command. Not sure if we are going
     // to need this, but we may end up storing download commands in DB
 
-    fn execute(&mut self, _db: Option<&mut Box<DB>>) -> Result<(), String> {
+    fn execute(&mut self, _db: Option<Box<&mut DB>>) -> Result<(), String> {
         self.build_command();
         let command = std::process::Command::new("sh")
             .arg("-c")

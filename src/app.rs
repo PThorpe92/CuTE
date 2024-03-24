@@ -6,6 +6,7 @@ use crate::request::curl::{AuthKind, Curl};
 use crate::screens::screen::Screen;
 use crate::Config;
 use arboard::Clipboard;
+use std::ops::DerefMut;
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
 use tui_input::Input;
@@ -231,14 +232,13 @@ impl<'a> App<'a> {
     pub fn select_item(&mut self) {
         if let Some(state) = self.state.as_mut() {
             if let Some(selected) = state.selected() {
-                // ^^^ returns usize index
                 self.selected = Some(selected);
             }
         }
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        self.command.execute(Some(&mut self.db))
+        self.command.execute(Some(Box::new(self.db.deref_mut())))
     }
 
     pub fn get_saved_keys(&self) -> Result<Vec<SavedKey>, rusqlite::Error> {
