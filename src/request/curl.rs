@@ -363,7 +363,7 @@ impl<'a> CMD for Curl<'a> {
         self.upload_file.clone()
     }
 
-    fn execute(&mut self, mut db: Option<&mut Box<DB>>) -> Result<(), String> {
+    fn execute(&mut self, mut db: Option<Box<&mut DB>>) -> Result<(), String> {
         let mut list = List::new();
         curl::init();
 
@@ -381,6 +381,7 @@ impl<'a> CMD for Curl<'a> {
         // Save command to DB
         if self.will_save_command() {
             if let Some(ref mut db) = db {
+                self.build_command_string();
                 let command_string = &self.get_command_string();
                 let command_json = serde_json::to_string(&self)
                     .map_err(|e| format!("Error serializing command: {}", e))?;

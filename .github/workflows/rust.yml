@@ -12,10 +12,9 @@ env:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v3
@@ -24,6 +23,10 @@ jobs:
         with:
           toolchain: stable
           override: true
+      - name: Install deps on Windows
+        if: runner.os == 'windows-latest'
+        run: |
+          vcpkg install openssl:x64-windows-static-md
       - name: Install Deps On Linux
         if: runner.os == 'Linux'
         run: |

@@ -32,7 +32,7 @@ impl Display for CmdType {
     }
 }
 impl CMD for Cmd<'_> {
-    fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String> {
+    fn execute(&mut self, db: Option<Box<&mut DB>>) -> Result<(), String> {
         match self {
             Cmd::Curl(curl) => curl.execute(db),
             Cmd::Wget(wget) => wget.execute(db),
@@ -277,7 +277,7 @@ impl CMD for Cmd<'_> {
     }
 }
 pub trait CMD {
-    fn execute(&mut self, db: Option<&mut Box<DB>>) -> Result<(), String>;
+    fn execute(&mut self, db: Option<Box<&mut DB>>) -> Result<(), String>;
     fn get_method(&self) -> Option<Method>;
     fn add_basic_auth(&mut self, info: &str);
     fn get_upload_file(&self) -> Option<String>;
