@@ -89,7 +89,8 @@ impl<'a> App<'a> {
     pub fn redraw(&mut self) {
         if self.selected.is_some() {
             let selected = (self.selected, self.cursor);
-            self.goto_screen(self.current_screen.clone());
+            let current = self.current_screen.clone();
+            self.goto_screen(&current);
             self.state.as_mut().unwrap().select(selected.0);
             self.cursor = selected.1;
         }
@@ -121,12 +122,9 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn goto_screen(&mut self, screen: Screen) {
+    pub fn goto_screen(&mut self, screen: &Screen) {
         self.input.reset();
-        // Push New/Next Screen Onto The Screen Stack
         self.screen_stack.push(screen.clone());
-
-        // Set The Current Screen
         self.current_screen = screen.clone();
 
         self.cursor = 0;
@@ -149,7 +147,7 @@ impl<'a> App<'a> {
             }
             Screen::SavedCommands(col_name) => {
                 self.items = self
-                    .get_saved_commands(col_name)
+                    .get_saved_commands(*col_name)
                     .unwrap_or_default()
                     .iter()
                     .map(|cmd| {
@@ -177,7 +175,6 @@ impl<'a> App<'a> {
     pub fn go_back_screen(&mut self) {
         let last = self.screen_stack.pop().unwrap_or_default(); // current screen
         match self.screen_stack.last() {
-            // is that recursion in prod????? o_0
             Some(screen) if screen == &last => self.go_back_screen(),
             Some(
                 Screen::InputMenu(_)
@@ -185,15 +182,18 @@ impl<'a> App<'a> {
                 | Screen::ColMenu(_)
                 | Screen::KeysMenu(_),
             ) => self.go_back_screen(),
-            Some(Screen::RequestBodyInput) => self.goto_screen(Screen::Method),
-            Some(Screen::RequestMenu(_)) => {
-                // This is to remove errors from the stack
-                self.goto_screen(Screen::RequestMenu(String::new()));
+            Some(Screen::RequestBodyInput) => self.goto_screen(&Screen::Method),
+            Some(Screen::RequestMenu(ref e)) => {
+                if e.to_lowercase().contains("error") || e.to_lowercase().contains("alert") {
+                    self.goto_screen(&Screen::RequestMenu(String::new()));
+                } else {
+                    self.goto_screen(&Screen::Method);
+                }
             }
             Some(screen) => {
-                self.goto_screen(screen.clone());
+                self.goto_screen(&screen.clone());
             }
-            _ => self.goto_screen(Screen::Home),
+            _ => self.goto_screen(&Screen::Home),
         }
     }
 
@@ -303,12 +303,12 @@ impl<'a> App<'a> {
                         Ok(_) => self.set_response(&command.get_response()),
                         Err(e) => self.set_response(&e),
                     };
-                    self.goto_screen(Screen::Response(self.response.clone().unwrap()));
+                    self.goto_screen(&Screen::Response(self.response.clone().unwrap()));
                 }
-                None => self.goto_screen(Screen::Error("Saved command not found".to_string())),
+                None => self.goto_screen(&Screen::Error("Saved command not found".to_string())),
             }
         } else {
-            self.goto_screen(Screen::Error("Saved command not found".to_string()));
+            self.goto_screen(&Screen::Error("Saved command not found".to_string()));
         }
     }
 
@@ -344,7 +344,7 @@ impl<'a> App<'a> {
 
     pub fn delete_saved_command(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
         self.db.delete_command(ind)?;
-        self.goto_screen(Screen::SavedCommands(None));
+        self.goto_screen(&Screen::SavedCommands(None));
         Ok(())
     }
 
@@ -362,19 +362,19 @@ impl<'a> App<'a> {
 
     pub fn delete_saved_key(&mut self, index: i32) -> Result<(), rusqlite::Error> {
         self.db.as_ref().delete_key(index)?;
-        self.goto_screen(Screen::SavedKeys);
+        self.goto_screen(&Screen::SavedKeys);
         Ok(())
     }
 
     pub fn delete_collection(&mut self, id: i32) -> Result<(), rusqlite::Error> {
         self.db.delete_collection(id)?;
-        self.goto_screen(Screen::SavedCommands(None));
+        self.goto_screen(&Screen::SavedCommands(None));
         Ok(())
     }
 
     pub fn rename_collection(&mut self, id: i32, name: &str) -> Result<(), rusqlite::Error> {
         self.db.rename_collection(id, name)?;
-        self.goto_screen(Screen::SavedCollections);
+        self.goto_screen(&Screen::SavedCollections);
         Ok(())
     }
 
@@ -621,62 +621,4 @@ impl<'a> App<'a> {
             }
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    /*
-       use super::App;
-       use crate::display::AppOptions;
-       use crate::request::command::Cmd;
-       use crate::request::curl::Curl;
-       // helper return app instance with curl command
-       fn return_app_cmd() -> App<'static> {
-           let mut app = App::default();
-           app.set_command(Box::new(Cmd::Curl(Curl::new())));
-           app
-       }
-
-
-       #[test]
-       fn test_add_app_option() {
-           let mut app = return_app_cmd();
-           let url = "https://www.google.com";
-           app.add_app_option(AppOptions::URL(String::from(url)));
-           assert!(app.command.get_url() == url);
-       }
-
-       #[test]
-       fn test_toggle_verbose() {
-           let mut app = return_app_cmd();
-           // Add one.
-           app.add_app_option(crate::display::AppOptions::Verbose);
-           assert!(app.has_app_option(&AppOptions::Verbose));
-           // this should toggle
-           app.add_app_option(AppOptions::Verbose);
-           assert!(!app.has_app_option(&AppOptions::Verbose));
-       }
-
-       #[test]
-       fn test_replace_app_opt() {
-           let mut app = return_app_cmd();
-           let url = "https://www.google.com".to_string();
-           app.add_app_option(AppOptions::URL(url.clone()));
-           assert!(app.command.get_url() == url);
-           // overwrite the url
-           let new_url = "https://www.github.com".to_string();
-           app.add_app_option(AppOptions::URL(new_url.clone()));
-           assert!(app.command.get_url() == new_url);
-       }
-
-       #[test]
-       fn test_remove_app_option() {
-           let mut app = return_app_cmd();
-           let url = "https://www.google.com";
-           app.add_app_option(AppOptions::URL(String::from(url)));
-           app.remove_app_option(&AppOptions::URL(String::from(url)));
-       }
-
-    */
 }

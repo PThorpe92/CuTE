@@ -30,7 +30,7 @@ pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: 
     );
     // if we select a command, open options
     if let Some(cmd) = app.selected {
-        app.goto_screen(Screen::CmdMenu(cmd));
+        app.goto_screen(&Screen::CmdMenu(cmd));
     }
 }
 
@@ -88,26 +88,26 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
             // execute saved command
             Some(0) => {
                 app.execute_saved_command(cmd);
-                app.goto_screen(Screen::Response(app.response.clone().unwrap()));
+                app.goto_screen(&Screen::Response(app.response.clone().unwrap()));
             }
             // delete item
             Some(1) => {
                 if let Err(e) = app.delete_item(selected.get_id()) {
-                    app.goto_screen(Screen::Error(e.to_string()));
+                    app.goto_screen(&Screen::Error(e.to_string()));
                 } else {
-                    app.goto_screen(Screen::Success);
+                    app.goto_screen(&Screen::Success);
                 }
             }
             // copy to clipboard
             Some(2) => {
                 if let Err(e) = app.copy_to_clipboard(selected.get_command()) {
-                    app.goto_screen(Screen::Error(e.to_string()));
+                    app.goto_screen(&Screen::Error(e.to_string()));
                 }
-                app.goto_screen(Screen::Success);
+                app.goto_screen(&Screen::Success);
             }
             // cancel
             Some(3) => {
-                app.goto_screen(Screen::SavedCommands(None));
+                app.goto_screen(&Screen::SavedCommands(None));
             }
             _ => {}
         }

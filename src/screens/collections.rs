@@ -15,14 +15,14 @@ pub fn handle_collection_menu(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     match app.selected {
         // Import New Collection
-        Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::ImportCollection)),
+        Some(0) => app.goto_screen(&Screen::InputMenu(InputOpt::ImportCollection)),
         // Create New Collection
-        Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::CreateCollection)),
+        Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::CreateCollection)),
         // View Saved Collections
-        Some(2) => app.goto_screen(Screen::ViewSavedCollections),
+        Some(2) => app.goto_screen(&Screen::ViewSavedCollections),
         // Cancel
         Some(3) => {
-            app.goto_screen(Screen::Home);
+            app.goto_screen(&Screen::Home);
         }
         _ => {}
     }
@@ -49,7 +49,7 @@ pub fn handle_collections_screen(app: &mut App, frame: &mut Frame<'_>) {
         frame.size(),
     );
     if let Some(selected) = app.selected {
-        app.goto_screen(Screen::ColMenu(selected));
+        app.goto_screen(&Screen::ColMenu(selected));
     }
 }
 
@@ -110,20 +110,20 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: u
         match app.selected {
             // View Requests in collection
             Some(0) => {
-                app.goto_screen(Screen::SavedCommands(Some(selected.id)));
+                app.goto_screen(&Screen::SavedCommands(Some(selected.id)));
             }
             // Rename Collection
-            Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::RenameCollection(selected.id))),
+            Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::RenameCollection(selected.id))),
             // delete collection
             Some(2) => {
                 if let Err(e) = app.delete_collection(selected.id) {
-                    app.goto_screen(Screen::Error(e.to_string()));
+                    app.goto_screen(&Screen::Error(e.to_string()));
                 }
-                app.goto_screen(Screen::Success);
+                app.goto_screen(&Screen::Success);
             }
             // cancel
             Some(3) => {
-                app.goto_screen(Screen::ViewSavedCollections);
+                app.goto_screen(&Screen::ViewSavedCollections);
             }
             _ => {}
         }

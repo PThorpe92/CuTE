@@ -15,25 +15,25 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: Str
     }
     match app.selected {
         // Add a URL,
-        Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
+        Some(0) => app.goto_screen(&Screen::InputMenu(InputOpt::URL)),
         // Add file to upload
-        Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::UploadFile)),
+        Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::UploadFile)),
         // Add Unix Socket address
-        Some(2) => app.goto_screen(Screen::InputMenu(InputOpt::UnixSocket)),
+        Some(2) => app.goto_screen(&Screen::InputMenu(InputOpt::UnixSocket)),
         // Auth
-        Some(3) => app.goto_screen(Screen::Authentication),
+        Some(3) => app.goto_screen(&Screen::Authentication),
         // Headers
-        Some(4) => app.goto_screen(Screen::Headers),
+        Some(4) => app.goto_screen(&Screen::Headers),
         // Verbose
         Some(5) => app.add_app_option(AppOptions::Verbose),
         // Request Body
-        Some(6) => app.goto_screen(Screen::RequestBodyInput),
+        Some(6) => app.goto_screen(&Screen::RequestBodyInput),
         // Save this command
         Some(7) => app.add_app_option(AppOptions::SaveCommand),
         // Save your token or login
         Some(8) => {
             if !app.has_auth() {
-                app.goto_screen(Screen::RequestMenu(String::from(SAVE_AUTH_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(String::from(SAVE_AUTH_ERROR)));
                 return;
             }
             app.add_app_option(AppOptions::SaveToken);
@@ -41,26 +41,26 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: Str
         // Execute command
         Some(9) => {
             if !app.has_url() && !app.has_unix_socket() {
-                app.goto_screen(Screen::RequestMenu(String::from(VALID_COMMAND_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(String::from(VALID_COMMAND_ERROR)));
                 return;
             }
             match app.execute_command() {
                 Ok(()) => {
                     let response = app.command.get_response();
                     app.set_response(&response);
-                    app.goto_screen(Screen::Response(response));
+                    app.goto_screen(&Screen::Response(response));
                 }
                 Err(e) => {
-                    app.goto_screen(Screen::Error(e.to_string()));
+                    app.goto_screen(&Screen::Error(e.to_string()));
                 }
             }
         }
         // more options
-        Some(10) => app.goto_screen(Screen::MoreFlags),
+        Some(10) => app.goto_screen(&Screen::MoreFlags),
         // clear options
         Some(11) => {
             app.remove_all_app_options();
-            app.goto_screen(Screen::Method);
+            app.goto_screen(&Screen::Method);
         }
         _ => {}
     }

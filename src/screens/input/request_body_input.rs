@@ -51,13 +51,13 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     );
     match app.command.get_method() {
         Some(Method::Get | Method::Delete | Method::Head) => {
-            app.goto_screen(Screen::RequestMenu(String::from(
+            app.goto_screen(&Screen::RequestMenu(String::from(
                 "Alert: Request Bodies are not allowed for this HTTP method",
             )));
         }
         Some(_) => {}
         None => {
-            app.goto_screen(Screen::RequestMenu(String::from(
+            app.goto_screen(&Screen::RequestMenu(String::from(
                 "Alert: Please select a HTTP method first",
             )));
         }
@@ -101,7 +101,7 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     // we have input (the user has typed something and pressed Enter while in insert mode)
     if !app.messages.is_empty() {
         app.add_app_option(AppOptions::RequestBody(app.messages[0].clone()));
-        app.goto_screen(Screen::RequestMenu(String::new()));
+        app.goto_screen(&Screen::RequestMenu(String::new()));
         app.messages.clear();
     }
 }

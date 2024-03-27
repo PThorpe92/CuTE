@@ -12,6 +12,6 @@ pub fn handle_method_select_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     if let Some(num) = app.selected {
         app.command.set_method(METHOD_MENU_OPTIONS[num]); // safe index
-        app.goto_screen(Screen::RequestMenu(String::from(METHOD_MENU_OPTIONS[num])));
+        app.goto_screen(&Screen::RequestMenu(String::from(METHOD_MENU_OPTIONS[num])));
     }
 }

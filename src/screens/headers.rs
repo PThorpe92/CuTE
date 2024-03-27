@@ -12,7 +12,7 @@ pub fn handle_headers_screen(app: &mut App, frame: &mut Frame<'_>) {
 
     match app.selected {
         // add custom headers
-        Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::Headers)),
+        Some(0) => app.goto_screen(&Screen::InputMenu(InputOpt::Headers)),
         //
         // add content-type application/json
         Some(1) => {
@@ -30,7 +30,7 @@ pub fn handle_headers_screen(app: &mut App, frame: &mut Frame<'_>) {
         }
         //
         // return to request menu
-        Some(4) => app.goto_screen(Screen::RequestMenu(String::new())),
+        Some(4) => app.goto_screen(&Screen::RequestMenu(String::new())),
         _ => {}
     }
 }

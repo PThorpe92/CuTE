@@ -40,7 +40,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                         }
                         KeyCode::Char('a') => {
                             if app.current_screen == Screen::SavedKeys {
-                                app.goto_screen(Screen::InputMenu(InputOpt::ApiKey));
+                                app.goto_screen(&Screen::InputMenu(InputOpt::ApiKey));
                             }
                         }
                         KeyCode::Char('i') => match app.current_screen {
