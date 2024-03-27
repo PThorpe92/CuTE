@@ -1,7 +1,6 @@
 use crate::app::{App, InputMode};
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
-use crate::request::command::CMD;
 use crate::request::curl::Method;
 use crate::screens::{default_rect, small_alert_box, Screen};
 use tui::text::{Line, Text};

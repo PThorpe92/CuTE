@@ -3,8 +3,6 @@ use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{SAVE_AUTH_ERROR, VALID_COMMAND_ERROR};
 use crate::display::AppOptions;
-use crate::request::command::CmdType;
-use crate::request::command::CMD;
 use crate::screens::error_alert_box;
 use crate::screens::screen::Screen;
 
@@ -17,7 +15,7 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: Str
     }
     match app.selected {
         // Add a URL,
-        Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::URL(CmdType::Curl))),
+        Some(0) => app.goto_screen(Screen::InputMenu(InputOpt::URL)),
         // Add file to upload
         Some(1) => app.goto_screen(Screen::InputMenu(InputOpt::UploadFile)),
         // Add Unix Socket address
