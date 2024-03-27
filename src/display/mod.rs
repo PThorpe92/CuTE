@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::{
-    display::menuopts::{DISPLAY_OPT_MAX_REC, DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER},
+    display::menuopts::{DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER},
     request::curl::AuthKind,
 };
 
@@ -52,7 +52,6 @@ pub enum AppOptions {
     Outfile(String),
     SaveCommand,
     Response(String),
-    RecDownload(usize),
     Auth(AuthKind),
     SaveToken,
     UnixSocket(String),
@@ -95,9 +94,6 @@ impl AppOptions {
             AppOptions::Response(ref mut response) => {
                 *response = val;
             }
-            AppOptions::RecDownload(ref mut level) => {
-                *level = val.parse::<usize>().unwrap();
-            }
             AppOptions::UnixSocket(ref mut socket) => {
                 *socket = val;
             }
@@ -134,9 +130,6 @@ impl AppOptions {
             AppOptions::Outfile(outfile) => format!("{}{}", DISPLAY_OPT_OUTFILE, outfile.clone()),
             AppOptions::SaveCommand => String::from(DISPLAY_OPT_COMMAND_SAVED),
             AppOptions::Response(response) => String::from(response),
-            AppOptions::RecDownload(level) => {
-                format!("{}{}", DISPLAY_OPT_MAX_REC, level)
-            }
             AppOptions::Auth(auth) => format!("{}{}", DISPLAY_OPT_AUTH, auth.clone()),
             AppOptions::SaveToken => String::from(DISPLAY_OPT_TOKEN_SAVED),
             AppOptions::UnixSocket(socket) => {

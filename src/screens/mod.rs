@@ -1,37 +1,25 @@
-pub mod screen;
-
-// Home Screen
-pub mod home;
-
-// Downloads Screen
-pub mod downloads;
-
-// Method Select Screens
-pub mod method;
-
-// Request Select Screens
-pub mod request;
-
-// Response Screen
-pub mod response;
-
-pub mod more_flags;
-
-// All Input Type Screens
-pub mod input;
-
-// Auth Screen
-pub mod auth;
-
-pub mod render;
-
-pub mod saved_keys;
-
 use ::tui::prelude::{Color, Text};
 use ::tui::prelude::{Constraint, Direction, Frame, Layout, Rect};
 use ::tui::style::Style;
 use ::tui::widgets::{Block, Borders, Paragraph, Wrap};
+pub mod screen;
+// Home Screen
+pub mod home;
+// Method Select Screens
+pub mod method;
+// Request Select Screens
+pub mod request;
+// Response Screen
+pub mod more_flags;
+pub mod response;
+// All Input Type Screens
+pub mod input;
+// Auth Screen
+pub mod auth;
+pub mod render;
+pub mod saved_keys;
 pub use screen::Screen;
+pub mod collections;
 pub mod error;
 pub mod headers;
 pub mod saved_commands;

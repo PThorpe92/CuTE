@@ -49,7 +49,7 @@ fn parse_cmdline() -> Option<Config> {
     let args = Command::new("CuTE")
         .author("PThorpe92 <preston@unlockedlabs.org>")
         .version("0.0.1")
-        .about("Simple TUI for libcurl powered http requests, wget powered recursive downloads, and API key/command storage")
+        .about("Simple TUI for sending and storing HTTP requests, API keys and Postman collections")
         .after_help("Arguments are '--dump-config {path}' to write the default config file to the specified path,
             \nand '--db-path' to define a custom path to the database\nDB path can also be defined in the config file at $CONFIG/CuTE/config.toml\n
             or you can set the $CUTE_DB_PATH environment variable")

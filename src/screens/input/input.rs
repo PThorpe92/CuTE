@@ -1,12 +1,9 @@
 use crate::app::App;
 use crate::display::menuopts::{
     CERT_ERROR, HEADER_ERROR, INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER,
-    INPUT_OPT_BASIC, INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD, PARSE_INT_ERROR, SOCKET_ERROR,
-    UPLOAD_FILEPATH_ERROR,
+    INPUT_OPT_BASIC, INPUT_OPT_HEADERS, PARSE_INT_ERROR, SOCKET_ERROR, UPLOAD_FILEPATH_ERROR,
 };
 use crate::display::AppOptions;
-use crate::request::command::CmdType;
-use crate::request::command::CMD;
 use crate::request::curl::AuthKind;
 use crate::screens::auth::AuthType;
 use crate::screens::{default_rect, Screen};
@@ -27,18 +24,18 @@ use tui_input::InputRequest;
 // Takes the current option and returns a prompt for that screen
 pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
     match opt {
-        InputOpt::URL(opt) => {
-            let fmtstr = format!("Enter a URL for your {}\n and press Enter", opt);
+        InputOpt::URL => {
+            let fmtstr = format!("Enter a URL for your request and press Enter");
             Text::from(Line::from(fmtstr))
         }
         InputOpt::RequestBody => Text::from("Enter a body for your request and press Enter"),
         InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
-        InputOpt::RecursiveDownload => Text::from(INPUT_OPT_REC_DOWNLOAD),
         InputOpt::Auth(auth) => match auth {
             AuthType::Basic => Text::from(INPUT_OPT_AUTH_BASIC),
             AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
+        InputOpt::ImportCollection => Text::from("Enter the path to the collection file.json"),
         _ => Text::from(INPUT_OPT_BASIC),
     }
 }
@@ -84,7 +81,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
     let scroll = app.input.visual_scroll(width as usize);
     match opt {
-        InputOpt::URL(_) => {
+        InputOpt::URL => {
             let url = app.command.get_url();
             // if the url has been entered already we populate the input box with it
             // we need to prevent this from happening multiple times, without clearning the app url
@@ -156,102 +153,106 @@ fn is_valid_unix_socket_path(path: &str) -> Result<(), String> {
 
 pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
-        InputOpt::URL(opt) => {
-            match opt {
-                CmdType::Wget => {
-                    app.add_app_option(AppOptions::URL(message));
-                    app.goto_screen(Screen::Downloads("".to_string()));
-                }
-                CmdType::Curl => {
-                    app.add_app_option(AppOptions::URL(message));
-                    app.goto_screen(Screen::RequestMenu(String::new()));
-                }
-            };
+        InputOpt::URL => {
+            app.add_app_option(AppOptions::URL(message));
+            app.goto_screen(&Screen::RequestMenu(String::new()));
         }
         InputOpt::ApiKey => {
             let _ = app.add_saved_key(message.clone());
-            app.goto_screen(Screen::SavedKeys);
+            app.goto_screen(&Screen::SavedKeys);
         }
         InputOpt::UnixSocket => {
             if let Err(e) = is_valid_unix_socket_path(&message) {
-                app.goto_screen(Screen::RequestMenu(e));
+                app.goto_screen(&Screen::RequestMenu(e));
             } else {
                 app.add_app_option(AppOptions::UnixSocket(message.clone()));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(String::new()));
             }
         }
         InputOpt::Headers => {
             if !validate_key_val(&message) {
-                app.goto_screen(Screen::RequestMenu(String::from(HEADER_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(String::from(HEADER_ERROR)));
             } else {
                 app.add_app_option(AppOptions::Headers(message.clone()));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(String::new()));
             }
         }
-        // Only downloads let you specify the output file prior to execution of the command
+        InputOpt::RenameCollection(ref id) => {
+            if app.rename_collection(*id, &message).is_ok() {
+                app.goto_screen(&Screen::SavedCollections);
+            } else {
+                app.goto_screen(&Screen::Error("Failed to rename collection".to_string()));
+            }
+        }
         InputOpt::Output => {
             app.add_app_option(AppOptions::Outfile(message.clone()));
-            app.goto_screen(Screen::Downloads("".to_string()));
+            app.goto_screen(&Screen::RequestMenu(String::new()));
         }
         InputOpt::Cookie => {
             app.add_app_option(AppOptions::Cookie(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(String::new()));
         }
         InputOpt::Referrer => {
             app.add_app_option(AppOptions::Referrer(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(String::new()));
         }
         InputOpt::CaPath => {
             if !validate_path(&message) {
-                app.goto_screen(Screen::RequestMenu(String::from(CERT_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(String::from(CERT_ERROR)));
             } else {
                 app.add_app_option(AppOptions::CaPath(message.clone()));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(String::new()));
             }
         }
         InputOpt::UserAgent => {
             app.add_app_option(AppOptions::UserAgent(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(String::new()));
         }
         InputOpt::MaxRedirects => {
             if let Ok(num) = message.parse::<usize>() {
                 app.add_app_option(AppOptions::MaxRedirects(num));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(String::new()));
             } else {
-                app.goto_screen(Screen::RequestMenu(String::from(PARSE_INT_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(String::from(PARSE_INT_ERROR)));
             }
         }
         InputOpt::UploadFile => {
             if !validate_path(&message) {
-                app.goto_screen(Screen::RequestMenu(String::from(UPLOAD_FILEPATH_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(String::from(UPLOAD_FILEPATH_ERROR)));
             }
             app.add_app_option(AppOptions::UploadFile(message));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(String::new()));
         }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
             app.command.set_outfile(&message);
             if let Err(e) = app.command.write_output() {
-                app.goto_screen(Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::Error(e.to_string()));
             } else {
-                app.goto_screen(Screen::Response(String::from(app.get_response())));
+                app.goto_screen(&Screen::Response(String::from(app.get_response())));
             }
         }
         InputOpt::RequestBody => {
             app.add_app_option(AppOptions::RequestBody(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(String::new()));
         }
-        InputOpt::RecursiveDownload => {
-            if let Ok(recursion_level) = message.parse::<usize>() {
-                app.add_app_option(AppOptions::RecDownload(recursion_level));
-                app.goto_screen(Screen::Downloads("".to_string()));
-            } else {
-                app.goto_screen(Screen::Downloads(String::from(PARSE_INT_ERROR)));
+        InputOpt::ImportCollection => {
+            if app.import_postman_collection(&message).is_ok() {
+                app.goto_screen(&Screen::Success);
+                return;
             }
+            app.goto_screen(&Screen::Error("Failed to import collection".to_string()));
+        }
+        InputOpt::CreateCollection => {
+            if app.create_postman_collection(&message).is_ok() {
+                app.goto_screen(&Screen::Success);
+                return;
+            }
+            app.goto_screen(&Screen::Error("Failed to create collection".to_string()));
         }
         InputOpt::KeyLabel(id) => match app.set_key_label(id, &message) {
-            Ok(_) => app.goto_screen(Screen::SavedKeys),
-            Err(e) => app.goto_screen(Screen::Error(e)),
+            Ok(_) => app.goto_screen(&Screen::SavedKeys),
+            Err(e) => app.goto_screen(&Screen::Error(e)),
         },
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);
@@ -305,5 +306,5 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     }));
-    app.goto_screen(Screen::RequestMenu(String::new()));
+    app.goto_screen(&Screen::RequestMenu(String::new()));
 }

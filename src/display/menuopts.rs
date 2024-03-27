@@ -6,7 +6,6 @@ pub const SAVED_COMMANDS_PARAGRAPH: &str =
 pub const CURL: &str = "curl";
 pub const WGET: &str = "wget";
 pub const CUSTOM: &str = "custom";
-pub const DOWNLOAD: &str = "Download";
 pub const API_KEY_PARAGRAPH: &str =
     "Press q to quit\nPress 'ESC' or 'h' to go back\nPress Enter for Menu\n";
 pub const HTTP_REQUEST: &str = "HTTP Request";
@@ -25,14 +24,13 @@ pub const DEFAULT_MENU_TITLE: &str = "** CuTE **";
 pub const AUTH_MENU_TITLE: &str = "** CuTE ** Authentication Menu 󰌋";
 pub const VIEW_BODY_TITLE: &str = "** CuTE ** View Response Body";
 pub const INPUT_MENU_TITLE: &str = "** Press i to enter Insert mode **";
-pub const DOWNLOAD_MENU_TITLE: &str = "* CuTE ** Downloads *";
 pub const ERROR_MENU_TITLE: &str = "* CuTE ** Error! *";
 pub const SUCCESS_MENU_TITLE: &str = "* CuTE ** Success! *";
+pub const POSTMAN_COLLECTION_TITLE: &str = "* CuTE ** Postman Collections";
 pub const SUCCESS_MESSAGE: &str = "Request saved successfully";
 pub const INPUT_OPT_URL: &str = "Enter a URL for your {}\n and press Enter";
 pub const INPUT_OPT_HEADERS: &str =
     "MUST be \"Key:Value\" pair and press Enter \n Example: Content-Type: application/json";
-pub const INPUT_OPT_REC_DOWNLOAD: &str = "Enter the recursion level and press Enter \n Example: 2";
 pub const INPUT_OPT_AUTH_BASIC: &str = "Enter username:password and press Enter";
 pub const INPUT_OPT_AUTH_ANY: &str = "Enter your username and press Enter";
 pub const INPUT_OPT_AUTH_BEARER: &str = "Enter your API token and press Enter";
@@ -120,12 +118,24 @@ pub const KEY_MENU_OPTIONS: [&str; 4] = [
     "Copy to Clipboard  󰅎 ",
     "Cancel   ",
 ];
+pub const COLLECTION_MENU_OPTIONS: [&str; 4] = [
+    "Import New Postman Collection 󰖟 ",
+    "Create New Collection 󰖟 ",
+    "View Collections 󱂛 ",
+    "Cancel   ",
+];
 pub const ALERT_MENU_OPTIONS_KEY: [&str; 3] = ["Delete", "Copy to Clipboard", "Cancel"];
 pub const MAIN_MENU_OPTIONS: [&str; 4] = [
     "Build and send an HTTP request 󰖟 ",
-    "Download a remote file or directory 󰧩 ",
+    "View or Import Postman Collections",
     "View Saved API keys 󱂛  ",
     "View saved requests  ",
+];
+pub const COLLECTION_ALERT_MENU_OPTS: [&str; 4] = [
+    "View Requests in this collection",
+    "Rename this collection",
+    "Delete this collection",
+    "Cancel",
 ];
 pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Add a URL 󰖟 ",
@@ -140,12 +150,6 @@ pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Send Request  ",
     "More Options  ",
     "Clear all options  ",
-];
-pub const DOWNLOAD_MENU_OPTIONS: [&str; 4] = [
-    "Specify recursive depth 󰆙 ",
-    "Add a URL 󰖟  ",
-    "Specify output filepath  ",
-    "Begin Download  ",
 ];
 pub const METHOD_MENU_OPTIONS: [&str; 7] = [
     "OTHER (custom command)",

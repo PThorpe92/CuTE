@@ -1,11 +1,11 @@
-use crate::database::db::{SavedCommand, SavedKey, DB};
+use crate::database::db::{SavedCollection, SavedCommand, SavedKey, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
 use crate::display::{AppOptions, HeaderKind};
-use crate::request::command::{Cmd, CMD};
 use crate::request::curl::{AuthKind, Curl};
 use crate::screens::screen::Screen;
 use crate::Config;
 use arboard::Clipboard;
+use std::io::Write;
 use std::ops::DerefMut;
 use std::{error, mem};
 use tui::widgets::{ListItem, ListState};
@@ -33,7 +33,7 @@ pub struct App<'a> {
     /// index of selected item
     pub selected: Option<usize>,
     /// command (curl or wget)
-    pub command: Box<Cmd<'a>>,
+    pub command: Curl<'a>,
     /// vec of applicable options
     pub opts: Vec<AppOptions>,
     /// Input struct for tui_input dependency
@@ -60,7 +60,7 @@ impl<'a> Default for App<'a> {
             cursor: 0,
             screen_stack: vec![Screen::Home],
             selected: None,
-            command: Box::<Cmd<'a>>::default(),
+            command: Curl::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
             opts: Vec::new(),
@@ -78,7 +78,7 @@ impl<'a> App<'a> {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn set_command(&mut self, command: Box<Cmd<'a>>) {
+    pub fn set_command(&mut self, command: Curl<'a>) {
         self.command = command;
     }
     pub fn set_config(&mut self, config: Config) {
@@ -89,7 +89,8 @@ impl<'a> App<'a> {
     pub fn redraw(&mut self) {
         if self.selected.is_some() {
             let selected = (self.selected, self.cursor);
-            self.goto_screen(self.current_screen.clone());
+            let current = self.current_screen.clone();
+            self.goto_screen(&current);
             self.state.as_mut().unwrap().select(selected.0);
             self.cursor = selected.1;
         }
@@ -121,12 +122,9 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn goto_screen(&mut self, screen: Screen) {
+    pub fn goto_screen(&mut self, screen: &Screen) {
         self.input.reset();
-        // Push New/Next Screen Onto The Screen Stack
         self.screen_stack.push(screen.clone());
-
-        // Set The Current Screen
         self.current_screen = screen.clone();
 
         self.cursor = 0;
@@ -147,9 +145,9 @@ impl<'a> App<'a> {
                 self.selected = None;
                 return;
             }
-            Screen::SavedCommands => {
+            Screen::SavedCommands(col_name) => {
                 self.items = self
-                    .get_saved_commands()
+                    .get_saved_commands(*col_name)
                     .unwrap_or_default()
                     .iter()
                     .map(|cmd| {
@@ -158,6 +156,14 @@ impl<'a> App<'a> {
                     .collect();
                 self.selected = None;
                 return;
+            }
+            Screen::ViewSavedCollections => {
+                self.items = self
+                    .get_collections()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|col| ListItem::new(format!("{}{}", col.name, OPTION_PADDING_MID)))
+                    .collect();
             }
             _ => {
                 self.items = screen.get_opts(None);
@@ -169,31 +175,34 @@ impl<'a> App<'a> {
     pub fn go_back_screen(&mut self) {
         let last = self.screen_stack.pop().unwrap_or_default(); // current screen
         match self.screen_stack.last() {
-            Some(Screen::InputMenu(_) | Screen::CmdMenu(_) | Screen::KeysMenu(_)) => {
-                self.go_back_screen()
-            }
-            Some(Screen::RequestBodyInput) => self.goto_screen(Screen::Method),
-            // is that recursion in prod????? o_0
             Some(screen) if screen == &last => self.go_back_screen(),
-            Some(Screen::RequestMenu(_)) => {
-                // This is to remove errors from the stack
-                self.goto_screen(Screen::RequestMenu(String::new()));
+            Some(
+                Screen::InputMenu(_)
+                | Screen::CmdMenu(_)
+                | Screen::ColMenu(_)
+                | Screen::KeysMenu(_),
+            ) => self.go_back_screen(),
+            Some(Screen::RequestBodyInput) => self.goto_screen(&Screen::Method),
+            Some(Screen::RequestMenu(ref e)) => {
+                if e.to_lowercase().contains("error") || e.to_lowercase().contains("alert") {
+                    self.goto_screen(&Screen::RequestMenu(String::new()));
+                } else {
+                    self.goto_screen(&Screen::Method);
+                }
             }
             Some(screen) => {
-                self.goto_screen(screen.clone());
+                self.goto_screen(&screen.clone());
             }
-            None => self.goto_screen(Screen::Home),
+            _ => self.goto_screen(&Screen::Home),
         }
     }
 
     pub fn quit(&mut self) {
-        if let Some(resp) = self.response.as_ref() {
-            let _ = std::process::Command::new("echo")
-                .arg(resp)
-                .spawn()
-                .map_err(|e| e.to_string())
-                .unwrap();
-        }
+        std::io::stdout()
+            .write_all(self.get_response().as_bytes())
+            .unwrap();
+        // make sure the response is flushed to stdout
+        std::io::stdout().flush().unwrap();
         self.running = false;
     }
 
@@ -245,6 +254,10 @@ impl<'a> App<'a> {
         self.db.as_ref().get_keys()
     }
 
+    pub fn get_collections(&self) -> Result<Vec<SavedCollection>, rusqlite::Error> {
+        self.db.get_collections()
+    }
+
     pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
         match self.db.as_ref().add_key(&key) {
             Ok(_) => Ok(()),
@@ -252,13 +265,34 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn get_saved_commands(&self) -> Result<Vec<SavedCommand>, rusqlite::Error> {
-        self.db.as_ref().get_commands()
+    pub fn get_saved_commands(
+        &self,
+        col_name: Option<i32>,
+    ) -> Result<Vec<SavedCommand>, rusqlite::Error> {
+        self.db.as_ref().get_commands(col_name)
+    }
+
+    pub fn create_postman_collection(&mut self, name: &str) -> Result<(), rusqlite::Error> {
+        self.db.create_collection(name)
+    }
+
+    #[rustfmt::skip]
+    pub fn import_postman_collection(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let file = std::fs::File::open(path)?;
+        let collection: Result<crate::database::postman::PostmanCollection, String> =
+            serde_json::from_reader(file).map_err(|e| e.to_string());
+        if let Ok(collection) = collection {
+            let name = collection.info.name.clone();
+            let cmds: Vec<SavedCommand> = collection.into();
+            self.db.add_collection(&name, cmds.as_slice())
+        } else {
+            Err("Failed to import collection".into())
+        }
     }
 
     // Takes an array index of the selected item
     pub fn execute_saved_command(&mut self, index: usize) {
-        if let Ok(saved_commands) = self.get_saved_commands() {
+        if let Ok(saved_commands) = self.get_saved_commands(None) {
             match saved_commands.get(index) {
                 Some(cmd) => {
                     let mut command: Curl = serde_json::from_str(cmd.get_curl_json())
@@ -269,12 +303,12 @@ impl<'a> App<'a> {
                         Ok(_) => self.set_response(&command.get_response()),
                         Err(e) => self.set_response(&e),
                     };
-                    self.goto_screen(Screen::Response(self.response.clone().unwrap()));
+                    self.goto_screen(&Screen::Response(self.response.clone().unwrap()));
                 }
-                None => self.goto_screen(Screen::Error("Saved command not found".to_string())),
+                None => self.goto_screen(&Screen::Error("Saved command not found".to_string())),
             }
         } else {
-            self.goto_screen(Screen::Error("Saved command not found".to_string()));
+            self.goto_screen(&Screen::Error("Saved command not found".to_string()));
         }
     }
 
@@ -310,7 +344,7 @@ impl<'a> App<'a> {
 
     pub fn delete_saved_command(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
         self.db.delete_command(ind)?;
-        self.goto_screen(Screen::SavedCommands);
+        self.goto_screen(&Screen::SavedCommands(None));
         Ok(())
     }
 
@@ -328,7 +362,19 @@ impl<'a> App<'a> {
 
     pub fn delete_saved_key(&mut self, index: i32) -> Result<(), rusqlite::Error> {
         self.db.as_ref().delete_key(index)?;
-        self.goto_screen(Screen::SavedKeys);
+        self.goto_screen(&Screen::SavedKeys);
+        Ok(())
+    }
+
+    pub fn delete_collection(&mut self, id: i32) -> Result<(), rusqlite::Error> {
+        self.db.delete_collection(id)?;
+        self.goto_screen(&Screen::SavedCommands(None));
+        Ok(())
+    }
+
+    pub fn rename_collection(&mut self, id: i32, name: &str) -> Result<(), rusqlite::Error> {
+        self.db.rename_collection(id, name)?;
+        self.goto_screen(&Screen::SavedCollections);
         Ok(())
     }
 
@@ -365,7 +411,6 @@ impl<'a> App<'a> {
             AppOptions::MaxRedirects(_)    => self.command.set_max_redirects(0),
             AppOptions::UserAgent(_)       => self.command.set_user_agent(""),
             AppOptions::Referrer(_)        => self.command.set_referrer(""),
-            AppOptions::RecDownload(_)     => self.command.set_rec_download_level(0),
             AppOptions::RequestBody(_)     => self.command.set_request_body(""),
             AppOptions::Cookie(_)          => self.command.remove_headers(&opt.get_value()),
             AppOptions::Headers(_)         => self.command.remove_headers(&opt.get_value()),
@@ -487,8 +532,6 @@ impl<'a> App<'a> {
 
                 AppOptions::Cookie(cookie) => self.command.add_cookie(&cookie),
 
-                AppOptions::RecDownload(i) => self.command.set_rec_download_level(i),
-
                 AppOptions::Response(resp) => self.command.set_response(&resp),
 
                 AppOptions::Referrer(referrer) => self.command.set_referrer(&referrer),
@@ -529,12 +572,6 @@ impl<'a> App<'a> {
                     if let AppOptions::Response(ref response) = opt {
                         option.replace_value(opt.clone().get_value());
                         self.command.set_response(response);
-                    }
-                }
-                AppOptions::RecDownload(_) => {
-                    if let AppOptions::RecDownload(level) = opt {
-                        option.replace_value(level.to_string());
-                        self.command.set_rec_download_level(level);
                     }
                 }
                 AppOptions::Auth(_) => {} // This is handled by the screen
@@ -584,62 +621,4 @@ impl<'a> App<'a> {
             }
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    /*
-       use super::App;
-       use crate::display::AppOptions;
-       use crate::request::command::Cmd;
-       use crate::request::curl::Curl;
-       // helper return app instance with curl command
-       fn return_app_cmd() -> App<'static> {
-           let mut app = App::default();
-           app.set_command(Box::new(Cmd::Curl(Curl::new())));
-           app
-       }
-
-
-       #[test]
-       fn test_add_app_option() {
-           let mut app = return_app_cmd();
-           let url = "https://www.google.com";
-           app.add_app_option(AppOptions::URL(String::from(url)));
-           assert!(app.command.get_url() == url);
-       }
-
-       #[test]
-       fn test_toggle_verbose() {
-           let mut app = return_app_cmd();
-           // Add one.
-           app.add_app_option(crate::display::AppOptions::Verbose);
-           assert!(app.has_app_option(&AppOptions::Verbose));
-           // this should toggle
-           app.add_app_option(AppOptions::Verbose);
-           assert!(!app.has_app_option(&AppOptions::Verbose));
-       }
-
-       #[test]
-       fn test_replace_app_opt() {
-           let mut app = return_app_cmd();
-           let url = "https://www.google.com".to_string();
-           app.add_app_option(AppOptions::URL(url.clone()));
-           assert!(app.command.get_url() == url);
-           // overwrite the url
-           let new_url = "https://www.github.com".to_string();
-           app.add_app_option(AppOptions::URL(new_url.clone()));
-           assert!(app.command.get_url() == new_url);
-       }
-
-       #[test]
-       fn test_remove_app_option() {
-           let mut app = return_app_cmd();
-           let url = "https://www.google.com";
-           app.add_app_option(AppOptions::URL(String::from(url)));
-           app.remove_app_option(&AppOptions::URL(String::from(url)));
-       }
-
-    */
 }
