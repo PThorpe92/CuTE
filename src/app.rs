@@ -126,12 +126,11 @@ impl<'a> App<'a> {
         self.input.reset();
         self.screen_stack.push(screen.clone());
         self.current_screen = screen.clone();
-
         self.cursor = 0;
         match screen {
             Screen::Method => {
                 // If The Method Screen Is Hit, We Reset options
-                self.remove_all_app_options();
+                self.clear_all_options();
                 self.input.reset();
                 self.items = screen.get_opts(None);
             }
@@ -162,8 +161,12 @@ impl<'a> App<'a> {
                     .get_collections()
                     .unwrap_or_default()
                     .iter()
-                    .map(|col| ListItem::new(format!("{}{}", col.name, OPTION_PADDING_MID)))
+                    .map(|col| ListItem::new(format!("{}{}", col.get_name(), OPTION_PADDING_MID)))
                     .collect();
+            }
+            Screen::RequestMenu(opt) if opt.as_ref().is_some_and(|op| !op.is_error()) => {
+                self.input_mode = InputMode::Editing;
+                self.selected = None;
             }
             _ => {
                 self.items = screen.get_opts(None);
@@ -174,8 +177,8 @@ impl<'a> App<'a> {
 
     pub fn go_back_screen(&mut self) {
         let last = self.screen_stack.pop().unwrap_or_default(); // current screen
-        match self.screen_stack.last() {
-            Some(screen) if screen == &last => self.go_back_screen(),
+        match self.screen_stack.last().cloned() {
+            Some(screen) if screen == last => self.go_back_screen(),
             Some(
                 Screen::InputMenu(_)
                 | Screen::CmdMenu(_)
@@ -183,15 +186,16 @@ impl<'a> App<'a> {
                 | Screen::KeysMenu(_),
             ) => self.go_back_screen(),
             Some(Screen::RequestBodyInput) => self.goto_screen(&Screen::Method),
+            Some(Screen::Error(_)) => self.goto_screen(&Screen::Home),
             Some(Screen::RequestMenu(ref e)) => {
-                if e.to_lowercase().contains("error") || e.to_lowercase().contains("alert") {
-                    self.goto_screen(&Screen::RequestMenu(String::new()));
+                if !e.as_ref().is_some_and(|err| err.is_error()) {
+                    self.goto_screen(&Screen::RequestMenu(e.clone()));
                 } else {
                     self.goto_screen(&Screen::Method);
                 }
             }
             Some(screen) => {
-                self.goto_screen(&screen.clone());
+                self.goto_screen(&screen);
             }
             _ => self.goto_screen(&Screen::Home),
         }
@@ -207,20 +211,46 @@ impl<'a> App<'a> {
     }
 
     pub fn move_cursor_down(&mut self) {
-        if self.items.is_empty() {
-            return;
-        }
-        if !self.items.is_empty() && self.cursor < self.items.len() - 1 {
-            self.cursor += 1;
+        match self.current_screen {
+            Screen::RequestMenu(ref opt) => {
+                if opt.clone().is_some_and(|op| !op.is_error()) {
+                    self.goto_screen(&Screen::RequestMenu(None));
+                    return;
+                }
+                if !self.items.is_empty() && self.cursor < self.items.len() - 1 {
+                    self.cursor += 1;
+                }
+            }
+            _ => {
+                if self.items.is_empty() {
+                    return;
+                }
+                if !self.items.is_empty() && self.cursor < self.items.len() - 1 {
+                    self.cursor += 1;
+                }
+            }
         }
     }
 
     pub fn move_cursor_up(&mut self) {
-        if self.items.is_empty() {
-            return;
-        }
-        if let Some(res) = self.cursor.checked_sub(1) {
-            self.cursor = res;
+        match self.current_screen {
+            Screen::RequestMenu(ref opt) => {
+                if opt.clone().is_some_and(|op| !op.is_error()) {
+                    self.goto_screen(&Screen::RequestMenu(None));
+                    return;
+                }
+                if let Some(res) = self.cursor.checked_sub(1) {
+                    self.cursor = res;
+                }
+            }
+            _ => {
+                if self.items.is_empty() {
+                    return;
+                }
+                if let Some(res) = self.cursor.checked_sub(1) {
+                    self.cursor = res;
+                }
+            }
         }
     }
 
@@ -232,6 +262,40 @@ impl<'a> App<'a> {
                 .is_some()
             {}
         });
+    }
+
+    pub fn get_special_items(&self) -> Option<Vec<String>> {
+        match self.current_screen {
+            Screen::SavedKeys => Some(
+                self.get_saved_keys()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Screen::SavedCommands(coll_id) => Some(
+                self.get_saved_commands(coll_id)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|x| format!("{:?}", x))
+                    .collect::<Vec<String>>(),
+            ),
+            Screen::ViewSavedCollections => Some(
+                self.get_collections()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|x| x.get_name().to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Screen::SavedCollections => Some(
+                self.get_collections()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|x| x.get_name().to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            _ => None,
+        }
     }
 
     pub fn get_url(&self) -> &str {
@@ -256,6 +320,14 @@ impl<'a> App<'a> {
 
     pub fn get_collections(&self) -> Result<Vec<SavedCollection>, rusqlite::Error> {
         self.db.get_collections()
+    }
+
+    pub fn get_collection_by_id(&self, id: i32) -> Result<SavedCollection, rusqlite::Error> {
+        self.db.get_collection_by_id(id)
+    }
+
+    pub fn get_command_by_id(&self, id: i32) -> Result<SavedCommand, rusqlite::Error> {
+        self.db.get_command_by_id(id)
     }
 
     pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
@@ -291,25 +363,15 @@ impl<'a> App<'a> {
     }
 
     // Takes an array index of the selected item
-    pub fn execute_saved_command(&mut self, index: usize) {
-        if let Ok(saved_commands) = self.get_saved_commands(None) {
-            match saved_commands.get(index) {
-                Some(cmd) => {
-                    let mut command: Curl = serde_json::from_str(cmd.get_curl_json())
-                        .map_err(|e| e.to_string())
-                        .unwrap();
-                    command.easy_from_opts();
-                    match command.execute(None) {
-                        Ok(_) => self.set_response(&command.get_response()),
-                        Err(e) => self.set_response(&e),
-                    };
-                    self.goto_screen(&Screen::Response(self.response.clone().unwrap()));
-                }
-                None => self.goto_screen(&Screen::Error("Saved command not found".to_string())),
-            }
-        } else {
-            self.goto_screen(&Screen::Error("Saved command not found".to_string()));
-        }
+    pub fn execute_saved_command(&mut self, json: &str) {
+        let mut command: Curl = serde_json::from_str(json)
+            .map_err(|e| e.to_string())
+            .unwrap();
+        command.easy_from_opts();
+        match command.execute(None) {
+            Ok(_) => self.set_response(&command.get_response()),
+            Err(e) => self.set_response(&e),
+        };
     }
 
     pub fn set_key_label(&self, key: i32, label: &str) -> Result<(), String> {
@@ -422,8 +484,7 @@ impl<'a> App<'a> {
             .retain(|x| mem::discriminant(x) != mem::discriminant(opt));
     }
 
-    // Need a button to reset everything
-    pub fn remove_all_app_options(&mut self) {
+    pub fn clear_all_options(&mut self) {
         self.opts.clear();
         self.messages.clear();
         self.response = None;

@@ -1,4 +1,3 @@
-
 use tui::Frame;
 
 use super::render::handle_screen_defaults;
@@ -30,7 +29,7 @@ pub fn handle_headers_screen(app: &mut App, frame: &mut Frame<'_>) {
         }
         //
         // return to request menu
-        Some(4) => app.goto_screen(&Screen::RequestMenu(String::new())),
+        Some(4) => app.goto_screen(&Screen::RequestMenu(None)),
         _ => {}
     }
 }

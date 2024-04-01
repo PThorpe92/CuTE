@@ -3,6 +3,7 @@ use crate::display::HeaderKind;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::str::FromStr;
 
 use crate::display::menuopts::CURL;
 use curl::easy::{Auth, Easy2, Handler, List, WriteError};
@@ -57,6 +58,22 @@ pub enum Method {
     Patch,
     Delete,
     Head,
+    Options,
+}
+impl FromStr for Method {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "GET" => Ok(Method::Get),
+            "POST" => Ok(Method::Post),
+            "PUT" => Ok(Method::Put),
+            "PATCH" => Ok(Method::Patch),
+            "DELETE" => Ok(Method::Delete),
+            "HEAD" => Ok(Method::Head),
+            "OPTIONS" => Ok(Method::Options),
+            _ => Err(String::from("Invalid Method")),
+        }
+    }
 }
 impl Display for Method {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -66,6 +83,7 @@ impl Display for Method {
             Method::Put => write!(f, "PUT"),
             Method::Patch => write!(f, "PATCH"),
             Method::Delete => write!(f, "DELETE"),
+            Method::Options => write!(f, "OPTIONS"),
             Method::Head => write!(f, "HEAD"),
         }
     }
@@ -188,6 +206,7 @@ impl<'a> Clone for Curl<'a> {
             Some(Method::Patch) => curl.set_patch_method(),
             Some(Method::Delete) => curl.set_delete_method(),
             Some(Method::Head) => curl.set_head_method(),
+            Some(Method::Options) => curl.set_options_method(),
             None => {}
         }
         if let Some(ref res) = self.resp {
@@ -265,7 +284,7 @@ impl Display for AuthKind {
             AuthKind::None            => write!(f, "None"),
             AuthKind::Ntlm            => write!(f, "NTLM"),
             AuthKind::Basic(login)    => write!(f, "Basic: {}", login),
-            AuthKind::Bearer(token)   => write!(f, "Authorization: Bearer {}", token),
+            AuthKind::Bearer(token)   => write!(f, "Authorization: {}", token),
             AuthKind::Digest(login)   => write!(f, "Digest Auth: {}", login),
             AuthKind::AwsSigv4        => write!(f, "AWS SignatureV4"),
             AuthKind::Spnego          => write!(f, "SPNEGO Auth"),
@@ -465,14 +484,14 @@ impl<'a> Curl<'a> {
         let flag = &CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
         self.has_flag(flag)
     }
-    pub fn set_method(&mut self, method: &str) {
+    pub fn set_method(&mut self, method: Method) {
         match method {
-            "GET" => self.set_get_method(),
-            "POST" => self.set_post_method(),
-            "PUT" => self.set_put_method(),
-            "PATCH" => self.set_patch_method(),
-            "DELETE" => self.set_delete_method(),
-            "HEAD" => self.set_head_method(),
+            Method::Get => self.set_get_method(),
+            Method::Post => self.set_post_method(),
+            Method::Put => self.set_put_method(),
+            Method::Patch => self.set_patch_method(),
+            Method::Delete => self.set_delete_method(),
+            Method::Head => self.set_head_method(),
             _ => {}
         }
     }
@@ -690,6 +709,12 @@ impl<'a> Curl<'a> {
             .iter()
             .any(|has| std::mem::discriminant(has) == std::mem::discriminant(flag))
     }
+    fn set_options_method(&mut self) {
+        if self.method.is_some() {
+            self.curl.reset();
+        }
+        self.method = Some(Method::Options);
+    }
     // This is a hack because when we deseialize json from the DB, we get a curl struct with no curl::Easy
     // field, so we have to manually add, then set the options one at a time from the opts vector.
     // ANY time we get a command from the database to run, we have to call this method first.
@@ -705,6 +730,7 @@ impl<'a> Curl<'a> {
                 Method::Patch => self.set_patch_method(),
                 Method::Delete => self.set_delete_method(),
                 Method::Head => self.curl.nobody(true).unwrap(),
+                Method::Options => self.set_options_method(),
             }
         }
         for opt in opts {
@@ -876,7 +902,7 @@ impl<'a> Curl<'a> {
     pub fn set_bearer_auth(&mut self, token: &str) {
         self.add_flag(CurlFlag::Bearer(
             CurlFlagType::Bearer.get_value(),
-            Some(format!("Authorization: Bearer {token}")),
+            Some(format!("Authorization: {token}")),
         ));
         self.auth = AuthKind::Bearer(String::from(token));
     }
@@ -899,12 +925,10 @@ impl<'a> Curl<'a> {
                 self.curl
                     .password(login.split(':').last().unwrap())
                     .unwrap();
-                println!("login: {login}");
                 let _ = self.curl.http_auth(Auth::new().basic(true));
             }
             AuthKind::Bearer(ref token) => {
-                list.append(&format!("Authorization: Bearer {token}"))
-                    .unwrap();
+                list.append(&format!("Authorization: {token}")).unwrap();
                 return true;
             }
             AuthKind::Digest(login) => {

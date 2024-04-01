@@ -15,7 +15,7 @@ pub enum Screen {
     Home,
     Method,
     HeaderAddRemove,
-    RequestMenu(String),
+    RequestMenu(Option<InputOpt>),
     InputMenu(InputOpt),
     Response(String),
     SavedCollections,
@@ -23,14 +23,14 @@ pub enum Screen {
     Authentication,
     Success,
     SavedKeys,
-    ColMenu(usize),
+    ColMenu(i32),
     // takes optional collection id
     SavedCommands(Option<i32>),
     Error(String),
     ViewBody,
     MoreFlags,
     Headers,
-    CmdMenu(usize),
+    CmdMenu(i32),
     KeysMenu(usize),
     RequestBodyInput,
 }
@@ -78,7 +78,7 @@ impl<'a> Screen {
                 MAIN_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::Method => {
@@ -86,7 +86,7 @@ impl<'a> Screen {
                 METHOD_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::HeaderAddRemove => {
@@ -94,7 +94,7 @@ impl<'a> Screen {
                 METHOD_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::RequestMenu(_) => {
@@ -102,7 +102,7 @@ impl<'a> Screen {
                 REQUEST_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::SavedCommands(_) => {
@@ -116,7 +116,7 @@ impl<'a> Screen {
             Screen::Response(_) => RESPONSE_MENU_OPTIONS
                 .iter()
                 .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
-                .map(|i| ListItem::new(i.clone()))
+                .map(ListItem::new)
                 .collect(),
             Screen::InputMenu(_) => {
                 vec![ListItem::new("Input Menu").style(Style::default().fg(Color::Green))]
@@ -124,14 +124,14 @@ impl<'a> Screen {
             Screen::Headers => HEADER_MENU_OPTIONS
                 .iter()
                 .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
-                .map(|i| ListItem::new(i.clone()))
+                .map(ListItem::new)
                 .collect(),
             Screen::Authentication => {
                 let len = AUTHENTICATION_MENU_OPTIONS.len();
                 AUTHENTICATION_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::Success => {
@@ -152,7 +152,7 @@ impl<'a> Screen {
                 .collect(),
             Screen::ColMenu(_) => COLLECTION_ALERT_MENU_OPTS
                 .iter()
-                .map(|i| ListItem::new(i.clone()))
+                .map(|i| ListItem::new(*i))
                 .collect(),
             Screen::SavedKeys => {
                 let mut len = 0;

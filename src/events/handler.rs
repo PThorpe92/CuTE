@@ -43,9 +43,14 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                                 app.goto_screen(&Screen::InputMenu(InputOpt::ApiKey));
                             }
                         }
-                        KeyCode::Char('i') => match app.current_screen {
+                        KeyCode::Char('i') => match &app.current_screen {
                             Screen::InputMenu(_) => {
                                 app.input_mode = InputMode::Editing;
+                            }
+                            Screen::RequestMenu(opt) if opt.is_some() => {
+                                if !opt.as_ref().unwrap().is_error() {
+                                    app.input_mode = InputMode::Editing;
+                                }
                             }
                             Screen::RequestBodyInput => {
                                 app.input_mode = InputMode::Editing;

@@ -1,14 +1,13 @@
-use super::{default_rect, small_alert_box};
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::request::response::Response;
-use crate::screens::screen::Screen;
+use crate::screens::{centered_rect, screen::Screen, ScreenArea};
 use tui::text::Text;
 use tui::widgets::{ListState, Paragraph};
 use tui::Frame;
 
 pub fn handle_response_screen(app: &mut App, frame: &mut Frame<'_>, resp: String) {
-    let area = default_rect(small_alert_box(frame.size()));
+    let area = centered_rect(frame.size(), ScreenArea::Center);
     let new_list = app.current_screen.get_list(None);
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     if !app.items.is_empty() {
@@ -26,7 +25,7 @@ pub fn handle_response_screen(app: &mut App, frame: &mut Frame<'_>, resp: String
             }
             // View response headers
             1 => {
-                let area_2 = small_alert_box(frame.size());
+                let area_2 = centered_rect(frame.size(), ScreenArea::Center);
                 // Check for response error here
                 let response = match Response::from_raw_string(resp.as_str()) {
                     Ok(resp) => resp,
@@ -47,21 +46,15 @@ pub fn handle_response_screen(app: &mut App, frame: &mut Frame<'_>, resp: String
             }
             // Copy to clipboard
             3 => {
-                if app.response.is_some() {
-                    app.copy_to_clipboard_from_response().unwrap_or_else(|e| {
-                        app.goto_screen(&Screen::Error(e));
-                    });
-                } else {
-                    let cmd_str = app.command.get_command_string();
-                    app.copy_to_clipboard(cmd_str.as_str()).unwrap_or_else(|e| {
-                        app.goto_screen(&Screen::Error(e));
-                    });
-                }
+                let cmd_str = app.command.get_command_string();
+                app.copy_to_clipboard(&cmd_str).unwrap_or_else(|e| {
+                    app.goto_screen(&Screen::Error(e));
+                });
                 app.goto_screen(&Screen::Success);
             }
             4 => {
                 // Return To Home
-                app.remove_all_app_options();
+                app.clear_all_options();
                 app.goto_screen(&Screen::Home);
             }
             _ => {}

@@ -86,6 +86,11 @@ impl From<PostmanCollection> for Vec<SavedCommand> {
                                     curl_cmd.set_request_body(body);
                                 }
                             }
+                            if resp.get("url").is_some() && !curl_cmd.get_url().is_empty() {
+                                let url = resp.get("url").unwrap().as_object().unwrap();
+                                let url = url.get("raw").unwrap().as_str().unwrap();
+                                curl_cmd.set_url(url);
+                            }
                             if let Some(cookie) = resp.get("cookie") {
                                 if let Some(cookie) = cookie.as_array() {
                                     cookie.iter().for_each(|ck| {
@@ -97,11 +102,6 @@ impl From<PostmanCollection> for Vec<SavedCommand> {
                                     });
                                 }
                             }
-                            if let Some(url) = resp.get("url") {
-                                let url = url.as_object().unwrap();
-                                let url = url.get("raw").unwrap().as_str().unwrap();
-                                curl_cmd.set_url(url);
-                            }
                         }
                     });
                 }
@@ -109,11 +109,7 @@ impl From<PostmanCollection> for Vec<SavedCommand> {
         });
         let cmd = curl_cmd.get_command_string();
         let curl_json: String = serde_json::to_string(&curl_cmd).unwrap_or_default();
-        saved_commands.push(SavedCommand {
-            command: cmd,
-            curl_json,
-            ..Default::default()
-        });
+        saved_commands.push(SavedCommand::new(&cmd, &curl_json, None));
         saved_commands
     }
 }

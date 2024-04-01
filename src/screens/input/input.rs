@@ -6,7 +6,7 @@ use crate::display::menuopts::{
 use crate::display::AppOptions;
 use crate::request::curl::AuthKind;
 use crate::screens::auth::AuthType;
-use crate::screens::{default_rect, Screen};
+use crate::screens::{centered_rect, Screen};
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use std::path::Path;
 use tui::prelude::Line;
@@ -15,8 +15,8 @@ use tui::widgets::Paragraph;
 use tui::widgets::{Block, Borders};
 use tui::{
     prelude::{Constraint, Direction, Layout},
-    style::{Modifier, Style},
-    text::{Span, Text},
+    style::Style,
+    text::Text,
     Frame,
 };
 use tui_input::InputRequest;
@@ -24,10 +24,7 @@ use tui_input::InputRequest;
 // Takes the current option and returns a prompt for that screen
 pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
     match opt {
-        InputOpt::URL => {
-            let fmtstr = format!("Enter a URL for your request and press Enter");
-            Text::from(Line::from(fmtstr))
-        }
+        InputOpt::URL => Text::from(Line::from("Enter a URL for your request and press Enter")),
         InputOpt::RequestBody => Text::from("Enter a body for your request and press Enter"),
         InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
         InputOpt::Auth(auth) => match auth {
@@ -43,51 +40,40 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
 pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage(15),
-                Constraint::Percentage(10),
-                Constraint::Percentage(75),
-            ]
-            .as_ref(),
+        .constraints(vec![Constraint::Percentage(15), Constraint::Percentage(85)])
+        .split(frame.size());
+    let input_textbox = chunks[0];
+    let text_chunk = Block::default()
+        .borders(Borders::ALL)
+        .style(
+            Style::default()
+                .bg(app.config.get_bg_color())
+                .fg(Color::LightGreen),
         )
-        .split(default_rect(frame.size()));
-    let (msg, style) = match app.input_mode {
-        InputMode::Normal => (
-            vec![
-                Span::styled("Press 'h'", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("to go back..."),
-                Span::styled("Press 'i'", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("to start editing."),
-            ],
-            Style::default(),
-        ),
-        InputMode::Editing => (
-            vec![
-                Span::styled("Press Esc\n", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing...\n"),
-                Span::styled("Press Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to submit."),
-            ],
-            Style::default(),
-        ),
-    };
-    let message = Paragraph::new(Line::from(msg));
+        .title("Press 'i' for insert mode, Esc to exit.");
+    frame.render_widget(text_chunk, input_textbox);
+    let bottom_box = centered_rect(chunks[1], crate::screens::ScreenArea::Top);
     let prompt = get_input_prompt(opt.clone());
-    let prompt = prompt.patch_style(style);
-    frame.render_widget(message, chunks[0]);
-    render_input_with_prompt(frame, prompt);
-
-    let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+    frame.render_widget(Paragraph::new(prompt), bottom_box);
+    let top_box = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(input_textbox);
+    let width = top_box[0].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
     match opt {
         InputOpt::URL => {
-            let url = app.command.get_url();
+            let mut url = app.command.get_url().to_string();
             // if the url has been entered already we populate the input box with it
-            // we need to prevent this from happening multiple times, without clearning the app url
-            if !url.is_empty() && app.input.value().is_empty() && app.input.cursor() == 0 {
-                for ch in url.to_string().chars() {
-                    if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+            // we need to prevent this from happening multiple times, without clearing the url
+            if !url.is_empty() && app.input.cursor() == 0 {
+                for ch in url.chars() {
+                    let _ = app.input.handle(InputRequest::InsertChar(ch)).is_some();
+                }
+                url.clear();
+            } else if app.input.value().is_empty() && app.input.cursor() == 0 {
+                for ch in "https://".chars() {
+                    let _ = app.input.handle(InputRequest::InsertChar(ch)).is_some();
                 }
             }
         }
@@ -96,6 +82,10 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
                 let auth = app.command.get_token();
                 if auth.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
                     for ch in auth.unwrap().chars() {
+                        if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                    }
+                } else if app.input.value().is_empty() && app.input.cursor() == 0 {
+                    for ch in "Bearer ".chars() {
                         if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
                     }
                 }
@@ -114,15 +104,15 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
             InputMode::Normal => Style::default().fg(app.config.get_body_color()),
-            InputMode::Editing => Style::default().fg(Color::LightBlue),
+            InputMode::Editing => Style::default().fg(Color::White),
         })
         .block(Block::default().borders(Borders::ALL).title("Input"));
-    frame.render_widget(input, chunks[1]);
+    frame.render_widget(input, top_box[1]);
     match app.input_mode {
         InputMode::Normal => {}
         InputMode::Editing => frame.set_cursor(
-            chunks[1].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
-            chunks[1].y + 1,
+            top_box[1].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
+            top_box[1].y + 1,
         ),
     }
     // we have input (the user has typed something and pressed Enter while in insert mode)
@@ -155,7 +145,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
         InputOpt::URL => {
             app.add_app_option(AppOptions::URL(message));
-            app.goto_screen(&Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::ApiKey => {
             let _ = app.add_saved_key(message.clone());
@@ -163,18 +153,20 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::UnixSocket => {
             if let Err(e) = is_valid_unix_socket_path(&message) {
-                app.goto_screen(&Screen::RequestMenu(e));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(e))));
             } else {
                 app.add_app_option(AppOptions::UnixSocket(message.clone()));
-                app.goto_screen(&Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::Headers => {
             if !validate_key_val(&message) {
-                app.goto_screen(&Screen::RequestMenu(String::from(HEADER_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(HEADER_ERROR),
+                ))));
             } else {
                 app.add_app_option(AppOptions::Headers(message.clone()));
-                app.goto_screen(&Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::RenameCollection(ref id) => {
@@ -186,42 +178,48 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::Output => {
             app.add_app_option(AppOptions::Outfile(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::Cookie => {
             app.add_app_option(AppOptions::Cookie(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::Referrer => {
             app.add_app_option(AppOptions::Referrer(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::CaPath => {
             if !validate_path(&message) {
-                app.goto_screen(&Screen::RequestMenu(String::from(CERT_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(CERT_ERROR),
+                ))));
             } else {
                 app.add_app_option(AppOptions::CaPath(message.clone()));
-                app.goto_screen(&Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::UserAgent => {
             app.add_app_option(AppOptions::UserAgent(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::MaxRedirects => {
             if let Ok(num) = message.parse::<usize>() {
                 app.add_app_option(AppOptions::MaxRedirects(num));
-                app.goto_screen(&Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             } else {
-                app.goto_screen(&Screen::RequestMenu(String::from(PARSE_INT_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(PARSE_INT_ERROR),
+                ))));
             }
         }
         InputOpt::UploadFile => {
             if !validate_path(&message) {
-                app.goto_screen(&Screen::RequestMenu(String::from(UPLOAD_FILEPATH_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(UPLOAD_FILEPATH_ERROR),
+                ))));
             }
             app.add_app_option(AppOptions::UploadFile(message));
-            app.goto_screen(&Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
@@ -234,7 +232,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::RequestBody => {
             app.add_app_option(AppOptions::RequestBody(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::ImportCollection => {
             if app.import_postman_collection(&message).is_ok() {
@@ -306,5 +304,5 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     }));
-    app.goto_screen(&Screen::RequestMenu(String::new()));
+    app.goto_screen(&Screen::RequestMenu(None));
 }

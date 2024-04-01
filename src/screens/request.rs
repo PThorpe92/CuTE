@@ -1,3 +1,4 @@
+use super::input::input::handle_default_input_screen;
 use super::render::handle_screen_defaults;
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
@@ -5,21 +6,26 @@ use crate::display::menuopts::{SAVE_AUTH_ERROR, VALID_COMMAND_ERROR};
 use crate::display::AppOptions;
 use crate::screens::error_alert_box;
 use crate::screens::screen::Screen;
-
 use tui::Frame;
 
-pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: String) {
+pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, opt: Option<&InputOpt>) {
     handle_screen_defaults(app, frame);
-    if !err.is_empty() {
-        error_alert_box(frame, &err);
-    }
+    match opt {
+        Some(InputOpt::RequestError(e)) => {
+            error_alert_box(frame, e);
+        }
+        Some(opt) => {
+            handle_default_input_screen(app, frame, opt.clone());
+        }
+        _ => {}
+    };
     match app.selected {
         // Add a URL,
-        Some(0) => app.goto_screen(&Screen::InputMenu(InputOpt::URL)),
+        Some(0) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::URL))),
         // Add file to upload
-        Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::UploadFile)),
+        Some(1) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::UploadFile))),
         // Add Unix Socket address
-        Some(2) => app.goto_screen(&Screen::InputMenu(InputOpt::UnixSocket)),
+        Some(2) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::UnixSocket))),
         // Auth
         Some(3) => app.goto_screen(&Screen::Authentication),
         // Headers
@@ -33,7 +39,9 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: Str
         // Save your token or login
         Some(8) => {
             if !app.has_auth() {
-                app.goto_screen(&Screen::RequestMenu(String::from(SAVE_AUTH_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(SAVE_AUTH_ERROR),
+                ))));
                 return;
             }
             app.add_app_option(AppOptions::SaveToken);
@@ -41,7 +49,9 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: Str
         // Execute command
         Some(9) => {
             if !app.has_url() && !app.has_unix_socket() {
-                app.goto_screen(&Screen::RequestMenu(String::from(VALID_COMMAND_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(VALID_COMMAND_ERROR),
+                ))));
                 return;
             }
             match app.execute_command() {
@@ -59,7 +69,7 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, err: Str
         Some(10) => app.goto_screen(&Screen::MoreFlags),
         // clear options
         Some(11) => {
-            app.remove_all_app_options();
+            app.clear_all_options();
             app.goto_screen(&Screen::Method);
         }
         _ => {}

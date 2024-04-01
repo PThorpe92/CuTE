@@ -27,7 +27,7 @@ impl Display for AuthType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let auth = match self {
             AuthType::Basic          => "Basic",
-            AuthType::Bearer         => "Bearer",
+            AuthType::Bearer         => "Bearer Token",
             AuthType::Digest         => "Digest",
             AuthType::AWSSignatureV4 => "AWS Signature V4",
             AuthType::NTLM           => "NTLM",
@@ -40,15 +40,19 @@ pub fn handle_authentication_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     if let Some(num) = app.selected {
         match num {
-            0 => app.goto_screen(&Screen::InputMenu(InputOpt::Auth(AuthType::Basic))),
-            1 => app.goto_screen(&Screen::InputMenu(InputOpt::Auth(AuthType::Bearer))),
-            2 => app.goto_screen(&Screen::InputMenu(InputOpt::Auth(AuthType::Digest))),
+            0 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(AuthType::Basic)))),
+            1 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(AuthType::Bearer)))),
+            2 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(AuthType::Digest)))),
             3 => {
                 if varify_aws_auth() {
-                    app.goto_screen(&Screen::RequestMenu(String::from(AWS_AUTH_MSG)));
+                    app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                        String::from(AWS_AUTH_MSG),
+                    ))));
                     app.add_app_option(AppOptions::Auth(AuthKind::AwsSigv4));
                 } else {
-                    app.goto_screen(&Screen::RequestMenu(String::from(AWS_AUTH_ERROR_MSG)));
+                    app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                        String::from(AWS_AUTH_ERROR_MSG),
+                    ))));
                 }
             }
             4 => {
@@ -56,16 +60,16 @@ pub fn handle_authentication_screen(app: &mut App, frame: &mut Frame<'_>) {
                     app.remove_app_option(&AppOptions::Auth(AuthKind::None));
                 }
                 app.add_app_option(AppOptions::Auth(AuthKind::Spnego));
-                app.goto_screen(&Screen::RequestMenu(String::from("")));
+                app.goto_screen(&Screen::RequestMenu(None));
             }
             5 => {
                 if app.has_auth() {
                     app.remove_app_option(&AppOptions::Auth(AuthKind::None));
                 }
                 app.add_app_option(AppOptions::Auth(AuthKind::Ntlm));
-                app.goto_screen(&Screen::RequestMenu(String::from(
-                    "Alert: NTLM Auth Enabled",
-                )));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from("Alert: NTLM Auth Enabled"),
+                ))));
             }
             _ => {}
         }

@@ -1,3 +1,4 @@
+use crate::request::curl::Method;
 use crate::screens::auth::AuthType;
 use std::fmt::Display;
 
@@ -25,6 +26,14 @@ pub enum InputOpt {
     ImportCollection,
     CreateCollection,
     RenameCollection(i32),
+    RequestError(String),
+    Method(Method),
+}
+
+impl InputOpt {
+    pub fn is_error(&self) -> bool {
+        matches!(self, InputOpt::RequestError(_))
+    }
 }
 
 impl Display for InputOpt {
@@ -52,6 +61,8 @@ impl Display for InputOpt {
             InputOpt::ImportCollection => write!(f, "| Import Collection"),
             InputOpt::CreateCollection => write!(f, "| Create Collection"),
             InputOpt::RenameCollection(_) => write!(f, "| Rename Collection"),
+            InputOpt::RequestError(ref err) => write!(f, "| Error: {}", err),
+            InputOpt::Method(method) => write!(f, "| Method: {}", method),
         }
     }
 }

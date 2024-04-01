@@ -10,7 +10,7 @@ pub const API_KEY_PARAGRAPH: &str =
     "Press q to quit\nPress 'ESC' or 'h' to go back\nPress Enter for Menu\n";
 pub const HTTP_REQUEST: &str = "HTTP Request";
 pub const DEFAULT_MENU_PARAGRAPH: &str =
-    "\nPress q to exit. 'h' to go back \n Press Enter to select \n Please select a Menu item\n keybindings to navigate";
+    "\nPress q to exit. 'h' to go back \n Press Enter to select\n keybindings to navigate";
 pub const AWS_AUTH_MSG: &str =
     "Alert: AWS Signature V4 Authentication is using the following ENV VARs:
     \nAWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION";
@@ -124,12 +124,13 @@ pub const COLLECTION_MENU_OPTIONS: [&str; 4] = [
     "View Collections 󱂛 ",
     "Cancel   ",
 ];
-pub const ALERT_MENU_OPTIONS_KEY: [&str; 3] = ["Delete", "Copy to Clipboard", "Cancel"];
+pub const ALERT_MENU_OPTIONS_KEY: [&str; 3] =
+    ["Delete", "Copy Curl command to Clipboard", "Cancel"];
 pub const MAIN_MENU_OPTIONS: [&str; 4] = [
     "Build and send an HTTP request 󰖟 ",
+    "View saved requests  ",
     "View or Import Postman Collections",
     "View Saved API keys 󱂛  ",
-    "View saved requests  ",
 ];
 pub const COLLECTION_ALERT_MENU_OPTS: [&str; 4] = [
     "View Requests in this collection",
@@ -169,7 +170,7 @@ pub const HEADER_MENU_OPTIONS: [&str; 5] = [
 ];
 pub const AUTHENTICATION_MENU_OPTIONS: [&str; 6] = [
     "Basic",
-    "Bearer",
+    "Bearer Token",
     "Digest",
     "AWS SignatureV4",
     "Ntlm",

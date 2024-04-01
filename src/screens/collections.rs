@@ -5,6 +5,7 @@ use crate::display::menuopts::{
     COLLECTION_ALERT_MENU_OPTS, DEFAULT_MENU_PARAGRAPH, POSTMAN_COLLECTION_TITLE,
 };
 use crate::screens::render::handle_screen_defaults;
+use crate::screens::ScreenArea;
 use crate::screens::{centered_rect, render::render_header_paragraph};
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
@@ -32,12 +33,13 @@ pub fn handle_collections_screen(app: &mut App, frame: &mut Frame<'_>) {
     let collections = app.get_collections().unwrap_or_default();
     let items = Some(
         collections
+            .clone()
             .into_iter()
-            .map(|x| x.name)
+            .map(|x| x.get_name().to_string())
             .collect::<Vec<String>>(),
     );
     let menu_options = app.current_screen.get_list(items);
-    let area = centered_rect(70, 60, frame.size());
+    let area = centered_rect(frame.size(), ScreenArea::Center);
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
@@ -49,11 +51,12 @@ pub fn handle_collections_screen(app: &mut App, frame: &mut Frame<'_>) {
         frame.size(),
     );
     if let Some(selected) = app.selected {
-        app.goto_screen(&Screen::ColMenu(selected));
+        let selected = collections.get(selected).unwrap();
+        app.goto_screen(&Screen::ColMenu(selected.get_id()));
     }
 }
 
-pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
+pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -95,37 +98,37 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: u
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
-    let show_cmds = app.get_collections().unwrap_or_default();
-    if let Some(selected) = show_cmds.get(cmd) {
-        let paragraph = Paragraph::new(format!("{:?}", selected.name))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Request Collection"),
-            )
-            .alignment(tui::layout::Alignment::Center);
-        frame.render_widget(paragraph, cmd_str);
-        frame.render_widget(alert_text_chunk, alert_box);
-        frame.render_stateful_widget(list, options_box, &mut list_state);
-        match app.selected {
-            // View Requests in collection
-            Some(0) => {
-                app.goto_screen(&Screen::SavedCommands(Some(selected.id)));
-            }
-            // Rename Collection
-            Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::RenameCollection(selected.id))),
-            // delete collection
-            Some(2) => {
-                if let Err(e) = app.delete_collection(selected.id) {
-                    app.goto_screen(&Screen::Error(e.to_string()));
-                }
-                app.goto_screen(&Screen::Success);
-            }
-            // cancel
-            Some(3) => {
-                app.goto_screen(&Screen::ViewSavedCollections);
-            }
-            _ => {}
+    let selected = app.get_collection_by_id(cmd).unwrap_or_default();
+    let paragraph = Paragraph::new(format!("{:?}", selected.get_name()))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Request Collection"),
+        )
+        .alignment(tui::layout::Alignment::Center);
+    frame.render_widget(paragraph, cmd_str);
+    frame.render_widget(alert_text_chunk, alert_box);
+    frame.render_stateful_widget(list, options_box, &mut list_state);
+    match app.selected {
+        // View Requests in collection
+        Some(0) => {
+            app.goto_screen(&Screen::SavedCommands(Some(selected.get_id())));
         }
+        // Rename Collection
+        Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::RenameCollection(
+            selected.get_id(),
+        ))),
+        // delete collection
+        Some(2) => {
+            if let Err(e) = app.delete_collection(selected.get_id()) {
+                app.goto_screen(&Screen::Error(e.to_string()));
+            }
+            app.goto_screen(&Screen::Success);
+        }
+        // cancel
+        Some(3) => {
+            app.goto_screen(&Screen::ViewSavedCollections);
+        }
+        _ => {}
     }
 }

@@ -1,5 +1,5 @@
 use super::render::render_header_paragraph;
-use super::{centered_rect, Screen};
+use super::{centered_rect, Screen, ScreenArea};
 use crate::app::App;
 use crate::display::menuopts::{CMD_MENU_OPTIONS, SAVED_COMMANDS_PARAGRAPH, SAVED_COMMANDS_TITLE};
 use tui::prelude::{Constraint, Direction, Layout, Margin};
@@ -8,15 +8,21 @@ use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
 pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: Option<i32>) {
+    let commands = app.get_saved_commands(coll).unwrap_or_default();
     let items = Some(
-        app.get_saved_commands(coll)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|x| format!("{:?}", x))
+        commands
+            .iter()
+            .map(|x| {
+                format!(
+                    "Saved Request: {} Collection: {:?}",
+                    x.get_command(),
+                    x.get_collection_id()
+                )
+            })
             .collect::<Vec<String>>(),
     );
     let menu_options = app.current_screen.get_list(items);
-    let area = centered_rect(70, 60, frame.size());
+    let area = centered_rect(frame.size(), ScreenArea::Center);
 
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(state.clone());
@@ -28,13 +34,17 @@ pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: 
         render_header_paragraph(paragraph, title, app.config.get_style()),
         frame.size(),
     );
-    // if we select a command, open options
-    if let Some(cmd) = app.selected {
-        app.goto_screen(&Screen::CmdMenu(cmd));
+    if let Some(selected) = app.selected {
+        let cmd = commands.get(selected);
+        if let Some(cmd) = cmd {
+            app.goto_screen(&Screen::CmdMenu(cmd.get_id()));
+        } else {
+            app.goto_screen(&Screen::Error("No commands found".to_string()));
+        }
     }
 }
 
-pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
+pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -63,7 +73,7 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
         .iter()
         .map(|option| ListItem::new(*option))
         .collect();
-    let list = List::new(items.clone())
+    let list = List::new(items)
         .block(Block::default())
         .highlight_style(
             Style::default()
@@ -76,9 +86,8 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
-    let show_cmds = app.get_saved_commands(None).unwrap_or_default();
-    if let Some(selected) = show_cmds.get(cmd) {
-        let paragraph = Paragraph::new(format!("{:?}", selected.get_command()))
+    if let Ok(command) = app.get_command_by_id(cmd) {
+        let paragraph = Paragraph::new(format!("{:?}", command))
             .block(Block::default().borders(Borders::ALL).title("Command"))
             .alignment(tui::layout::Alignment::Center);
         frame.render_widget(paragraph, cmd_str);
@@ -87,12 +96,12 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
         match app.selected {
             // execute saved command
             Some(0) => {
-                app.execute_saved_command(cmd);
+                app.execute_saved_command(command.get_curl_json());
                 app.goto_screen(&Screen::Response(app.response.clone().unwrap()));
             }
             // delete item
             Some(1) => {
-                if let Err(e) = app.delete_item(selected.get_id()) {
+                if let Err(e) = app.delete_item(command.get_id()) {
                     app.goto_screen(&Screen::Error(e.to_string()));
                 } else {
                     app.goto_screen(&Screen::Success);
@@ -100,7 +109,7 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
             }
             // copy to clipboard
             Some(2) => {
-                if let Err(e) = app.copy_to_clipboard(selected.get_command()) {
+                if let Err(e) = app.copy_to_clipboard(command.get_command()) {
                     app.goto_screen(&Screen::Error(e.to_string()));
                 }
                 app.goto_screen(&Screen::Success);

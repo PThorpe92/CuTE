@@ -11,16 +11,16 @@ use std::{
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCommand {
-    pub id: i32,
-    pub command: String,
-    pub curl_json: String,
-    pub collection_id: Option<i32>,
+    id: i32,
+    command: String,
+    curl_json: String,
+    collection_id: Option<i32>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCollection {
-    pub id: i32,
-    pub name: String,
+    id: i32,
+    name: String,
 }
 
 impl Display for SavedCollection {
@@ -38,7 +38,7 @@ pub struct SavedKey {
 
 #[derive(Debug)]
 pub struct DB {
-    pub conn: Connection,
+    conn: Connection,
 }
 
 impl DB {
@@ -128,6 +128,33 @@ impl DB {
             self.add_command_from_collection(&command.command, &command.curl_json, id)?;
         }
         Ok(())
+    }
+
+    pub fn get_command_by_id(&self, id: i32) -> Result<SavedCommand> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, command, curl_json, collection_id from commands WHERE id = ?1")?;
+        stmt.query_row(params![id], |row| {
+            Ok(SavedCommand {
+                id: row.get(0)?,
+                command: row.get(1)?,
+                curl_json: row.get(2)?,
+                collection_id: row.get(3)?,
+            })
+        })
+    }
+
+    pub fn get_collection_by_id(&self, id: i32) -> Result<SavedCollection> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name FROM collections WHERE id = ?")?;
+        let collection = stmt.query_row(params![id], |row| {
+            Ok(SavedCollection {
+                id: row.get(0)?,
+                name: row.get(1)?,
+            })
+        })?;
+        Ok(collection)
     }
 
     pub fn create_collection(&self, name: &str) -> Result<(), rusqlite::Error> {
@@ -301,6 +328,15 @@ impl SavedCommand {
         Ok(serde_json::to_string(&self).expect("Failed to serialize"))
     }
 
+    pub fn new(command: &str, curl_json: &str, collection_id: Option<i32>) -> Self {
+        SavedCommand {
+            command: command.to_string(),
+            curl_json: curl_json.to_string(),
+            collection_id,
+            ..Default::default()
+        }
+    }
+
     pub fn get_id(&self) -> i32 {
         self.id
     }
@@ -364,5 +400,14 @@ impl SavedKey {
 
     pub fn from_json(json: &str) -> Result<Self> {
         Ok(serde_json::from_str(json).expect("Failed to deserialize"))
+    }
+}
+
+impl SavedCollection {
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+    pub fn get_id(&self) -> i32 {
+        self.id
     }
 }

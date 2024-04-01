@@ -3,8 +3,6 @@ use ::tui::prelude::{Constraint, Direction, Frame, Layout, Rect};
 use ::tui::style::Style;
 use ::tui::widgets::{Block, Borders, Paragraph, Wrap};
 pub mod screen;
-// Home Screen
-pub mod home;
 // Method Select Screens
 pub mod method;
 // Request Select Screens
@@ -23,14 +21,6 @@ pub mod collections;
 pub mod error;
 pub mod headers;
 pub mod saved_commands;
-
-pub fn small_alert_box(r: Rect) -> Rect {
-    centered_rect(70, 60, r)
-}
-
-pub fn default_rect(r: Rect) -> Rect {
-    centered_rect(70, 60, r)
-}
 
 pub fn error_alert_box(frame: &mut Frame<'_>, error_message: &str) -> Rect {
     let layout = Layout::default()
@@ -64,47 +54,42 @@ pub fn error_alert_box(frame: &mut Frame<'_>, error_message: &str) -> Rect {
         alert_text_chunk,
     );
 
-    // Render the centered box
     let main_box = layout[1];
-    centered_rect(70, 60, main_box)
+    centered_rect(main_box, ScreenArea::Top)
 }
 
-pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(r);
-
-    Layout::default()
+#[derive(Debug, Copy, Clone)]
+pub enum ScreenArea {
+    Top = 0,
+    Center = 1,
+    Bottom = 2,
+}
+// we want to center the rectangle in the middle of the screen
+// but we want the padding on the bottom to also be it's own area
+// so we split the screen into 3 parts, the top and bottom are padding
+pub fn centered_rect(r: Rect, area: ScreenArea) -> Rect {
+    let chunk = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(
             [
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(10),
+                Constraint::Percentage(80),
+                Constraint::Percentage(10),
             ]
             .as_ref(),
         )
-        .split(popup_layout[1])[1]
-}
-
-pub fn small_rect(r: Rect) -> Rect {
-    let layout = Layout::default()
-        .direction(Direction::Vertical) // Set the direction
-        .constraints(vec![
-            Constraint::Percentage(78), // This aligns the main screen perfectly with the bottom
-            Constraint::Percentage(22),
-        ])
-        .split(r);
-    // Now, `layout` contains the two Rects based on the constraints
-    layout[1]
+        .split(r)[1];
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage(20),
+                Constraint::Percentage(60),
+                Constraint::Percentage(20),
+            ]
+            .as_ref(),
+        )
+        .split(chunk)[area as usize]
 }
 
 // **********************************************************************************

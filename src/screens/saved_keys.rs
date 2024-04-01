@@ -1,5 +1,5 @@
 use super::render::handle_screen_defaults;
-use super::{centered_rect, small_alert_box, Screen};
+use super::{centered_rect, Screen, ScreenArea};
 use crate::app::App;
 use crate::display::menuopts::KEY_MENU_OPTIONS;
 use tui::prelude::{Constraint, Direction, Layout, Margin};
@@ -16,10 +16,10 @@ pub fn handle_saved_keys_screen(app: &mut App, frame: &mut Frame<'_>) {
                 .border_type(BorderType::Double)
                 .border_style(Style::default().fg(Color::Red)),
         );
-        frame.render_widget(paragraph, centered_rect(60, 70, frame.size()))
+        frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Center))
     } else {
         let paragraph = Paragraph::new("Press 'a' to add a new key").style(Style::default());
-        frame.render_widget(paragraph, small_alert_box(frame.size()));
+        frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Top));
     }
     // if we select a key, open options
     if let Some(cmd) = app.selected {

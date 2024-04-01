@@ -22,7 +22,7 @@ use tui::{
     Frame,
 };
 
-use super::{centered_rect, default_rect, small_rect, Screen};
+use super::{centered_rect, Screen, ScreenArea};
 
 /// Renders the user interface widgets.
 pub fn render(app: &mut App, frame: &mut Frame<'_>) {
@@ -42,9 +42,9 @@ pub fn render(app: &mut App, frame: &mut Frame<'_>) {
                         .add_modifier(tui::style::Modifier::BOLD),
                 )
                 .alignment(Alignment::Center);
-            frame.render_widget(logo, small_rect(frame.size()));
+            frame.render_widget(logo, centered_rect(frame.size(), ScreenArea::Bottom));
         }
-        let area = small_rect(frame.size());
+        let area = centered_rect(frame.size(), ScreenArea::Bottom);
         let opts = app.opts.clone();
         let display_opts = handle_display_options(&opts);
         frame.render_widget(
@@ -64,7 +64,7 @@ pub fn render(app: &mut App, frame: &mut Frame<'_>) {
         );
         // ******************************************************************************************************
     } else {
-        let area = small_rect(frame.size());
+        let area = centered_rect(frame.size(), ScreenArea::Bottom);
         let response = app.response.clone().unwrap();
         let paragraph = Paragraph::new(Text::from(response.as_str()))
             .block(
@@ -82,53 +82,13 @@ pub fn render(app: &mut App, frame: &mut Frame<'_>) {
 }
 
 pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
-    let mut items: Option<Vec<String>> = None;
-    match &app.current_screen {
-        Screen::SavedKeys => {
-            items = Some(
-                app.get_saved_keys()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<String>>(),
-            );
-        }
-        Screen::SavedCommands(coll_id) => {
-            items = Some(
-                app.get_saved_commands(*coll_id)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|x| format!("{:?}", x))
-                    .collect::<Vec<String>>(),
-            );
-        }
-        Screen::ViewSavedCollections => {
-            items = Some(
-                app.get_collections()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|x| x.name)
-                    .collect::<Vec<String>>(),
-            );
-        }
-        Screen::SavedCollections => {
-            items = Some(
-                app.get_collections()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|x| x.name)
-                    .collect::<Vec<String>>(),
-            );
-        }
-        _ => {}
-    }
+    let items = app.get_special_items();
     let menu_options = app.current_screen.get_list(items);
-    let area = centered_rect(70, 60, frame.size());
+    let area = centered_rect(frame.size(), ScreenArea::Center);
 
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
-    frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(menu_options, area, &mut state);
     let (paragraph, title) = match app.current_screen {
         Screen::Home => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
@@ -153,7 +113,18 @@ pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
 pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
     match screen {
         // HOME SCREEN *********************************************************
-        Screen::Home => home::handle_home_screen(app, frame),
+        Screen::Home => {
+            handle_screen_defaults(app, frame);
+            if let Some(num) = app.selected {
+                match num {
+                    0 => app.goto_screen(&Screen::Method),
+                    1 => app.goto_screen(&Screen::SavedCommands(None)),
+                    2 => app.goto_screen(&Screen::SavedCollections),
+                    3 => app.goto_screen(&Screen::SavedKeys),
+                    _ => {}
+                }
+            }
+        }
         // METHOD MENU SCREEN ***************************************************
         Screen::Method => method::handle_method_select_screen(app, frame),
         // INPUT SCREEN ****************************************************
@@ -161,7 +132,7 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
             input::input::handle_default_input_screen(app, frame, opt.clone());
         }
         Screen::ViewBody => {
-            let area = default_rect(frame.size());
+            let area = centered_rect(frame.size(), ScreenArea::Center);
             let response = app.response.clone().unwrap_or_default();
             let paragraph = Paragraph::new(Text::from(response.as_str()))
                 .style(app.config.get_style())
@@ -170,14 +141,7 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         }
         // REQUEST MENU *********************************************************
         Screen::RequestMenu(e) => {
-            handle_request_menu_screen(
-                app,
-                frame,
-                match is_prompt(&e) {
-                    true => e,
-                    false => String::new(),
-                },
-            );
+            handle_request_menu_screen(app, frame, e.as_ref());
         }
         // AUTHENTICATION SCREEN ************************************************
         Screen::Authentication => {
@@ -225,10 +189,6 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         }
         _ => {}
     }
-}
-
-fn is_prompt(e: &str) -> bool {
-    e.to_lowercase().contains("error") || e.to_lowercase().contains("alert")
 }
 
 fn handle_display_options(opts: &[AppOptions]) -> Vec<Line> {
