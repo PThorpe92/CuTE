@@ -32,7 +32,6 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
             AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
-        InputOpt::CreateCollection => Text::from("Enter a name for the new collection"),
         InputOpt::CookiePath => Text::from("Enter the path to the cookie jar file"),
         InputOpt::NewCookie => Text::from("Enter the name of the cookie"),
         InputOpt::CookieValue(ref name) => Text::from(format!("Enter the value for {}", name)),
@@ -314,17 +313,6 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             } else {
                 app.goto_screen(&Screen::Success);
             }
-        }
-        InputOpt::CreateCollection => {
-            if app.create_postman_collection(&message).is_ok() {
-                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
-                    "Successfully created collection".to_string(),
-                ))));
-                return;
-            }
-            app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
-                "Failed to create collection".to_string(),
-            ))));
         }
         InputOpt::KeyLabel(id) => match app.set_key_label(id, &message) {
             Ok(_) => app.goto_screen(&Screen::SavedKeys),

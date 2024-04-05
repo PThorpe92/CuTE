@@ -1,4 +1,4 @@
-use super::input::input::handle_default_input_screen;
+use super::input::input_screen::handle_default_input_screen;
 use super::render::handle_screen_defaults;
 use crate::app::App;
 use crate::display::inputopt::InputOpt;

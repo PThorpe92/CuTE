@@ -1,6 +1,6 @@
 [package]
 name = "CuTE-tui"                                                                   # crates.io/crates/CuTE is taken :(
-version = "0.1.1"
+version = "0.1.2"
 authors = ["PThorpe92 <preston@unlockedlabs.org>"]
 description = "A (ratatui) TUI for HTTP requests with request + API key management"
 license = "GPL-3.0"
