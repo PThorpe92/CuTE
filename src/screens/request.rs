@@ -24,8 +24,8 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, opt: Opt
         Some(0) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::URL))),
         // Add file to upload
         Some(1) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::UploadFile))),
-        // Add Unix Socket address
-        Some(2) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::UnixSocket))),
+        // Cookie options
+        Some(2) => app.goto_screen(&Screen::CookieOptions),
         // Auth
         Some(3) => app.goto_screen(&Screen::Authentication),
         // Headers
@@ -38,7 +38,7 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, opt: Opt
         Some(7) => app.add_app_option(AppOptions::SaveCommand),
         // Save your token or login
         Some(8) => {
-            if !app.has_auth() {
+            if !app.command.has_auth() {
                 app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
                     String::from(SAVE_AUTH_ERROR),
                 ))));
@@ -48,7 +48,7 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, opt: Opt
         }
         // Execute command
         Some(9) => {
-            if !app.has_url() && !app.has_unix_socket() {
+            if !app.command.get_url().is_empty() && !app.command.has_unix_socket() {
                 app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
                     String::from(VALID_COMMAND_ERROR),
                 ))));

@@ -124,8 +124,8 @@ impl<'a> App<'a> {
 
     pub fn goto_screen(&mut self, screen: &Screen) {
         self.input.reset();
-        self.screen_stack.push(screen.clone());
         self.current_screen = screen.clone();
+        self.screen_stack.push(screen.clone());
         self.cursor = 0;
         match screen {
             Screen::Method => {
@@ -178,7 +178,9 @@ impl<'a> App<'a> {
     pub fn go_back_screen(&mut self) {
         let last = self.screen_stack.pop().unwrap_or_default(); // current screen
         match self.screen_stack.last().cloned() {
-            Some(screen) if screen == last => self.go_back_screen(),
+            Some(screen) if std::mem::discriminant(&screen) == std::mem::discriminant(&last) => {
+                self.go_back_screen()
+            }
             Some(
                 Screen::InputMenu(_)
                 | Screen::CmdMenu(_)
@@ -187,13 +189,14 @@ impl<'a> App<'a> {
             ) => self.go_back_screen(),
             Some(Screen::RequestBodyInput) => self.goto_screen(&Screen::Method),
             Some(Screen::Error(_)) => self.goto_screen(&Screen::Home),
-            Some(Screen::RequestMenu(ref e)) => {
-                if !e.as_ref().is_some_and(|err| err.is_error()) {
-                    self.goto_screen(&Screen::RequestMenu(e.clone()));
+            Some(Screen::RequestMenu(e)) => {
+                if e.as_ref().is_some() {
+                    self.goto_screen(&Screen::RequestMenu(None));
                 } else {
                     self.goto_screen(&Screen::Method);
                 }
             }
+            Some(Screen::Method) => self.goto_screen(&Screen::Home),
             Some(screen) => {
                 self.goto_screen(&screen);
             }
@@ -296,10 +299,6 @@ impl<'a> App<'a> {
             ),
             _ => None,
         }
-    }
-
-    pub fn get_url(&self) -> &str {
-        self.command.get_url()
     }
 
     pub fn select_item(&mut self) {
@@ -410,18 +409,6 @@ impl<'a> App<'a> {
         Ok(())
     }
 
-    pub fn has_auth(&self) -> bool {
-        self.command.has_auth()
-    }
-
-    pub fn has_unix_socket(&self) -> bool {
-        self.command.has_unix_socket()
-    }
-
-    pub fn has_url(&self) -> bool {
-        !self.command.get_url().is_empty()
-    }
-
     pub fn delete_saved_key(&mut self, index: i32) -> Result<(), rusqlite::Error> {
         self.db.as_ref().delete_key(index)?;
         self.goto_screen(&Screen::SavedKeys);
@@ -474,7 +461,10 @@ impl<'a> App<'a> {
             AppOptions::UserAgent(_)       => self.command.set_user_agent(""),
             AppOptions::Referrer(_)        => self.command.set_referrer(""),
             AppOptions::RequestBody(_)     => self.command.set_request_body(""),
-            AppOptions::Cookie(_)          => self.command.remove_headers(&opt.get_value()),
+            AppOptions::CookieJar(_)       => self.command.set_cookie_jar(&opt.get_value()),
+            AppOptions::CookiePath(_)      => self.command.set_cookie_path(&opt.get_value()),
+            AppOptions::NewCookie(_)       => self.command.add_cookie(&opt.get_value()),
+            AppOptions::NewCookieSession   => self.command.reset_cookie_session(),
             AppOptions::Headers(_)         => self.command.remove_headers(&opt.get_value()),
             AppOptions::Auth(_)            => self.command.set_auth(crate::request::curl::AuthKind::None),
             AppOptions::EnableHeaders      => self.command.enable_response_headers(false),
@@ -500,6 +490,7 @@ impl<'a> App<'a> {
         match opt {
             // push headers, reset everything else
             AppOptions::Headers(_) => true,
+            AppOptions::NewCookie(_) => true,
             _ => !self.has_app_option(opt),
         }
     }
@@ -591,9 +582,13 @@ impl<'a> App<'a> {
 
                 AppOptions::Outfile(outfile) => self.command.set_outfile(&outfile),
 
-                AppOptions::Cookie(cookie) => self.command.add_cookie(&cookie),
+                AppOptions::NewCookie(cookie) => self.command.add_cookie(&cookie),
+
+                AppOptions::CookieJar(cookie) => self.command.set_cookie_jar(&cookie),
 
                 AppOptions::Response(resp) => self.command.set_response(&resp),
+
+                AppOptions::CookiePath(cookie) => self.command.set_cookie_path(&cookie),
 
                 AppOptions::Referrer(referrer) => self.command.set_referrer(&referrer),
 
@@ -648,10 +643,16 @@ impl<'a> App<'a> {
                         self.command.set_referrer(referrer);
                     }
                 }
-                AppOptions::Cookie(_) => {
-                    if let AppOptions::Cookie(ref mut cookie) = opt {
+                AppOptions::CookiePath(_) => {
+                    if let AppOptions::CookiePath(ref mut cookie) = opt {
                         option.replace_value(cookie.clone());
                         self.command.add_cookie(cookie);
+                    }
+                }
+                AppOptions::CookieJar(_) => {
+                    if let AppOptions::CookieJar(ref mut cookie) = opt {
+                        option.replace_value(cookie.clone());
+                        self.command.set_cookie_jar(cookie);
                     }
                 }
                 AppOptions::CaPath(_) => {

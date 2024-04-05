@@ -88,7 +88,8 @@ pub const DISPLAY_OPT_TCP_KEEPALIVE: &str = "  Enable TCP keepalive 󰗶 ";
 pub const DISPLAY_OPT_MAX_REC: &str = "  Specify recursive depth: ";
 pub const DISPLAY_OPT_OUTFILE: &str = "  Specify output filepath: ";
 pub const DISPLAY_OPT_REFERRER: &str = "  Specify Referrer: ";
-pub const DISPLAY_OPT_COOKIE: &str = "  Add Cookie: ";
+pub const DISPLAY_OPT_COOKIE: &str = "  Cookie Path: ";
+pub const DISPLAY_OPT_COOKIE_JAR: &str = "  Cookie Jar: ";
 pub const DISPLAY_OPT_USERAGENT: &str = "  Specify User-Agent: ";
 pub const DISPLAY_OPT_PROXY_TUNNEL: &str = "  Enable HTTP Proxy-Tunnel 󱠾 ";
 pub const DISPLAY_OPT_URL: &str = "  Request URL: ";
@@ -141,7 +142,7 @@ pub const COLLECTION_ALERT_MENU_OPTS: [&str; 4] = [
 pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Add a URL 󰖟 ",
     "Add a file for uploads  ",
-    "Add Unix Socket address 󰟩 ",
+    "Cookie options 󰖟  ",
     "Authentication 󰯄 ",
     "Header Options  ",
     "Enable verbose output [-v]",
@@ -152,6 +153,14 @@ pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "More Options  ",
     "Clear all options  ",
 ];
+
+pub const COOKIE_MENU_OPTIONS: [&str; 4] = [
+    "Set Cookie file path (Use Cookies) 󰖟  ",
+    "Set Cookie-Jar path (Storage) 󰖟  ",
+    "Add New Cookie  󰆘 ",
+    "Reset Cookie Session 󰆘 ",
+];
+
 pub const METHOD_MENU_OPTIONS: [&str; 7] = [
     "OTHER (custom command)",
     "GET",
@@ -176,10 +185,11 @@ pub const AUTHENTICATION_MENU_OPTIONS: [&str; 6] = [
     "Ntlm",
     "SPNEGO",
 ];
-pub const MORE_FLAGS_MENU: [&str; 13] = [
+pub const MORE_FLAGS_MENU: [&str; 14] = [
     "Follow Redirects 󱀀 ",
     "Specify Max redirects 󱀀 ",
-    "Add Cookie  󰆘 ",
+    "Add New Cookie  󰆘 ",
+    "Set Cookie-Jar path (Storage) 󰆘 ",
     "Enable HTTP Proxy-Tunnel  󱠾 ",
     "Unrestricted Auth  ",
     "Specify Referrer  󰆽 ",

@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::{
-    display::menuopts::{DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER},
+    display::menuopts::{DISPLAY_OPT_COOKIE_JAR, DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER},
     request::curl::AuthKind,
 };
 
@@ -46,7 +46,6 @@ pub mod menuopts;
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppOptions {
     Verbose,
-    // TODO: support more headers
     Headers(String),
     URL(String),
     Outfile(String),
@@ -56,7 +55,8 @@ pub enum AppOptions {
     SaveToken,
     UnixSocket(String),
     FollowRedirects,
-    Cookie(String),
+    CookieJar(String),
+    CookiePath(String),
     EnableHeaders,
     ContentHeaders(HeaderKind),
     ProgressBar,
@@ -71,7 +71,9 @@ pub enum AppOptions {
     UnrestrictedAuth,
     MaxRedirects(usize),
     UploadFile(String),
+    NewCookie(String),
     RequestBody(String),
+    NewCookieSession,
 }
 
 impl AppOptions {
@@ -97,7 +99,10 @@ impl AppOptions {
             AppOptions::UnixSocket(ref mut socket) => {
                 *socket = val;
             }
-            AppOptions::Cookie(ref mut cookie) => {
+            AppOptions::CookiePath(ref mut cookie) => {
+                *cookie = val;
+            }
+            AppOptions::CookieJar(ref mut cookie) => {
                 *cookie = val;
             }
             AppOptions::Referrer(ref mut referrer) => {
@@ -135,6 +140,7 @@ impl AppOptions {
             AppOptions::UnixSocket(socket) => {
                 format!("{}{}", DISPLAY_OPT_UNIX_SOCKET, socket.clone())
             }
+            AppOptions::NewCookie(cookie) => format!("{}{}", DISPLAY_OPT_COOKIE, cookie.clone()),
             AppOptions::EnableHeaders => DISPLAY_OPT_HEADERS.to_string(),
             AppOptions::ProgressBar => String::from(DISPLAY_OPT_PROGRESS_BAR),
             AppOptions::FailOnError => String::from(DISPLAY_OPT_FAIL_ON_ERROR),
@@ -143,7 +149,11 @@ impl AppOptions {
             AppOptions::MaxRedirects(max_redirects) => {
                 format!("{}{}", DISPLAY_OPT_MAX_REDIRECTS, max_redirects)
             }
-            AppOptions::Cookie(cookie) => format!("{}{}", DISPLAY_OPT_COOKIE, cookie.clone()),
+            AppOptions::NewCookieSession => String::from("New Cookie Session"),
+            AppOptions::CookiePath(cookie) => format!("{}{}", DISPLAY_OPT_COOKIE, cookie.clone()),
+            AppOptions::CookieJar(cookie) => {
+                format!("{}{}", DISPLAY_OPT_COOKIE_JAR, cookie.clone())
+            }
             AppOptions::Referrer(referrer) => {
                 format!("{}{}", DISPLAY_OPT_REFERRER, referrer.clone())
             }

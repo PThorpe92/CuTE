@@ -175,6 +175,9 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         Screen::CmdMenu(cmd) => {
             saved_commands::handle_alert_menu(app, frame, cmd);
         }
+        Screen::CookieOptions => {
+            cookies::handle_cookies_menu(app, frame);
+        }
         Screen::RequestBodyInput => input::request_body_input::handle_req_body_input_screen(
             app,
             frame,

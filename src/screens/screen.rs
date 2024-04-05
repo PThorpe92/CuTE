@@ -1,9 +1,9 @@
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     AUTHENTICATION_MENU_OPTIONS, CMD_MENU_OPTIONS, COLLECTION_ALERT_MENU_OPTS,
-    COLLECTION_MENU_OPTIONS, HEADER_MENU_OPTIONS, KEY_MENU_OPTIONS, MAIN_MENU_OPTIONS,
-    METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE, OPTION_PADDING_MAX, OPTION_PADDING_MID,
-    OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
+    COLLECTION_MENU_OPTIONS, COOKIE_MENU_OPTIONS, HEADER_MENU_OPTIONS, KEY_MENU_OPTIONS,
+    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE, OPTION_PADDING_MAX,
+    OPTION_PADDING_MID, OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
 };
 use std::fmt::{Display, Formatter};
 use tui::style::{Color, Modifier, Style};
@@ -33,6 +33,7 @@ pub enum Screen {
     CmdMenu(i32),
     KeysMenu(usize),
     RequestBodyInput,
+    CookieOptions,
 }
 
 impl Display for Screen {
@@ -58,6 +59,7 @@ impl Display for Screen {
             Screen::SavedCollections => "Saved Collections",
             Screen::ViewSavedCollections => "View Saved Collections",
             Screen::ColMenu(_) => "Collection Menu",
+            Screen::CookieOptions => "Cookie Options",
         };
         write!(f, "{}", screen)
     }
@@ -184,9 +186,15 @@ impl<'a> Screen {
                 .iter()
                 .map(|c| ListItem::new(format!("{}{}", c, OPTION_PADDING_MIN)))
                 .collect(),
+
             Screen::SavedCollections => COLLECTION_MENU_OPTIONS
                 .iter()
                 .map(|i| ListItem::new(format!("{}{}", i, OPTION_PADDING_MAX)))
+                .collect(),
+
+            Screen::CookieOptions => COOKIE_MENU_OPTIONS
+                .iter()
+                .map(|c| ListItem::from(format!("{}{}", c, OPTION_PADDING_MID)))
                 .collect(),
         }
     }

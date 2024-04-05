@@ -102,9 +102,7 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     // we have input (the user has typed something and pressed Enter while in insert mode)
     if !app.messages.is_empty() {
         app.add_app_option(AppOptions::RequestBody(app.messages[0].clone()));
-        app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
-            String::new(),
-        ))));
+        app.goto_screen(&Screen::RequestMenu(None));
         app.messages.clear();
     }
 }

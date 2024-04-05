@@ -4,6 +4,7 @@ use ::tui::style::Style;
 use ::tui::widgets::{Block, Borders, Paragraph, Wrap};
 pub mod screen;
 // Method Select Screens
+pub mod cookies;
 pub mod method;
 // Request Select Screens
 pub mod request;

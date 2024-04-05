@@ -10,7 +10,7 @@ use crate::screens::{centered_rect, Screen};
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use std::path::Path;
 use tui::prelude::Line;
-use tui::style::Color;
+use tui::style::{Color, Modifier};
 use tui::widgets::Paragraph;
 use tui::widgets::{Block, Borders};
 use tui::{
@@ -32,6 +32,12 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
             AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
+        InputOpt::CookiePath => Text::from("Enter the path to the cookie jar file"),
+        InputOpt::NewCookie => Text::from("Enter the name of the cookie"),
+        InputOpt::CookieValue(ref name) => Text::from(format!("Enter the value for {}", name)),
+        InputOpt::CookieExpires(_) => {
+            Text::from("Enter the (optional) expiration date for the cookie")
+        }
         InputOpt::ImportCollection => Text::from("Enter the path to the collection file.json"),
         _ => Text::from(INPUT_OPT_BASIC),
     }
@@ -43,18 +49,23 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
         .constraints(vec![Constraint::Percentage(15), Constraint::Percentage(85)])
         .split(frame.size());
     let input_textbox = chunks[0];
-    let text_chunk = Block::default()
-        .borders(Borders::ALL)
-        .style(
-            Style::default()
-                .bg(app.config.get_bg_color())
-                .fg(Color::LightGreen),
-        )
-        .title("Press 'i' for insert mode, Esc to exit.");
+    let text_chunk = Block::default().borders(Borders::ALL).style(
+        Style::default()
+            .bg(app.config.get_bg_color())
+            .fg(Color::LightGreen)
+            .add_modifier(tui::style::Modifier::BOLD),
+    );
     frame.render_widget(text_chunk, input_textbox);
     let bottom_box = centered_rect(chunks[1], crate::screens::ScreenArea::Top);
     let prompt = get_input_prompt(opt.clone());
-    frame.render_widget(Paragraph::new(prompt), bottom_box);
+    frame.render_widget(
+        Paragraph::new(prompt).style(
+            Style::default()
+                .fg(Color::LightGreen)
+                .add_modifier(Modifier::BOLD),
+        ),
+        centered_rect(bottom_box, crate::screens::ScreenArea::Top),
+    );
     let top_box = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
@@ -67,25 +78,19 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             // if the url has been entered already we populate the input box with it
             // we need to prevent this from happening multiple times, without clearing the url
             if !url.is_empty() && app.input.cursor() == 0 {
+                let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                 for ch in url.chars() {
                     let _ = app.input.handle(InputRequest::InsertChar(ch)).is_some();
                 }
                 url.clear();
-            } else if app.input.value().is_empty() && app.input.cursor() == 0 {
-                for ch in "https://".chars() {
-                    let _ = app.input.handle(InputRequest::InsertChar(ch)).is_some();
-                }
             }
         }
         InputOpt::Auth(kind) => {
             if kind == AuthType::Basic || kind == AuthType::Bearer {
                 let auth = app.command.get_token();
                 if auth.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
+                    let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                     for ch in auth.unwrap().chars() {
-                        if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
-                    }
-                } else if app.input.value().is_empty() && app.input.cursor() == 0 {
-                    for ch in "Bearer ".chars() {
                         if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
                     }
                 }
@@ -94,8 +99,44 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
         InputOpt::UploadFile => {
             let file = app.command.get_upload_file();
             if file.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
+                let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                 for ch in file.unwrap().chars() {
                     if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                }
+            }
+        }
+        InputOpt::UnixSocket => {
+            if !app.command.get_url().is_empty() {
+                // would only need a unix socket if we don't have a url
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from("Error: You have already entered a URL"),
+                ))));
+            }
+            let socket = app.command.get_unix_socket();
+            if socket.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
+                let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
+                for ch in socket.unwrap().chars() {
+                    if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                }
+            }
+        }
+        InputOpt::CookiePath => {
+            if let Some(cookie) = app.command.get_cookie_path() {
+                if app.input.value().is_empty() && app.input.cursor() == 0 {
+                    let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
+                    for ch in cookie.chars() {
+                        if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                    }
+                }
+            }
+        }
+        InputOpt::CookieJar => {
+            if let Some(cookie) = app.command.get_cookie_jar_path() {
+                if app.input.value().is_empty() && app.input.cursor() == 0 {
+                    let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
+                    for ch in cookie.chars() {
+                        if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                    }
                 }
             }
         }
@@ -107,6 +148,22 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             InputMode::Editing => Style::default().fg(Color::White),
         })
         .block(Block::default().borders(Borders::ALL).title("Input"));
+    let (msg, style) = match app.input_mode {
+        InputMode::Normal => (
+            Line::from("Press 'i' to start editing"),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(tui::style::Modifier::BOLD),
+        ),
+        InputMode::Editing => (
+            Line::from("Press Enter to submit"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(tui::style::Modifier::BOLD),
+        ),
+    };
+    let msg = Paragraph::new(msg).style(style);
+    frame.render_widget(msg, top_box[0]);
     frame.render_widget(input, top_box[1]);
     match app.input_mode {
         InputMode::Normal => {}
@@ -177,12 +234,28 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             }
         }
         InputOpt::Output => {
-            app.add_app_option(AppOptions::Outfile(message.clone()));
+            app.add_app_option(AppOptions::Outfile(message));
             app.goto_screen(&Screen::RequestMenu(None));
         }
-        InputOpt::Cookie => {
-            app.add_app_option(AppOptions::Cookie(message.clone()));
+        InputOpt::CookiePath => {
+            app.add_app_option(AppOptions::CookiePath(message));
             app.goto_screen(&Screen::RequestMenu(None));
+        }
+        InputOpt::CookieJar => {
+            app.add_app_option(AppOptions::CookieJar(message));
+            app.goto_screen(&Screen::RequestMenu(None));
+        }
+        InputOpt::NewCookie => {
+            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieValue(message))));
+        }
+        InputOpt::CookieValue(ref name) => {
+            let cookie = format!("{}={};", name, message);
+            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieExpires(cookie))));
+        }
+        InputOpt::CookieExpires(ref cookie) => {
+            let cookie = format!("{} {}", cookie, message);
+            app.add_app_option(AppOptions::NewCookie(cookie));
+            app.goto_screen(&Screen::RequestMenu(None))
         }
         InputOpt::Referrer => {
             app.add_app_option(AppOptions::Referrer(message.clone()));
@@ -294,7 +367,7 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     });
-    if app.has_auth() {
+    if app.command.has_auth() {
         app.opts.retain(|x| !matches!(x, AppOptions::Auth(_)));
     }
     app.opts.push(AppOptions::Auth(match auth {

@@ -284,7 +284,7 @@ impl Display for AuthKind {
             AuthKind::None            => write!(f, "None"),
             AuthKind::Ntlm            => write!(f, "NTLM"),
             AuthKind::Basic(login)    => write!(f, "Basic: {}", login),
-            AuthKind::Bearer(token)   => write!(f, "Authorization: {}", token),
+            AuthKind::Bearer(token)   => write!(f, "Authorization: Bearer {}", token),
             AuthKind::Digest(login)   => write!(f, "Digest Auth: {}", login),
             AuthKind::AwsSigv4        => write!(f, "AWS SignatureV4"),
             AuthKind::Spnego          => write!(f, "SPNEGO Auth"),
@@ -375,6 +375,31 @@ impl<'a> Curl<'a> {
 
     pub fn set_response(&mut self, response: &str) {
         self.resp = Some(String::from(response));
+    }
+
+    pub fn get_cookie_path(&self) -> Option<String> {
+        let flag = &CurlFlag::CookieFile(CurlFlagType::CookieFile.get_value(), None);
+        self.opts
+            .iter()
+            .find(|pos| *pos == flag)
+            .and_then(|pos| pos.get_arg())
+    }
+
+    pub fn set_cookie_path(&mut self, path: &str) {
+        let flag = CurlFlag::CookieFile(CurlFlagType::CookieFile.get_value(), None);
+        self.toggle_flag(&flag);
+        self.curl.cookie_file(path).unwrap();
+    }
+
+    pub fn set_cookie_jar(&mut self, path: &str) {
+        let flag = CurlFlag::CookieJar(CurlFlagType::CookieJar.get_value(), None);
+        self.toggle_flag(&flag);
+        self.curl.cookie_jar(path).unwrap();
+    }
+    pub fn reset_cookie_session(&mut self) {
+        let flag = CurlFlag::CookieSession(CurlFlagType::CookieSession.get_value(), None);
+        self.toggle_flag(&flag);
+        self.curl.cookie_session(true).unwrap();
     }
 
     pub fn get_response(&self) -> String {
@@ -484,6 +509,19 @@ impl<'a> Curl<'a> {
         let flag = &CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
         self.has_flag(flag)
     }
+
+    pub fn get_unix_socket(&self) -> Option<String> {
+        if self.has_unix_socket() {
+            let flag = &CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
+            self.opts
+                .iter()
+                .find(|pos| *pos == flag)
+                .and_then(|pos| pos.get_arg())
+        } else {
+            None
+        }
+    }
+
     pub fn set_method(&mut self, method: Method) {
         match method {
             Method::Get => self.set_get_method(),
@@ -536,6 +574,14 @@ impl<'a> Curl<'a> {
         let flag = CurlFlag::Progress(CurlFlagType::Progress.get_value(), None);
         self.toggle_flag(&flag);
         self.curl.progress(on).unwrap();
+    }
+
+    pub fn get_cookie_jar_path(&self) -> Option<String> {
+        let flag = &CurlFlag::CookieJar(CurlFlagType::CookieJar.get_value(), None);
+        self.opts
+            .iter()
+            .find(|pos| *pos == flag)
+            .and_then(|pos| pos.get_arg())
     }
 
     pub fn set_content_header(&mut self, kind: HeaderKind) {
@@ -902,7 +948,7 @@ impl<'a> Curl<'a> {
     pub fn set_bearer_auth(&mut self, token: &str) {
         self.add_flag(CurlFlag::Bearer(
             CurlFlagType::Bearer.get_value(),
-            Some(format!("Authorization: {token}")),
+            Some(format!("Authorization: Bearer {token}")),
         ));
         self.auth = AuthKind::Bearer(String::from(token));
     }
@@ -1026,6 +1072,7 @@ define_curl_flags! {
     CertInfo("--certinfo"),
     Headers("-H"),
     Digest("--digest"),
+    CookieSession("--junk-session-cookies"),
     Basic("-H"),
     AnyAuth("--any-auth"),
     UnixSocket("--unix-socket"),
@@ -1049,6 +1096,8 @@ define_curl_flags! {
     SpnegoAuth("--negotiate -u:"),
     Progress("--progress-bar"),
     RequestBody("--data"),
+    CookieFile("-c"),
+    CookieJar("-b"),
 }
 
 #[cfg(test)]

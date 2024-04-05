@@ -16,7 +16,6 @@ pub fn handle_response_screen(app: &mut App, frame: &mut Frame<'_>, resp: String
     app.items = app.current_screen.get_opts(None);
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
-    frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(new_list, area, &mut state);
     if let Some(num) = app.selected {
         match num {

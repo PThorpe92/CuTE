@@ -18,7 +18,11 @@ pub enum InputOpt {
     UnixSocket,
     UserAgent,
     MaxRedirects,
-    Cookie,
+    CookiePath,
+    NewCookie,
+    CookieJar,
+    CookieValue(String),   // store the name
+    CookieExpires(String), // store the rest
     FtpAccount,
     CaPath,
     CaCert,
@@ -52,7 +56,10 @@ impl Display for InputOpt {
             InputOpt::UnixSocket => write!(f, "| Unix Socket"),
             InputOpt::UserAgent => write!(f, "| User Agent"),
             InputOpt::MaxRedirects => write!(f, "| Max Redirects"),
-            InputOpt::Cookie => write!(f, "| Cookie"),
+            InputOpt::NewCookie => write!(f, "| Cookie"),
+            InputOpt::CookiePath => write!(f, "| Cookie"),
+            InputOpt::CookieValue(_) => write!(f, "| Cookie Val"),
+            InputOpt::CookieExpires(_) => write!(f, "| Cookie Expires"),
             InputOpt::CaPath => write!(f, "| Ca Path"),
             InputOpt::CaCert => write!(f, "| Ca Cert"),
             InputOpt::VerifyPeer => write!(f, "| Verify Peer DNS-Over-HTTPS"),
@@ -63,6 +70,7 @@ impl Display for InputOpt {
             InputOpt::RenameCollection(_) => write!(f, "| Rename Collection"),
             InputOpt::RequestError(ref err) => write!(f, "| Error: {}", err),
             InputOpt::Method(method) => write!(f, "| Method: {}", method),
+            InputOpt::CookieJar => write!(f, "| Cookie Jar"),
         }
     }
 }
