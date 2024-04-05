@@ -12,7 +12,7 @@ use tui::{
     Frame,
 };
 
-use super::input::render_input_with_prompt;
+use super::input_screen::render_input_with_prompt;
 
 pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: InputOpt) {
     let chunks = Layout::default()

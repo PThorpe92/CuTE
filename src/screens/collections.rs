@@ -6,8 +6,8 @@ use crate::display::menuopts::{
 };
 use crate::screens::render::handle_screen_defaults;
 use crate::screens::{
-    centered_rect, input::input::handle_default_input_screen, render::render_header_paragraph,
-    ScreenArea,
+    centered_rect, input::input_screen::handle_default_input_screen,
+    render::render_header_paragraph, ScreenArea,
 };
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
@@ -28,12 +28,10 @@ pub fn handle_collection_menu(app: &mut App, frame: &mut Frame<'_>, opt: Option<
     match app.selected {
         // Import New Collection
         Some(0) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::ImportCollection))),
-        // Create New Collection
-        Some(1) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::CreateCollection))),
         // View Saved Collections
-        Some(2) => app.goto_screen(&Screen::ViewSavedCollections),
+        Some(1) => app.goto_screen(&Screen::ViewSavedCollections),
         // Cancel
-        Some(3) => {
+        Some(2) => {
             app.goto_screen(&Screen::Home);
         }
         _ => {}
@@ -85,7 +83,7 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
     let alert_text_chunk = Block::default()
         .borders(Borders::ALL)
         .style(Style::default().bg(Color::Black).fg(Color::LightGreen))
-        .title("Alert");
+        .title("Collection Menu");
     let options_box = layout[1].inner(&Margin {
         vertical: 1,
         horizontal: 1,
@@ -110,13 +108,22 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
     let selected = app.get_collection_by_id(cmd).unwrap_or_default();
-    let paragraph = Paragraph::new(format!("{:?}", selected.get_name()))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Request Collection"),
-        )
-        .alignment(tui::layout::Alignment::Center);
+    let count = app
+        .db
+        .get_number_of_commands_in_collection(cmd)
+        .unwrap_or_default();
+    let paragraph = Paragraph::new(format!(
+        "{:?}\nContains: {} {}",
+        selected.get_name(),
+        count,
+        if count == 1 { "request" } else { "requests" }
+    ))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Request Collection"),
+    )
+    .alignment(tui::layout::Alignment::Center);
     frame.render_widget(paragraph, cmd_str);
     frame.render_widget(alert_text_chunk, alert_box);
     frame.render_stateful_widget(list, options_box, &mut list_state);

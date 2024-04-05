@@ -119,9 +119,8 @@ pub const KEY_MENU_OPTIONS: [&str; 4] = [
     "Copy to Clipboard  󰅎 ",
     "Cancel   ",
 ];
-pub const COLLECTION_MENU_OPTIONS: [&str; 4] = [
+pub const COLLECTION_MENU_OPTIONS: [&str; 3] = [
     "Import New Postman Collection 󰖟 ",
-    "Create New Collection 󰖟 ",
     "View Collections 󱂛 ",
     "Cancel   ",
 ];

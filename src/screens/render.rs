@@ -129,7 +129,7 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         Screen::Method => method::handle_method_select_screen(app, frame),
         // INPUT SCREEN ****************************************************
         Screen::InputMenu(opt) => {
-            input::input::handle_default_input_screen(app, frame, opt.clone());
+            input::input_screen::handle_default_input_screen(app, frame, opt.clone());
         }
         Screen::ViewBody => {
             let area = centered_rect(frame.size(), ScreenArea::Center);
