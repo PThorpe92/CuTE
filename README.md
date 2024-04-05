@@ -43,7 +43,7 @@ This tool is for when you don't need something as complex as Postman, but you al
 
 - **Prerequisites**: Make sure you have Rust and Cargo installed on your system.
 
- 1. `cargo install cute_tui`
+ 1. `cargo install CuTE-tui`
 
  2. make sure that your `~/.cargo/bin` directory is in your PATH
 
