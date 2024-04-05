@@ -1,5 +1,5 @@
 use super::render::handle_screen_defaults;
-use super::{centered_rect, small_alert_box, Screen};
+use super::{centered_rect, Screen, ScreenArea};
 use crate::app::App;
 use crate::display::menuopts::KEY_MENU_OPTIONS;
 use tui::prelude::{Constraint, Direction, Layout, Margin};
@@ -16,14 +16,14 @@ pub fn handle_saved_keys_screen(app: &mut App, frame: &mut Frame<'_>) {
                 .border_type(BorderType::Double)
                 .border_style(Style::default().fg(Color::Red)),
         );
-        frame.render_widget(paragraph, centered_rect(60, 70, frame.size()))
+        frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Center))
     } else {
         let paragraph = Paragraph::new("Press 'a' to add a new key").style(Style::default());
-        frame.render_widget(paragraph, small_alert_box(frame.size()));
+        frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Top));
     }
     // if we select a key, open options
     if let Some(cmd) = app.selected {
-        app.goto_screen(Screen::KeysMenu(cmd));
+        app.goto_screen(&Screen::KeysMenu(cmd));
     }
 }
 
@@ -80,26 +80,26 @@ pub fn handle_key_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
     match app.selected {
         // Add/Edit Label
         Some(0) => {
-            app.goto_screen(Screen::InputMenu(
+            app.goto_screen(&Screen::InputMenu(
                 crate::display::inputopt::InputOpt::KeyLabel(selected.get_id()),
             ));
         }
         // delete item
         Some(1) => {
             if let Err(e) = app.delete_item(selected.get_id()) {
-                app.goto_screen(Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::Error(e.to_string()));
             }
         }
         // copy to clipboard
         Some(2) => {
             if let Err(e) = app.copy_to_clipboard(selected.get_key()) {
-                app.goto_screen(Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::Error(e.to_string()));
             }
-            app.goto_screen(Screen::Success);
+            app.goto_screen(&Screen::Success);
         }
         // cancel
         Some(3) => {
-            app.goto_screen(Screen::SavedKeys);
+            app.goto_screen(&Screen::SavedKeys);
         }
         _ => {}
     }

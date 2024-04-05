@@ -6,12 +6,11 @@ pub const SAVED_COMMANDS_PARAGRAPH: &str =
 pub const CURL: &str = "curl";
 pub const WGET: &str = "wget";
 pub const CUSTOM: &str = "custom";
-pub const DOWNLOAD: &str = "Download";
 pub const API_KEY_PARAGRAPH: &str =
     "Press q to quit\nPress 'ESC' or 'h' to go back\nPress Enter for Menu\n";
 pub const HTTP_REQUEST: &str = "HTTP Request";
 pub const DEFAULT_MENU_PARAGRAPH: &str =
-    "\nPress q to exit. 'h' to go back \n Press Enter to select \n Please select a Menu item\n keybindings to navigate";
+    "\nPress q to exit. 'h' to go back \n Press Enter to select\n keybindings to navigate";
 pub const AWS_AUTH_MSG: &str =
     "Alert: AWS Signature V4 Authentication is using the following ENV VARs:
     \nAWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION";
@@ -25,14 +24,13 @@ pub const DEFAULT_MENU_TITLE: &str = "** CuTE **";
 pub const AUTH_MENU_TITLE: &str = "** CuTE ** Authentication Menu 󰌋";
 pub const VIEW_BODY_TITLE: &str = "** CuTE ** View Response Body";
 pub const INPUT_MENU_TITLE: &str = "** Press i to enter Insert mode **";
-pub const DOWNLOAD_MENU_TITLE: &str = "* CuTE ** Downloads *";
 pub const ERROR_MENU_TITLE: &str = "* CuTE ** Error! *";
 pub const SUCCESS_MENU_TITLE: &str = "* CuTE ** Success! *";
+pub const POSTMAN_COLLECTION_TITLE: &str = "* CuTE ** Postman Collections";
 pub const SUCCESS_MESSAGE: &str = "Request saved successfully";
 pub const INPUT_OPT_URL: &str = "Enter a URL for your {}\n and press Enter";
 pub const INPUT_OPT_HEADERS: &str =
     "MUST be \"Key:Value\" pair and press Enter \n Example: Content-Type: application/json";
-pub const INPUT_OPT_REC_DOWNLOAD: &str = "Enter the recursion level and press Enter \n Example: 2";
 pub const INPUT_OPT_AUTH_BASIC: &str = "Enter username:password and press Enter";
 pub const INPUT_OPT_AUTH_ANY: &str = "Enter your username and press Enter";
 pub const INPUT_OPT_AUTH_BEARER: &str = "Enter your API token and press Enter";
@@ -90,7 +88,8 @@ pub const DISPLAY_OPT_TCP_KEEPALIVE: &str = "  Enable TCP keepalive 󰗶 ";
 pub const DISPLAY_OPT_MAX_REC: &str = "  Specify recursive depth: ";
 pub const DISPLAY_OPT_OUTFILE: &str = "  Specify output filepath: ";
 pub const DISPLAY_OPT_REFERRER: &str = "  Specify Referrer: ";
-pub const DISPLAY_OPT_COOKIE: &str = "  Add Cookie: ";
+pub const DISPLAY_OPT_COOKIE: &str = "  Cookie Path: ";
+pub const DISPLAY_OPT_COOKIE_JAR: &str = "  Cookie Jar: ";
 pub const DISPLAY_OPT_USERAGENT: &str = "  Specify User-Agent: ";
 pub const DISPLAY_OPT_PROXY_TUNNEL: &str = "  Enable HTTP Proxy-Tunnel 󱠾 ";
 pub const DISPLAY_OPT_URL: &str = "  Request URL: ";
@@ -120,17 +119,30 @@ pub const KEY_MENU_OPTIONS: [&str; 4] = [
     "Copy to Clipboard  󰅎 ",
     "Cancel   ",
 ];
-pub const ALERT_MENU_OPTIONS_KEY: [&str; 3] = ["Delete", "Copy to Clipboard", "Cancel"];
+pub const COLLECTION_MENU_OPTIONS: [&str; 4] = [
+    "Import New Postman Collection 󰖟 ",
+    "Create New Collection 󰖟 ",
+    "View Collections 󱂛 ",
+    "Cancel   ",
+];
+pub const ALERT_MENU_OPTIONS_KEY: [&str; 3] =
+    ["Delete", "Copy Curl command to Clipboard", "Cancel"];
 pub const MAIN_MENU_OPTIONS: [&str; 4] = [
     "Build and send an HTTP request 󰖟 ",
-    "Download a remote file or directory 󰧩 ",
-    "View Saved API keys 󱂛  ",
     "View saved requests  ",
+    "View or Import Postman Collections",
+    "View Saved API keys 󱂛  ",
+];
+pub const COLLECTION_ALERT_MENU_OPTS: [&str; 4] = [
+    "View Requests in this collection",
+    "Rename this collection",
+    "Delete this collection",
+    "Cancel",
 ];
 pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Add a URL 󰖟 ",
     "Add a file for uploads  ",
-    "Add Unix Socket address 󰟩 ",
+    "Cookie options 󰆘 ",
     "Authentication 󰯄 ",
     "Header Options  ",
     "Enable verbose output [-v]",
@@ -141,12 +153,15 @@ pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "More Options  ",
     "Clear all options  ",
 ];
-pub const DOWNLOAD_MENU_OPTIONS: [&str; 4] = [
-    "Specify recursive depth 󰆙 ",
-    "Add a URL 󰖟  ",
-    "Specify output filepath  ",
-    "Begin Download  ",
+
+pub const COOKIE_MENU_OPTIONS: [&str; 5] = [
+    "Set Cookie file path (Use Cookies) 󰆘 ",
+    "Set Cookie-Jar path (Storage) 󰆘 ",
+    "Add New Cookie  󰆘 ",
+    "Reset Cookie Session 󰆘 ",
+    "Go back  ",
 ];
+
 pub const METHOD_MENU_OPTIONS: [&str; 7] = [
     "OTHER (custom command)",
     "GET",
@@ -165,16 +180,15 @@ pub const HEADER_MENU_OPTIONS: [&str; 5] = [
 ];
 pub const AUTHENTICATION_MENU_OPTIONS: [&str; 6] = [
     "Basic",
-    "Bearer",
+    "Bearer Token",
     "Digest",
     "AWS SignatureV4",
     "Ntlm",
     "SPNEGO",
 ];
-pub const MORE_FLAGS_MENU: [&str; 13] = [
+pub const MORE_FLAGS_MENU: [&str; 12] = [
     "Follow Redirects 󱀀 ",
     "Specify Max redirects 󱀀 ",
-    "Add Cookie  󰆘 ",
     "Enable HTTP Proxy-Tunnel  󱠾 ",
     "Unrestricted Auth  ",
     "Specify Referrer  󰆽 ",

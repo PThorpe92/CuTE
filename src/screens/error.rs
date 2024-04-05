@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::screens::{default_rect, small_alert_box};
+use crate::screens::{centered_rect, ScreenArea};
 use tui::layout::{Constraint, Layout};
 use tui::prelude::Direction;
 use tui::style::{Color, Style};
@@ -52,7 +52,7 @@ fn err_box(frame: &mut Frame<'_>, error_msg: String) {
 }
 
 pub fn handle_error_screen(app: &mut App, frame: &mut Frame<'_>, error_msg: String) {
-    let area = default_rect(small_alert_box(frame.size()));
+    let area = centered_rect(frame.size(), ScreenArea::Top);
     let new_list = app.current_screen.get_list(None);
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     if !app.items.is_empty() {

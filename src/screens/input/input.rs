@@ -1,25 +1,22 @@
 use crate::app::App;
 use crate::display::menuopts::{
     CERT_ERROR, HEADER_ERROR, INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER,
-    INPUT_OPT_BASIC, INPUT_OPT_HEADERS, INPUT_OPT_REC_DOWNLOAD, PARSE_INT_ERROR, SOCKET_ERROR,
-    UPLOAD_FILEPATH_ERROR,
+    INPUT_OPT_BASIC, INPUT_OPT_HEADERS, PARSE_INT_ERROR, SOCKET_ERROR, UPLOAD_FILEPATH_ERROR,
 };
 use crate::display::AppOptions;
-use crate::request::command::CmdType;
-use crate::request::command::CMD;
 use crate::request::curl::AuthKind;
 use crate::screens::auth::AuthType;
-use crate::screens::{default_rect, Screen};
+use crate::screens::{centered_rect, Screen};
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use std::path::Path;
 use tui::prelude::Line;
-use tui::style::Color;
+use tui::style::{Color, Modifier};
 use tui::widgets::Paragraph;
 use tui::widgets::{Block, Borders};
 use tui::{
     prelude::{Constraint, Direction, Layout},
-    style::{Modifier, Style},
-    text::{Span, Text},
+    style::Style,
+    text::Text,
     Frame,
 };
 use tui_input::InputRequest;
@@ -27,18 +24,22 @@ use tui_input::InputRequest;
 // Takes the current option and returns a prompt for that screen
 pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
     match opt {
-        InputOpt::URL(opt) => {
-            let fmtstr = format!("Enter a URL for your {}\n and press Enter", opt);
-            Text::from(Line::from(fmtstr))
-        }
+        InputOpt::URL => Text::from(Line::from("Enter a URL for your request and press Enter")),
         InputOpt::RequestBody => Text::from("Enter a body for your request and press Enter"),
         InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
-        InputOpt::RecursiveDownload => Text::from(INPUT_OPT_REC_DOWNLOAD),
         InputOpt::Auth(auth) => match auth {
             AuthType::Basic => Text::from(INPUT_OPT_AUTH_BASIC),
             AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
+        InputOpt::CreateCollection => Text::from("Enter a name for the new collection"),
+        InputOpt::CookiePath => Text::from("Enter the path to the cookie jar file"),
+        InputOpt::NewCookie => Text::from("Enter the name of the cookie"),
+        InputOpt::CookieValue(ref name) => Text::from(format!("Enter the value for {}", name)),
+        InputOpt::CookieExpires(_) => {
+            Text::from("Enter the (optional) expiration date for the cookie")
+        }
+        InputOpt::ImportCollection => Text::from("Enter the path to the collection file.json"),
         _ => Text::from(INPUT_OPT_BASIC),
     }
 }
@@ -46,58 +47,50 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
 pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage(15),
-                Constraint::Percentage(10),
-                Constraint::Percentage(75),
-            ]
-            .as_ref(),
-        )
-        .split(default_rect(frame.size()));
-    let (msg, style) = match app.input_mode {
-        InputMode::Normal => (
-            vec![
-                Span::styled("Press 'h'", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("to go back..."),
-                Span::styled("Press 'i'", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw("to start editing."),
-            ],
-            Style::default(),
-        ),
-        InputMode::Editing => (
-            vec![
-                Span::styled("Press Esc\n", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing...\n"),
-                Span::styled("Press Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to submit."),
-            ],
-            Style::default(),
-        ),
-    };
-    let message = Paragraph::new(Line::from(msg));
+        .constraints(vec![Constraint::Percentage(15), Constraint::Percentage(85)])
+        .split(frame.size());
+    let input_textbox = chunks[0];
+    let text_chunk = Block::default().borders(Borders::ALL).style(
+        Style::default()
+            .bg(app.config.get_bg_color())
+            .fg(Color::LightBlue)
+            .add_modifier(tui::style::Modifier::BOLD),
+    );
+    frame.render_widget(text_chunk, input_textbox);
+    let bottom_box = centered_rect(chunks[1], crate::screens::ScreenArea::Top);
     let prompt = get_input_prompt(opt.clone());
-    let prompt = prompt.patch_style(style);
-    frame.render_widget(message, chunks[0]);
-    render_input_with_prompt(frame, prompt);
-
-    let width = chunks[0].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+    frame.render_widget(
+        Paragraph::new(prompt).style(
+            Style::default()
+                .fg(Color::LightBlue)
+                .add_modifier(Modifier::BOLD),
+        ),
+        centered_rect(bottom_box, crate::screens::ScreenArea::Top),
+    );
+    let top_box = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(input_textbox);
+    let width = top_box[0].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
     match opt {
-        InputOpt::URL(_) => {
-            let url = app.command.get_url();
+        InputOpt::URL => {
+            let mut url = app.command.get_url().to_string();
             // if the url has been entered already we populate the input box with it
-            // we need to prevent this from happening multiple times, without clearning the app url
-            if !url.is_empty() && app.input.value().is_empty() && app.input.cursor() == 0 {
-                for ch in url.to_string().chars() {
-                    if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+            // we need to prevent this from happening multiple times, without clearing the url
+            if !url.is_empty() && app.input.cursor() == 0 {
+                let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
+                for ch in url.chars() {
+                    let _ = app.input.handle(InputRequest::InsertChar(ch)).is_some();
                 }
+                url.clear();
             }
         }
         InputOpt::Auth(kind) => {
             if kind == AuthType::Basic || kind == AuthType::Bearer {
                 let auth = app.command.get_token();
                 if auth.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
+                    let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                     for ch in auth.unwrap().chars() {
                         if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
                     }
@@ -107,8 +100,44 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
         InputOpt::UploadFile => {
             let file = app.command.get_upload_file();
             if file.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
+                let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                 for ch in file.unwrap().chars() {
                     if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                }
+            }
+        }
+        InputOpt::UnixSocket => {
+            if !app.command.get_url().is_empty() {
+                // would only need a unix socket if we don't have a url
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from("Error: You have already entered a URL"),
+                ))));
+            }
+            let socket = app.command.get_unix_socket();
+            if socket.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
+                let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
+                for ch in socket.unwrap().chars() {
+                    if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                }
+            }
+        }
+        InputOpt::CookiePath => {
+            if let Some(cookie) = app.command.get_cookie_path() {
+                if app.input.value().is_empty() && app.input.cursor() == 0 {
+                    let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
+                    for ch in cookie.chars() {
+                        if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                    }
+                }
+            }
+        }
+        InputOpt::CookieJar => {
+            if let Some(cookie) = app.command.get_cookie_jar_path() {
+                if app.input.value().is_empty() && app.input.cursor() == 0 {
+                    let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
+                    for ch in cookie.chars() {
+                        if app.input.handle(InputRequest::InsertChar(ch)).is_some() {}
+                    }
                 }
             }
         }
@@ -117,15 +146,31 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
             InputMode::Normal => Style::default().fg(app.config.get_body_color()),
-            InputMode::Editing => Style::default().fg(Color::LightBlue),
+            InputMode::Editing => Style::default().fg(Color::White),
         })
         .block(Block::default().borders(Borders::ALL).title("Input"));
-    frame.render_widget(input, chunks[1]);
+    let (msg, style) = match app.input_mode {
+        InputMode::Normal => (
+            Line::from("Press 'i' to start editing"),
+            Style::default()
+                .fg(Color::LightBlue)
+                .add_modifier(tui::style::Modifier::BOLD),
+        ),
+        InputMode::Editing => (
+            Line::from("Press Enter to submit"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(tui::style::Modifier::BOLD),
+        ),
+    };
+    let msg = Paragraph::new(msg).style(style);
+    frame.render_widget(msg, top_box[0]);
+    frame.render_widget(input, top_box[1]);
     match app.input_mode {
         InputMode::Normal => {}
         InputMode::Editing => frame.set_cursor(
-            chunks[1].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
-            chunks[1].y + 1,
+            top_box[1].x + ((app.input.visual_cursor()).max(scroll) - scroll) as u16 + 1,
+            top_box[1].y + 1,
         ),
     }
     // we have input (the user has typed something and pressed Enter while in insert mode)
@@ -156,102 +201,134 @@ fn is_valid_unix_socket_path(path: &str) -> Result<(), String> {
 
 pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
-        InputOpt::URL(opt) => {
-            match opt {
-                CmdType::Wget => {
-                    app.add_app_option(AppOptions::URL(message));
-                    app.goto_screen(Screen::Downloads("".to_string()));
-                }
-                CmdType::Curl => {
-                    app.add_app_option(AppOptions::URL(message));
-                    app.goto_screen(Screen::RequestMenu(String::new()));
-                }
-            };
+        InputOpt::URL => {
+            app.add_app_option(AppOptions::URL(message));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::ApiKey => {
             let _ = app.add_saved_key(message.clone());
-            app.goto_screen(Screen::SavedKeys);
+            app.goto_screen(&Screen::SavedKeys);
         }
         InputOpt::UnixSocket => {
             if let Err(e) = is_valid_unix_socket_path(&message) {
-                app.goto_screen(Screen::RequestMenu(e));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(e))));
             } else {
                 app.add_app_option(AppOptions::UnixSocket(message.clone()));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::Headers => {
             if !validate_key_val(&message) {
-                app.goto_screen(Screen::RequestMenu(String::from(HEADER_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(HEADER_ERROR),
+                ))));
             } else {
                 app.add_app_option(AppOptions::Headers(message.clone()));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
-        // Only downloads let you specify the output file prior to execution of the command
-        InputOpt::Output => {
-            app.add_app_option(AppOptions::Outfile(message.clone()));
-            app.goto_screen(Screen::Downloads("".to_string()));
+        InputOpt::RenameCollection(ref id) => {
+            if app.rename_collection(*id, &message).is_ok() {
+                app.goto_screen(&Screen::SavedCollections(None));
+            } else {
+                app.goto_screen(&Screen::Error("Failed to rename collection".to_string()));
+            }
         }
-        InputOpt::Cookie => {
-            app.add_app_option(AppOptions::Cookie(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+        InputOpt::Output => {
+            app.add_app_option(AppOptions::Outfile(message));
+            app.goto_screen(&Screen::RequestMenu(None));
+        }
+        InputOpt::CookiePath => {
+            app.add_app_option(AppOptions::CookiePath(message));
+            app.goto_screen(&Screen::RequestMenu(None));
+        }
+        InputOpt::CookieJar => {
+            app.add_app_option(AppOptions::CookieJar(message));
+            app.goto_screen(&Screen::RequestMenu(None));
+        }
+        InputOpt::NewCookie => {
+            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieValue(message))));
+        }
+        InputOpt::CookieValue(ref name) => {
+            let cookie = format!("{}={};", name, message);
+            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieExpires(cookie))));
+        }
+        InputOpt::CookieExpires(ref cookie) => {
+            let cookie = format!("{} {}", cookie, message);
+            app.add_app_option(AppOptions::NewCookie(cookie));
+            app.goto_screen(&Screen::RequestMenu(None))
         }
         InputOpt::Referrer => {
             app.add_app_option(AppOptions::Referrer(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::CaPath => {
             if !validate_path(&message) {
-                app.goto_screen(Screen::RequestMenu(String::from(CERT_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(CERT_ERROR),
+                ))));
             } else {
                 app.add_app_option(AppOptions::CaPath(message.clone()));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::UserAgent => {
             app.add_app_option(AppOptions::UserAgent(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::MaxRedirects => {
             if let Ok(num) = message.parse::<usize>() {
                 app.add_app_option(AppOptions::MaxRedirects(num));
-                app.goto_screen(Screen::RequestMenu(String::new()));
+                app.goto_screen(&Screen::RequestMenu(None));
             } else {
-                app.goto_screen(Screen::RequestMenu(String::from(PARSE_INT_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(PARSE_INT_ERROR),
+                ))));
             }
         }
         InputOpt::UploadFile => {
             if !validate_path(&message) {
-                app.goto_screen(Screen::RequestMenu(String::from(UPLOAD_FILEPATH_ERROR)));
+                app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                    String::from(UPLOAD_FILEPATH_ERROR),
+                ))));
             }
             app.add_app_option(AppOptions::UploadFile(message));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
             app.command.set_outfile(&message);
             if let Err(e) = app.command.write_output() {
-                app.goto_screen(Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::Error(e.to_string()));
             } else {
-                app.goto_screen(Screen::Response(String::from(app.get_response())));
+                app.goto_screen(&Screen::Response(String::from(app.get_response())));
             }
         }
         InputOpt::RequestBody => {
             app.add_app_option(AppOptions::RequestBody(message.clone()));
-            app.goto_screen(Screen::RequestMenu(String::new()));
+            app.goto_screen(&Screen::RequestMenu(None));
         }
-        InputOpt::RecursiveDownload => {
-            if let Ok(recursion_level) = message.parse::<usize>() {
-                app.add_app_option(AppOptions::RecDownload(recursion_level));
-                app.goto_screen(Screen::Downloads("".to_string()));
+        InputOpt::ImportCollection => {
+            if let Err(e) = app.import_postman_collection(&message) {
+                app.goto_screen(&Screen::Error(e.to_string()));
             } else {
-                app.goto_screen(Screen::Downloads(String::from(PARSE_INT_ERROR)));
+                app.goto_screen(&Screen::Success);
             }
         }
+        InputOpt::CreateCollection => {
+            if app.create_postman_collection(&message).is_ok() {
+                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
+                    "Successfully created collection".to_string(),
+                ))));
+                return;
+            }
+            app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
+                "Failed to create collection".to_string(),
+            ))));
+        }
         InputOpt::KeyLabel(id) => match app.set_key_label(id, &message) {
-            Ok(_) => app.goto_screen(Screen::SavedKeys),
-            Err(e) => app.goto_screen(Screen::Error(e)),
+            Ok(_) => app.goto_screen(&Screen::SavedKeys),
+            Err(e) => app.goto_screen(&Screen::Error(e)),
         },
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);
@@ -295,7 +372,7 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     });
-    if app.has_auth() {
+    if app.command.has_auth() {
         app.opts.retain(|x| !matches!(x, AppOptions::Auth(_)));
     }
     app.opts.push(AppOptions::Auth(match auth {
@@ -305,5 +382,5 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     }));
-    app.goto_screen(Screen::RequestMenu(String::new()));
+    app.goto_screen(&Screen::RequestMenu(None));
 }

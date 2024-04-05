@@ -1,16 +1,11 @@
-/*
-    Screen Enum And Implementation
-*/
-
-use std::fmt::{Display, Formatter};
-
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
-    AUTHENTICATION_MENU_OPTIONS, CMD_MENU_OPTIONS, DOWNLOAD_MENU_OPTIONS, HEADER_MENU_OPTIONS,
-    KEY_MENU_OPTIONS, MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE,
-    OPTION_PADDING_MAX, OPTION_PADDING_MID, OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS,
-    RESPONSE_MENU_OPTIONS,
+    AUTHENTICATION_MENU_OPTIONS, CMD_MENU_OPTIONS, COLLECTION_ALERT_MENU_OPTS,
+    COLLECTION_MENU_OPTIONS, COOKIE_MENU_OPTIONS, HEADER_MENU_OPTIONS, KEY_MENU_OPTIONS,
+    MAIN_MENU_OPTIONS, METHOD_MENU_OPTIONS, MORE_FLAGS_MENU, NEWLINE, OPTION_PADDING_MAX,
+    OPTION_PADDING_MID, OPTION_PADDING_MIN, REQUEST_MENU_OPTIONS, RESPONSE_MENU_OPTIONS,
 };
+use std::fmt::{Display, Formatter};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
 
@@ -19,22 +14,26 @@ pub enum Screen {
     #[default]
     Home,
     Method,
-    Downloads(String),
     HeaderAddRemove,
-    RequestMenu(String),
+    RequestMenu(Option<InputOpt>),
     InputMenu(InputOpt),
     Response(String),
+    SavedCollections(Option<InputOpt>),
+    ViewSavedCollections,
     Authentication,
     Success,
     SavedKeys,
-    SavedCommands,
+    ColMenu(i32),
+    // takes optional collection id
+    SavedCommands(Option<i32>),
     Error(String),
     ViewBody,
     MoreFlags,
     Headers,
-    CmdMenu(usize),
+    CmdMenu(i32),
     KeysMenu(usize),
     RequestBodyInput,
+    CookieOptions,
 }
 
 impl Display for Screen {
@@ -42,7 +41,6 @@ impl Display for Screen {
         let screen = match self {
             Screen::Home => "Home",
             Screen::Method => "Method",
-            Screen::Downloads(_) => "Downloads",
             Screen::HeaderAddRemove => "HeaderAddRemove",
             Screen::RequestMenu(_) => "RequestMenu",
             Screen::InputMenu(_) => "InputMenu",
@@ -50,7 +48,7 @@ impl Display for Screen {
             Screen::Authentication => "Authentication",
             Screen::Success => "Success",
             Screen::SavedKeys => "Saved Keys",
-            Screen::SavedCommands => "My Saved Commands",
+            Screen::SavedCommands(_) => "My Saved Commands",
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
             Screen::MoreFlags => "MoreFlags",
@@ -58,6 +56,10 @@ impl Display for Screen {
             Screen::CmdMenu(_) => "CmdMenu",
             Screen::KeysMenu(_) => "KeysMenu",
             Screen::RequestBodyInput => "RequestBodyInput",
+            Screen::SavedCollections(_) => "Saved Collections",
+            Screen::ViewSavedCollections => "View Saved Collections",
+            Screen::ColMenu(_) => "Collection Menu",
+            Screen::CookieOptions => "Cookie Options",
         };
         write!(f, "{}", screen)
     }
@@ -78,7 +80,7 @@ impl<'a> Screen {
                 MAIN_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::Method => {
@@ -86,7 +88,7 @@ impl<'a> Screen {
                 METHOD_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::HeaderAddRemove => {
@@ -94,7 +96,7 @@ impl<'a> Screen {
                 METHOD_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::RequestMenu(_) => {
@@ -102,10 +104,10 @@ impl<'a> Screen {
                 REQUEST_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
-            Screen::SavedCommands => {
+            Screen::SavedCommands(_) => {
                 let len = REQUEST_MENU_OPTIONS.len();
                 items
                     .unwrap_or(vec!["No Saved Commands".to_string()])
@@ -116,7 +118,7 @@ impl<'a> Screen {
             Screen::Response(_) => RESPONSE_MENU_OPTIONS
                 .iter()
                 .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
-                .map(|i| ListItem::new(i.clone()))
+                .map(ListItem::new)
                 .collect(),
             Screen::InputMenu(_) => {
                 vec![ListItem::new("Input Menu").style(Style::default().fg(Color::Green))]
@@ -124,14 +126,14 @@ impl<'a> Screen {
             Screen::Headers => HEADER_MENU_OPTIONS
                 .iter()
                 .map(|x| format!("{}{}", x, OPTION_PADDING_MID))
-                .map(|i| ListItem::new(i.clone()))
+                .map(ListItem::new)
                 .collect(),
             Screen::Authentication => {
                 let len = AUTHENTICATION_MENU_OPTIONS.len();
                 AUTHENTICATION_MENU_OPTIONS
                     .iter()
                     .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
+                    .map(ListItem::new)
                     .collect()
             }
             Screen::Success => {
@@ -150,14 +152,10 @@ impl<'a> Screen {
                 .iter()
                 .map(|i| ListItem::new(format!("{i}{}", NEWLINE)))
                 .collect(),
-            Screen::Downloads(_) => {
-                let len = DOWNLOAD_MENU_OPTIONS.len();
-                DOWNLOAD_MENU_OPTIONS
-                    .iter()
-                    .map(|x| format!("{}{}", x, determine_line_size(len)))
-                    .map(|i| ListItem::new(i.clone()))
-                    .collect()
-            }
+            Screen::ColMenu(_) => COLLECTION_ALERT_MENU_OPTS
+                .iter()
+                .map(|i| ListItem::new(*i))
+                .collect(),
             Screen::SavedKeys => {
                 let mut len = 0;
                 if items.is_some() {
@@ -183,6 +181,21 @@ impl<'a> Screen {
                     })
                     .collect()
             }
+            Screen::ViewSavedCollections => items
+                .unwrap_or(vec!["No Collections".to_string()])
+                .iter()
+                .map(|c| ListItem::new(format!("{}{}", c, OPTION_PADDING_MIN)))
+                .collect(),
+
+            Screen::SavedCollections(_) => COLLECTION_MENU_OPTIONS
+                .iter()
+                .map(|i| ListItem::new(format!("{}{}", i, OPTION_PADDING_MAX)))
+                .collect(),
+
+            Screen::CookieOptions => COOKIE_MENU_OPTIONS
+                .iter()
+                .map(|c| ListItem::from(format!("{}{}", c, OPTION_PADDING_MID)))
+                .collect(),
         }
     }
 

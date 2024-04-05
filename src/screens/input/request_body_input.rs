@@ -1,9 +1,8 @@
 use crate::app::{App, InputMode};
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
-use crate::request::command::CMD;
 use crate::request::curl::Method;
-use crate::screens::{default_rect, small_alert_box, Screen};
+use crate::screens::{centered_rect, Screen, ScreenArea};
 use tui::text::{Line, Text};
 use tui::widgets::{Block, Borders, Paragraph};
 use tui::{
@@ -26,7 +25,7 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
             ]
             .as_ref(),
         )
-        .split(default_rect(frame.size()));
+        .split(centered_rect(frame.size(), ScreenArea::Center));
     let (msg, style) = match app.input_mode {
         InputMode::Normal => (
             vec![
@@ -52,21 +51,21 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     );
     match app.command.get_method() {
         Some(Method::Get | Method::Delete | Method::Head) => {
-            app.goto_screen(Screen::RequestMenu(String::from(
-                "Alert: Request Bodies are not allowed for this HTTP method",
-            )));
+            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                String::from("Alert: Request Bodies are not allowed for this HTTP method"),
+            ))));
         }
         Some(_) => {}
         None => {
-            app.goto_screen(Screen::RequestMenu(String::from(
-                "Alert: Please select a HTTP method first",
-            )));
+            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+                String::from("Alert: Please select a HTTP method first"),
+            ))));
         }
     }
 
     let msg = Paragraph::new(Line::from(msg));
     let prompt = prompt.patch_style(style);
-    frame.render_widget(msg, small_alert_box(frame.size()));
+    frame.render_widget(msg, centered_rect(frame.size(), ScreenArea::Top));
     render_input_with_prompt(frame, prompt);
 
     let width = chunks[0].width.max(3) - 3;
@@ -99,10 +98,11 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
             chunks[1].y + 1,
         ),
     }
+
     // we have input (the user has typed something and pressed Enter while in insert mode)
     if !app.messages.is_empty() {
         app.add_app_option(AppOptions::RequestBody(app.messages[0].clone()));
-        app.goto_screen(Screen::RequestMenu(String::new()));
+        app.goto_screen(&Screen::RequestMenu(None));
         app.messages.clear();
     }
 }

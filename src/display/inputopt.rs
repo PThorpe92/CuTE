@@ -1,17 +1,15 @@
-use std::fmt::Display;
-
-use crate::request::command::CmdType;
+use crate::request::curl::Method;
 use crate::screens::auth::AuthType;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InputOpt {
-    URL(CmdType),
+    URL,
     UploadFile,
     Headers,
     Output,
     Verbose,
     RequestBody,
-    RecursiveDownload,
     Auth(AuthType),
     VerifyPeer,
     Referrer,
@@ -20,36 +18,59 @@ pub enum InputOpt {
     UnixSocket,
     UserAgent,
     MaxRedirects,
-    Cookie,
+    CookiePath,
+    NewCookie,
+    CookieJar,
+    CookieValue(String),   // store the name
+    CookieExpires(String), // store the rest
     FtpAccount,
     CaPath,
     CaCert,
     KeyLabel(i32),
+    ImportCollection,
+    CreateCollection,
+    RenameCollection(i32),
+    RequestError(String),
+    Method(Method),
+}
+
+impl InputOpt {
+    pub fn is_error(&self) -> bool {
+        matches!(self, InputOpt::RequestError(_))
+    }
 }
 
 impl Display for InputOpt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InputOpt::URL(url) => write!(f, "|- URL - {}", url),
+            InputOpt::URL => write!(f, "| URL"),
             InputOpt::Headers => write!(f, "| Headers"),
             InputOpt::Output => write!(f, "| Output"),
             InputOpt::Referrer => write!(f, "| Referrer"),
             InputOpt::UploadFile => write!(f, "| Upload File"),
             InputOpt::Verbose => write!(f, "| Verbose"),
             InputOpt::RequestBody => write!(f, "| Request Body"),
-            InputOpt::RecursiveDownload => write!(f, "Recursive Download"),
             InputOpt::Auth(auth) => write!(f, "|- Authentication: {}", auth),
             InputOpt::Execute => write!(f, "| Execute"),
             InputOpt::ApiKey => write!(f, "| API Key"),
             InputOpt::UnixSocket => write!(f, "| Unix Socket"),
             InputOpt::UserAgent => write!(f, "| User Agent"),
             InputOpt::MaxRedirects => write!(f, "| Max Redirects"),
-            InputOpt::Cookie => write!(f, "| Cookie"),
+            InputOpt::NewCookie => write!(f, "| Cookie"),
+            InputOpt::CookiePath => write!(f, "| Cookie"),
+            InputOpt::CookieValue(_) => write!(f, "| Cookie Val"),
+            InputOpt::CookieExpires(_) => write!(f, "| Cookie Expires"),
             InputOpt::CaPath => write!(f, "| Ca Path"),
             InputOpt::CaCert => write!(f, "| Ca Cert"),
             InputOpt::VerifyPeer => write!(f, "| Verify Peer DNS-Over-HTTPS"),
             InputOpt::FtpAccount => write!(f, "| FTP Account"),
             InputOpt::KeyLabel(_) => write!(f, "| Key Label"),
+            InputOpt::ImportCollection => write!(f, "| Import Collection"),
+            InputOpt::CreateCollection => write!(f, "| Create Collection"),
+            InputOpt::RenameCollection(_) => write!(f, "| Rename Collection"),
+            InputOpt::RequestError(ref err) => write!(f, "| Error: {}", err),
+            InputOpt::Method(method) => write!(f, "| Method: {}", method),
+            InputOpt::CookieJar => write!(f, "| Cookie Jar"),
         }
     }
 }
