@@ -18,7 +18,7 @@ pub enum Screen {
     RequestMenu(Option<InputOpt>),
     InputMenu(InputOpt),
     Response(String),
-    SavedCollections,
+    SavedCollections(Option<InputOpt>),
     ViewSavedCollections,
     Authentication,
     Success,
@@ -56,7 +56,7 @@ impl Display for Screen {
             Screen::CmdMenu(_) => "CmdMenu",
             Screen::KeysMenu(_) => "KeysMenu",
             Screen::RequestBodyInput => "RequestBodyInput",
-            Screen::SavedCollections => "Saved Collections",
+            Screen::SavedCollections(_) => "Saved Collections",
             Screen::ViewSavedCollections => "View Saved Collections",
             Screen::ColMenu(_) => "Collection Menu",
             Screen::CookieOptions => "Cookie Options",
@@ -187,7 +187,7 @@ impl<'a> Screen {
                 .map(|c| ListItem::new(format!("{}{}", c, OPTION_PADDING_MIN)))
                 .collect(),
 
-            Screen::SavedCollections => COLLECTION_MENU_OPTIONS
+            Screen::SavedCollections(_) => COLLECTION_MENU_OPTIONS
                 .iter()
                 .map(|i| ListItem::new(format!("{}{}", i, OPTION_PADDING_MAX)))
                 .collect(),

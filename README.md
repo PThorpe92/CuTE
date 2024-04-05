@@ -5,28 +5,33 @@
 
 # TUI HTTP Client with API/Auth Key Management and Request History/Storage
 
-#### This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
-#### Collaboration is welcome and encouraged! There is lots of low hanging fruit 👍 and cool ideas for additional features.
+> This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
+### Collaboration is welcome and encouraged! There is lots of low hanging fruit 👍 and cool ideas for additional features.
 ![image](imgs/demo.gif)
 
-Curl TUI Environment (CuTE). HTTP client/libcurl front-end in Rust, using the awesome [ratatui](https://github.com/ratatui-org/ratatui) library designed to simplify the process of making various types of HTTP requests, supporting various kinds of Authentication (powered by libcURL), recursive downloading of directories (powered by GNU Wget), and storage + management of your previous requests + API keys.
+Curl TUI Environment (CuTE). HTTP client/libcurl front-end in Rust, using the awesome [ratatui](https://github.com/ratatui-org/ratatui) library designed to simplify the process of sending HTTP requests in the terminal, allowing you to store and manage your previous requests + API keys.
 
-This tool is for when you don't need something as complex as Postman, but you also don't want to have to remember the syntax for `curl` (or `wget`) commands. You can make a few requests to your back-end for testing, set up with your API key and save the requests to be executed again later.
+This is a tool for when your requests are not complex enough for something like Postman, but more complicated than you would want to use `curl` CLI, or if you just don't want to remember all those commands. You can make a few requests to your back-ends for testing, set up with your API key and save the requests to be executed again later. 
+
+**New**: We now support importing your `Postman` collections, so you can have easy access to your APIs without leaving the terminal. (note: `https://schema.getpostman.com/json/collection/v2.1.0/` is currently the only supported collection schema)
 
 <img src="imgs/saved_request.png" class="img-rounded " align="center" />
+<img src="imgs/api_keys.png" class="img-rounded " align="center" />
 
 ## Features
 
-- **Interactive TUI Interface**: The application offers an intuitive TUI interface that makes it easy to construct and execute HTTP requests without leaving the terminal.
+- **Interactive TUI Interface**: Intuitive TUI interface that makes it fast and easy to construct and execute HTTP requests without leaving the terminal.
 
 - **Intuitive VIM keybindings:**  Vim-like keybindings are _defaulted_. Support to change them will eventually make it into the config file.
 (`h` or `b` is used to go back a page, `j` and `k` move the cursor up and down. `i` for insert mode while in an input box, `enter` to submit the form and `esc` to exit insert mode)
 
 - **API Key Management**: Very simple sqlite based API key storage system. You can choose to save a Key from a request, or add/edit/delete/rename them.
 
-- **Response Visualization**: Pretty-print JSON responses in a human-readable format within the TUI, or choose to write the response to a file after inspecting the response. 
+- **Postman Collections**: Import your postman collections to have easy access to your APIs without leaving the terminal.
 
-- This application builds and runs on Linux **and** MacOS.
+- **Response Visualization**: Pretty-print JSON responses in a human-readable format within the TUI, then you can choose to write the response to a file after inspecting it. You an also copy the `curl` CLI command needed to make the same request to your clipboard.
+
+- This application builds and runs on Linux, Windows and MacOS.
 
 ## Why?
 

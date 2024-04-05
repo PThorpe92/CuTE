@@ -52,6 +52,11 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                                     app.input_mode = InputMode::Editing;
                                 }
                             }
+                            Screen::SavedCollections(opt) if opt.is_some() => {
+                                if !opt.as_ref().unwrap().is_error() {
+                                    app.input_mode = InputMode::Editing;
+                                }
+                            }
                             Screen::RequestBodyInput => {
                                 app.input_mode = InputMode::Editing;
                             }

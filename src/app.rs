@@ -286,7 +286,7 @@ impl<'a> App<'a> {
                     .map(|x| x.get_name().to_string())
                     .collect::<Vec<String>>(),
             ),
-            Screen::SavedCollections => Some(
+            Screen::SavedCollections(_) => Some(
                 self.get_collections()
                     .unwrap_or_default()
                     .into_iter()
@@ -420,7 +420,7 @@ impl<'a> App<'a> {
 
     pub fn rename_collection(&mut self, id: i32, name: &str) -> Result<(), rusqlite::Error> {
         self.db.rename_collection(id, name)?;
-        self.goto_screen(&Screen::SavedCollections);
+        self.goto_screen(&Screen::SavedCollections(None));
         Ok(())
     }
 

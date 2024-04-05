@@ -101,7 +101,7 @@ pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
         Screen::ViewBody => (&DEFAULT_MENU_PARAGRAPH, &VIEW_BODY_TITLE),
         Screen::SavedKeys => (&API_KEY_PARAGRAPH, &API_KEY_TITLE),
         Screen::HeaderAddRemove => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
-        Screen::SavedCollections => (&DEFAULT_MENU_PARAGRAPH, &POSTMAN_COLLECTION_TITLE),
+        Screen::SavedCollections(_) => (&DEFAULT_MENU_PARAGRAPH, &POSTMAN_COLLECTION_TITLE),
         _ => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
     };
     frame.render_widget(
@@ -119,7 +119,7 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
                 match num {
                     0 => app.goto_screen(&Screen::Method),
                     1 => app.goto_screen(&Screen::SavedCommands(None)),
-                    2 => app.goto_screen(&Screen::SavedCollections),
+                    2 => app.goto_screen(&Screen::SavedCollections(None)),
                     3 => app.goto_screen(&Screen::SavedKeys),
                     _ => {}
                 }
@@ -184,8 +184,8 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
             InputOpt::RequestBody,
         ),
         Screen::KeysMenu(cmd) => handle_key_menu(app, frame, cmd),
-        Screen::SavedCollections => {
-            super::collections::handle_collection_menu(app, frame);
+        Screen::SavedCollections(opt) => {
+            super::collections::handle_collection_menu(app, frame, opt);
         }
         Screen::ViewSavedCollections => {
             super::collections::handle_collections_screen(app, frame);

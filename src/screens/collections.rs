@@ -1,24 +1,35 @@
-use super::Screen;
+use super::{error_alert_box, Screen};
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{
     COLLECTION_ALERT_MENU_OPTS, DEFAULT_MENU_PARAGRAPH, POSTMAN_COLLECTION_TITLE,
 };
 use crate::screens::render::handle_screen_defaults;
-use crate::screens::ScreenArea;
-use crate::screens::{centered_rect, render::render_header_paragraph};
+use crate::screens::{
+    centered_rect, input::input::handle_default_input_screen, render::render_header_paragraph,
+    ScreenArea,
+};
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
-pub fn handle_collection_menu(app: &mut App, frame: &mut Frame<'_>) {
+pub fn handle_collection_menu(app: &mut App, frame: &mut Frame<'_>, opt: Option<InputOpt>) {
     handle_screen_defaults(app, frame);
+    match opt {
+        Some(InputOpt::RequestError(e)) => {
+            error_alert_box(frame, &e);
+        }
+        Some(opt) => {
+            handle_default_input_screen(app, frame, opt.clone());
+        }
+        _ => {}
+    };
     match app.selected {
         // Import New Collection
-        Some(0) => app.goto_screen(&Screen::InputMenu(InputOpt::ImportCollection)),
+        Some(0) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::ImportCollection))),
         // Create New Collection
-        Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::CreateCollection)),
+        Some(1) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::CreateCollection))),
         // View Saved Collections
         Some(2) => app.goto_screen(&Screen::ViewSavedCollections),
         // Cancel

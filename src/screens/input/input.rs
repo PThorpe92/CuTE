@@ -32,6 +32,7 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
             AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
+        InputOpt::CreateCollection => Text::from("Enter a name for the new collection"),
         InputOpt::CookiePath => Text::from("Enter the path to the cookie jar file"),
         InputOpt::NewCookie => Text::from("Enter the name of the cookie"),
         InputOpt::CookieValue(ref name) => Text::from(format!("Enter the value for {}", name)),
@@ -52,7 +53,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     let text_chunk = Block::default().borders(Borders::ALL).style(
         Style::default()
             .bg(app.config.get_bg_color())
-            .fg(Color::LightGreen)
+            .fg(Color::LightBlue)
             .add_modifier(tui::style::Modifier::BOLD),
     );
     frame.render_widget(text_chunk, input_textbox);
@@ -61,7 +62,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     frame.render_widget(
         Paragraph::new(prompt).style(
             Style::default()
-                .fg(Color::LightGreen)
+                .fg(Color::LightBlue)
                 .add_modifier(Modifier::BOLD),
         ),
         centered_rect(bottom_box, crate::screens::ScreenArea::Top),
@@ -152,7 +153,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
         InputMode::Normal => (
             Line::from("Press 'i' to start editing"),
             Style::default()
-                .fg(Color::Green)
+                .fg(Color::LightBlue)
                 .add_modifier(tui::style::Modifier::BOLD),
         ),
         InputMode::Editing => (
@@ -228,7 +229,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::RenameCollection(ref id) => {
             if app.rename_collection(*id, &message).is_ok() {
-                app.goto_screen(&Screen::SavedCollections);
+                app.goto_screen(&Screen::SavedCollections(None));
             } else {
                 app.goto_screen(&Screen::Error("Failed to rename collection".to_string()));
             }
@@ -316,10 +317,14 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::CreateCollection => {
             if app.create_postman_collection(&message).is_ok() {
-                app.goto_screen(&Screen::Success);
+                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
+                    "Successfully created collection".to_string(),
+                ))));
                 return;
             }
-            app.goto_screen(&Screen::Error("Failed to create collection".to_string()));
+            app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
+                "Failed to create collection".to_string(),
+            ))));
         }
         InputOpt::KeyLabel(id) => match app.set_key_label(id, &message) {
             Ok(_) => app.goto_screen(&Screen::SavedKeys),

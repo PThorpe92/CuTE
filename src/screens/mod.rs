@@ -35,10 +35,16 @@ pub fn error_alert_box(frame: &mut Frame<'_>, error_message: &str) -> Rect {
 
     // Render the alert box
     let alert_box = layout[0];
-    let alert_text_chunk = Block::default()
-        .borders(Borders::ALL)
-        .style(Style::default().bg(Color::Red).fg(Color::White))
-        .title("Alert");
+    let alert_text_chunk = match error_message.starts_with("Error:") {
+        true => Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().bg(Color::Red).fg(Color::White))
+            .title("Alert"),
+        false => Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().bg(Color::LightBlue).fg(Color::White))
+            .title("Success"),
+    };
     frame.render_widget(alert_text_chunk, alert_box);
     let text = Text::styled(
         error_message,

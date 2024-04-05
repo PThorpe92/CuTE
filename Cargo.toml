@@ -1,8 +1,8 @@
 [package]
-name = "CuTE-tui"                                                                                                                     # crates.io/crates/CuTE is taken :(
-version = "0.1.0"
+name = "CuTE-tui"                                                                   # crates.io/crates/CuTE is taken :(
+version = "0.1.1"
 authors = ["PThorpe92 <preston@unlockedlabs.org>"]
-description = "A (ratatui) TUI for HTTP requests with libcurl, recursive downloads with wget, command storage and API key management"
+description = "A (ratatui) TUI for HTTP requests with request + API key management"
 license = "GPL-3.0"
 edition = "2021"
 repository = "https://github.com/PThorpe92/CuTE"
