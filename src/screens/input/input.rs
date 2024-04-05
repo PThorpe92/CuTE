@@ -308,11 +308,11 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::ImportCollection => {
-            if app.import_postman_collection(&message).is_ok() {
+            if let Err(e) = app.import_postman_collection(&message) {
+                app.goto_screen(&Screen::Error(e.to_string()));
+            } else {
                 app.goto_screen(&Screen::Success);
-                return;
             }
-            app.goto_screen(&Screen::Error("Failed to import collection".to_string()));
         }
         InputOpt::CreateCollection => {
             if app.create_postman_collection(&message).is_ok() {

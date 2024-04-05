@@ -48,7 +48,7 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, opt: Opt
         }
         // Execute command
         Some(9) => {
-            if !app.command.get_url().is_empty() && !app.command.has_unix_socket() {
+            if app.command.get_url().is_empty() && !app.command.has_unix_socket() {
                 app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
                     String::from(VALID_COMMAND_ERROR),
                 ))));

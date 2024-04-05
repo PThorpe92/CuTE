@@ -189,12 +189,8 @@ impl<'a> App<'a> {
             ) => self.go_back_screen(),
             Some(Screen::RequestBodyInput) => self.goto_screen(&Screen::Method),
             Some(Screen::Error(_)) => self.goto_screen(&Screen::Home),
-            Some(Screen::RequestMenu(e)) => {
-                if e.as_ref().is_some() {
-                    self.goto_screen(&Screen::RequestMenu(None));
-                } else {
-                    self.goto_screen(&Screen::Method);
-                }
+            Some(Screen::RequestMenu(_)) => {
+                self.goto_screen(&Screen::RequestMenu(None));
             }
             Some(Screen::Method) => self.goto_screen(&Screen::Home),
             Some(screen) => {
@@ -352,12 +348,13 @@ impl<'a> App<'a> {
         let file = std::fs::File::open(path)?;
         let collection: Result<crate::database::postman::PostmanCollection, String> =
             serde_json::from_reader(file).map_err(|e| e.to_string());
-        if let Ok(collection) = collection {
+    match collection {
+        Ok(collection) =>  {
             let name = collection.info.name.clone();
             let cmds: Vec<SavedCommand> = collection.into();
             self.db.add_collection(&name, cmds.as_slice())
-        } else {
-            Err("Failed to import collection".into())
+            }
+            Err(e) => Err(e.into()),
         }
     }
 

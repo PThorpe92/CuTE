@@ -14,7 +14,7 @@ pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: 
             .iter()
             .map(|x| {
                 format!(
-                    "Saved Request: {} Collection: {:?}",
+                    "Request: {} Collection: {:?}",
                     x.get_command(),
                     x.get_collection_id()
                 )
@@ -27,7 +27,6 @@ pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: 
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
-    frame.set_cursor(0, app.cursor as u16);
     frame.render_stateful_widget(menu_options, area, &mut state);
     let (paragraph, title) = (&SAVED_COMMANDS_PARAGRAPH, &SAVED_COMMANDS_TITLE);
     frame.render_widget(

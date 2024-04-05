@@ -21,6 +21,7 @@ pub fn handle_cookies_menu(app: &mut App, frame: &mut Frame<'_>) {
                 app.add_app_option(AppOptions::NewCookieSession);
                 app.goto_screen(&Screen::RequestMenu(None));
             }
+            4 => app.goto_screen(&Screen::RequestMenu(None)),
             _ => {}
         }
     }

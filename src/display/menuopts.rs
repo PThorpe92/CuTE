@@ -142,7 +142,7 @@ pub const COLLECTION_ALERT_MENU_OPTS: [&str; 4] = [
 pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Add a URL 󰖟 ",
     "Add a file for uploads  ",
-    "Cookie options 󰖟  ",
+    "Cookie options 󰆘 ",
     "Authentication 󰯄 ",
     "Header Options  ",
     "Enable verbose output [-v]",
@@ -154,11 +154,12 @@ pub const REQUEST_MENU_OPTIONS: [&str; 12] = [
     "Clear all options  ",
 ];
 
-pub const COOKIE_MENU_OPTIONS: [&str; 4] = [
-    "Set Cookie file path (Use Cookies) 󰖟  ",
-    "Set Cookie-Jar path (Storage) 󰖟  ",
+pub const COOKIE_MENU_OPTIONS: [&str; 5] = [
+    "Set Cookie file path (Use Cookies) 󰆘 ",
+    "Set Cookie-Jar path (Storage) 󰆘 ",
     "Add New Cookie  󰆘 ",
     "Reset Cookie Session 󰆘 ",
+    "Go back  ",
 ];
 
 pub const METHOD_MENU_OPTIONS: [&str; 7] = [
@@ -185,11 +186,9 @@ pub const AUTHENTICATION_MENU_OPTIONS: [&str; 6] = [
     "Ntlm",
     "SPNEGO",
 ];
-pub const MORE_FLAGS_MENU: [&str; 14] = [
+pub const MORE_FLAGS_MENU: [&str; 12] = [
     "Follow Redirects 󱀀 ",
     "Specify Max redirects 󱀀 ",
-    "Add New Cookie  󰆘 ",
-    "Set Cookie-Jar path (Storage) 󰆘 ",
     "Enable HTTP Proxy-Tunnel  󱠾 ",
     "Unrestricted Auth  ",
     "Specify Referrer  󰆽 ",
