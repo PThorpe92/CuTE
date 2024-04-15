@@ -6,7 +6,7 @@
 # TUI HTTP Client with API/Auth Key Management and Request History/Storage
 
 > This project is still in active development and although it is useable, there may still be bugs and significant changes are still needed to both refactor the codebase and add new features.
-### Collaboration is welcome and encouraged! There is lots of low hanging fruit 👍 and cool ideas for additional features.
+#### Collaboration is welcome and encouraged! There is lots of low hanging fruit 👍 and cool ideas for additional features.
 ![image](imgs/demo.gif)
 
 Curl TUI Environment (CuTE). HTTP client/libcurl front-end in Rust, using the awesome [ratatui](https://github.com/ratatui-org/ratatui) library designed to simplify the process of sending HTTP requests in the terminal, allowing you to store and manage your previous requests + API keys.
@@ -70,7 +70,7 @@ This is a tool for when your requests are not complex enough for something like 
    ```
 4. **Move Binary**: Move the binary to a location in your PATH of your choosing:
    ```
-   sudo cp target/release/cute ~/.local/bin/ 
+   cp target/release/cute ~/.local/bin/
    ```
 
 ## Command Line Options

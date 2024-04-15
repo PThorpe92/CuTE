@@ -99,7 +99,7 @@ pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
         Screen::Success => (&DEFAULT_MENU_PARAGRAPH, &SUCCESS_MENU_TITLE),
         Screen::Error(_) => (&DEFAULT_MENU_PARAGRAPH, &ERROR_MENU_TITLE),
         Screen::ViewBody => (&DEFAULT_MENU_PARAGRAPH, &VIEW_BODY_TITLE),
-        Screen::SavedKeys => (&API_KEY_PARAGRAPH, &API_KEY_TITLE),
+        Screen::SavedKeys(_) => (&API_KEY_PARAGRAPH, &API_KEY_TITLE),
         Screen::HeaderAddRemove => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
         Screen::SavedCollections(_) => (&DEFAULT_MENU_PARAGRAPH, &POSTMAN_COLLECTION_TITLE),
         _ => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
@@ -120,7 +120,7 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
                     0 => app.goto_screen(&Screen::Method),
                     1 => app.goto_screen(&Screen::SavedCommands(None)),
                     2 => app.goto_screen(&Screen::SavedCollections(None)),
-                    3 => app.goto_screen(&Screen::SavedKeys),
+                    3 => app.goto_screen(&Screen::SavedKeys(None)),
                     _ => {}
                 }
             }
@@ -169,8 +169,8 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         Screen::MoreFlags => {
             more_flags::handle_more_flags_screen(app, frame);
         }
-        Screen::SavedKeys => {
-            saved_keys::handle_saved_keys_screen(app, frame);
+        Screen::SavedKeys(opt) => {
+            saved_keys::handle_saved_keys_screen(app, frame, opt);
         }
         Screen::CmdMenu(cmd) => {
             saved_commands::handle_alert_menu(app, frame, cmd);

@@ -206,7 +206,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::ApiKey => {
             let _ = app.add_saved_key(message.clone());
-            app.goto_screen(&Screen::SavedKeys);
+            app.goto_screen(&Screen::SavedKeys(None));
         }
         InputOpt::UnixSocket => {
             if let Err(e) = is_valid_unix_socket_path(&message) {
@@ -315,7 +315,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             }
         }
         InputOpt::KeyLabel(id) => match app.set_key_label(id, &message) {
-            Ok(_) => app.goto_screen(&Screen::SavedKeys),
+            Ok(_) => app.goto_screen(&Screen::SavedKeys(None)),
             Err(e) => app.goto_screen(&Screen::Error(e)),
         },
         InputOpt::Auth(auth) => {
