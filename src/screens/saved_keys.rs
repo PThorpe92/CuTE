@@ -11,13 +11,9 @@ use tui::Frame;
 
 pub fn handle_saved_keys_screen(app: &mut App, frame: &mut Frame<'_>, opt: Option<InputOpt>) {
     handle_screen_defaults(app, frame);
-    match opt {
-        None => {}
-        Some(opt) => {
-            handle_default_input_screen(app, frame, opt.clone());
-        }
-    }
-    if app.items.is_empty() {
+    if let Some(opt) = opt {
+        handle_default_input_screen(app, frame, opt.clone());
+    } else if app.items.is_empty() {
         let paragraph = Paragraph::new("No Keys Found. Press 'a' to add a new key.").block(
             Block::default()
                 .borders(Borders::ALL)
