@@ -9,21 +9,6 @@ use std::fmt::{Display, Formatter};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
 
-// TODO: Impl a trait for the screen to load the correct options,
-// render the correct menu + styles and handle input
-#[derive(Debug, PartialEq, Clone)]
-pub enum ScreenLayout {
-    BasicMenu,    // cursor + items. Input on top, options below
-    SelectedItem, // alert menu w/ options about a selected item
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct AppScreen {
-    layout: ScreenLayout,
-    screen: Screen,
-    items: Option<Vec<String>>,
-}
-
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum Screen {
     #[default]
@@ -40,7 +25,10 @@ pub enum Screen {
     SavedKeys(Option<InputOpt>),
     ColMenu(i32),
     // takes optional collection id
-    SavedCommands(Option<i32>),
+    SavedCommands {
+        id: Option<i32>,
+        opt: Option<InputOpt>,
+    },
     Error(String),
     ViewBody,
     MoreFlags,
@@ -76,7 +64,7 @@ impl Display for Screen {
             Screen::Authentication => "Authentication",
             Screen::Success => "Success",
             Screen::SavedKeys(_) => "Saved Keys",
-            Screen::SavedCommands(_) => "My Saved Commands",
+            Screen::SavedCommands { .. } => "My Saved Commands",
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
             Screen::MoreFlags => "MoreFlags",
@@ -136,7 +124,7 @@ impl<'a> Screen {
                     .map(ListItem::new)
                     .collect()
             }
-            Screen::SavedCommands(_) => {
+            Screen::SavedCommands { .. } => {
                 let len = REQUEST_MENU_OPTIONS.len();
                 items
                     .unwrap_or(vec!["No Saved Commands".to_string()])

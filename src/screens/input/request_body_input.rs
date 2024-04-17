@@ -52,7 +52,7 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     match app.command.get_method() {
         Some(Method::Get | Method::Delete | Method::Head) => {
             app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
-                String::from("Alert: Request Bodies are not allowed for this HTTP method"),
+                String::from("Error: Request Bodies are not allowed for this HTTP method"),
             ))));
         }
         Some(_) => {}

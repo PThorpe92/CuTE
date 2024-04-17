@@ -1,6 +1,6 @@
 use super::input::input_screen::handle_default_input_screen;
 use super::render::handle_screen_defaults;
-use super::{centered_rect, Screen, ScreenArea};
+use super::{centered_rect, error_alert_box, Screen, ScreenArea};
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::KEY_MENU_OPTIONS;
@@ -11,20 +11,29 @@ use tui::Frame;
 
 pub fn handle_saved_keys_screen(app: &mut App, frame: &mut Frame<'_>, opt: Option<InputOpt>) {
     handle_screen_defaults(app, frame);
-    if let Some(opt) = opt {
-        handle_default_input_screen(app, frame, opt.clone());
-    } else if app.items.is_empty() {
-        let paragraph = Paragraph::new("No Keys Found. Press 'a' to add a new key.").block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Double)
-                .border_style(Style::default().fg(Color::Red)),
-        );
-        frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Center))
-    } else {
-        let paragraph = Paragraph::new("Press 'a' to add a new key").style(Style::default());
-        frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Top));
-    }
+    match opt {
+        Some(InputOpt::AlertMessage(msg)) | Some(InputOpt::RequestError(msg)) => {
+            error_alert_box(frame, &msg);
+        }
+        Some(opt) => {
+            handle_default_input_screen(app, frame, opt.clone());
+        }
+        None => {
+            if app.items.is_empty() {
+                let paragraph = Paragraph::new("No Keys Found. Press 'a' to add a new key.").block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Double)
+                        .border_style(Style::default().fg(Color::Red)),
+                );
+                frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Center))
+            } else {
+                let paragraph =
+                    Paragraph::new("Press 'a' to add a new key").style(Style::default());
+                frame.render_widget(paragraph, centered_rect(frame.size(), ScreenArea::Top));
+            }
+        }
+    };
     // if we select a key, open options
     if let Some(cmd) = app.selected {
         app.goto_screen(&Screen::KeysMenu(cmd));
@@ -91,16 +100,25 @@ pub fn handle_key_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
         // delete item
         Some(1) => {
             if let Err(e) = app.delete_item(selected.get_id()) {
-                app.goto_screen(&Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::SavedKeys(Some(InputOpt::RequestError(format!(
+                    "Error: {e}"
+                )))));
+            } else {
+                app.goto_screen(&Screen::SavedKeys(Some(InputOpt::AlertMessage(
+                    String::from("Key Deleted"),
+                ))));
             }
         }
         // copy to clipboard
-        Some(2) => {
-            if let Err(e) = app.copy_to_clipboard(selected.get_key()) {
-                app.goto_screen(&Screen::Error(e.to_string()));
-            }
-            app.goto_screen(&Screen::Success);
-        }
+        Some(2) => match app.copy_to_clipboard(selected.get_key()) {
+            Err(e) => app.goto_screen(&Screen::SavedKeys(Some(InputOpt::RequestError(format!(
+                "Error: {e}"
+            ))))),
+
+            Ok(_) => app.goto_screen(&Screen::SavedKeys(Some(InputOpt::AlertMessage(
+                String::from("Key copied to clipboard"),
+            )))),
+        },
         // cancel
         Some(3) => {
             app.goto_screen(&Screen::SavedKeys(None));

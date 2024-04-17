@@ -1,13 +1,19 @@
 use super::render::render_header_paragraph;
-use super::{centered_rect, Screen, ScreenArea};
+use super::{centered_rect, error_alert_box, Screen, ScreenArea};
 use crate::app::App;
+use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{CMD_MENU_OPTIONS, SAVED_COMMANDS_PARAGRAPH, SAVED_COMMANDS_TITLE};
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
-pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: Option<i32>) {
+pub fn handle_saved_commands_screen(
+    app: &mut App,
+    frame: &mut Frame<'_>,
+    coll: Option<i32>,
+    opt: Option<InputOpt>,
+) {
     let commands = app.db.as_ref().get_commands(coll).unwrap_or_default();
     let items = Some(
         commands
@@ -23,7 +29,6 @@ pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: 
     );
     let menu_options = app.current_screen.get_list(items);
     let area = centered_rect(frame.size(), ScreenArea::Center);
-
     let mut state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(state.clone());
     app.state.as_mut().unwrap().select(Some(app.cursor));
@@ -33,6 +38,13 @@ pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: 
         render_header_paragraph(paragraph, title, app.config.get_style()),
         frame.size(),
     );
+
+    match opt {
+        Some(InputOpt::AlertMessage(msg)) | Some(InputOpt::RequestError(msg)) => {
+            error_alert_box(frame, &msg);
+        }
+        _ => {}
+    }
     if let Some(selected) = app.selected {
         let cmd = commands.get(selected);
         if let Some(cmd) = cmd {
@@ -101,9 +113,17 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
             // delete item
             Some(1) => {
                 if let Err(e) = app.delete_item(command.get_id()) {
-                    app.goto_screen(&Screen::Error(e.to_string()));
+                    app.goto_screen(&Screen::SavedCommands {
+                        id: None,
+                        opt: Some(InputOpt::RequestError(format!("Error: {}", e))),
+                    });
                 } else {
-                    app.goto_screen(&Screen::Success);
+                    app.goto_screen(&Screen::SavedCommands {
+                        id: None,
+                        opt: Some(InputOpt::AlertMessage(
+                            "Successfully deleted command".to_string(),
+                        )),
+                    });
                 }
             }
             // copy to clipboard
@@ -111,11 +131,19 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
                 if let Err(e) = app.copy_to_clipboard(command.get_command()) {
                     app.goto_screen(&Screen::Error(e.to_string()));
                 }
-                app.goto_screen(&Screen::Success);
+                app.goto_screen(&Screen::SavedCommands {
+                    id: None,
+                    opt: Some(InputOpt::AlertMessage(
+                        "CLI Command copied to clipboard".to_string(),
+                    )),
+                });
             }
             // cancel
             Some(3) => {
-                app.goto_screen(&Screen::SavedCommands(None));
+                app.goto_screen(&Screen::SavedCommands {
+                    id: None,
+                    opt: None,
+                });
             }
             _ => {}
         }

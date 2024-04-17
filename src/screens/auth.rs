@@ -1,7 +1,3 @@
-use std::fmt::{Display, Formatter};
-
-use tui::Frame;
-
 use super::render::handle_screen_defaults;
 use crate::app::App;
 use crate::display::inputopt::InputOpt;
@@ -9,40 +5,21 @@ use crate::display::menuopts::{AWS_AUTH_ERROR_MSG, AWS_AUTH_MSG};
 use crate::display::AppOptions;
 use crate::request::curl::AuthKind;
 use crate::screens::screen::Screen;
+use tui::Frame;
 
-// This is the display auth not to be confused with the request auth
-// it needs to be done away with and combined into one
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum AuthType {
-    Basic,
-    Bearer,
-    Digest,
-    AWSSignatureV4,
-    NTLM,
-    SPNEGO,
-}
-
-#[rustfmt::skip]
-impl Display for AuthType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let auth = match self {
-            AuthType::Basic          => "Basic",
-            AuthType::Bearer         => "Bearer Token",
-            AuthType::Digest         => "Digest",
-            AuthType::AWSSignatureV4 => "AWS Signature V4",
-            AuthType::NTLM           => "NTLM",
-            AuthType::SPNEGO         => "SPNEGO",
-        };
-        write!(f, "{}", auth)
-    }
-}
 pub fn handle_authentication_screen(app: &mut App, frame: &mut Frame<'_>) {
     handle_screen_defaults(app, frame);
     if let Some(num) = app.selected {
         match num {
-            0 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(AuthType::Basic)))),
-            1 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(AuthType::Bearer)))),
-            2 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(AuthType::Digest)))),
+            0 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(AuthKind::Basic(
+                "".to_string(),
+            ))))),
+            1 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(
+                AuthKind::Bearer("".to_string()),
+            )))),
+            2 => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Auth(
+                AuthKind::Digest("".to_string()),
+            )))),
             3 => {
                 if varify_aws_auth() {
                     app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(

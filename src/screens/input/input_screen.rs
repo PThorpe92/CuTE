@@ -5,7 +5,6 @@ use crate::display::menuopts::{
 };
 use crate::display::AppOptions;
 use crate::request::curl::AuthKind;
-use crate::screens::auth::AuthType;
 use crate::screens::{centered_rect, Screen};
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use std::path::Path;
@@ -28,8 +27,8 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
         InputOpt::RequestBody => Text::from("Enter a body for your request and press Enter"),
         InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
         InputOpt::Auth(auth) => match auth {
-            AuthType::Basic => Text::from(INPUT_OPT_AUTH_BASIC),
-            AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
+            AuthKind::Basic(_) => Text::from(INPUT_OPT_AUTH_BASIC),
+            AuthKind::Bearer(_) => Text::from(INPUT_OPT_AUTH_BEARER),
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
         InputOpt::CookiePath => Text::from("Enter the path to the cookie jar file"),
@@ -85,8 +84,8 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
                 url.clear();
             }
         }
-        InputOpt::Auth(kind) => {
-            if kind == AuthType::Basic || kind == AuthType::Bearer {
+        InputOpt::Auth(ref kind) => {
+            if kind.has_token() {
                 let auth = app.command.get_token();
                 if auth.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
                     let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
@@ -335,8 +334,13 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             }
         }
         InputOpt::KeyLabel(id) => match app.db.set_key_label(id, &message) {
-            Ok(_) => app.goto_screen(&Screen::SavedKeys(None)),
-            Err(e) => app.goto_screen(&Screen::Error(e.to_string())),
+            Ok(_) => app.goto_screen(&Screen::SavedKeys(Some(InputOpt::AlertMessage(
+                String::from("Label Updated"),
+            )))),
+            Err(e) => app.goto_screen(&Screen::SavedKeys(Some(InputOpt::RequestError(format!(
+                "Error: {}",
+                e
+            ))))),
         },
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);
@@ -372,11 +376,11 @@ fn validate_path(path: &str) -> bool {
     Path::new(path).exists()
 }
 
-fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
+fn parse_auth(auth: AuthKind, app: &mut App, message: &str) {
     app.command.set_auth(match auth {
-        AuthType::Basic => AuthKind::Basic(String::from(message)),
-        AuthType::Bearer => AuthKind::Bearer(String::from(message)),
-        AuthType::Digest => AuthKind::Digest(String::from(message)),
+        AuthKind::Basic(_) => AuthKind::Basic(String::from(message)),
+        AuthKind::Bearer(_) => AuthKind::Bearer(String::from(message)),
+        AuthKind::Digest(_) => AuthKind::Digest(String::from(message)),
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     });
@@ -384,9 +388,9 @@ fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
         app.opts.retain(|x| !matches!(x, AppOptions::Auth(_)));
     }
     app.opts.push(AppOptions::Auth(match auth {
-        AuthType::Basic => AuthKind::Basic(String::from(message)),
-        AuthType::Bearer => AuthKind::Bearer(String::from(message)),
-        AuthType::Digest => AuthKind::Digest(String::from(message)),
+        AuthKind::Basic(_) => AuthKind::Basic(String::from(message)),
+        AuthKind::Bearer(_) => AuthKind::Bearer(String::from(message)),
+        AuthKind::Digest(_) => AuthKind::Digest(String::from(message)),
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     }));

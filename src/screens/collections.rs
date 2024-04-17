@@ -133,9 +133,10 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
     frame.render_stateful_widget(list, options_box, &mut list_state);
     match app.selected {
         // View Requests in collection
-        Some(0) => {
-            app.goto_screen(&Screen::SavedCommands(Some(selected.get_id())));
-        }
+        Some(0) => app.goto_screen(&Screen::SavedCommands {
+            id: Some(cmd),
+            opt: None,
+        }),
         // Rename Collection
         Some(1) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RenameCollection(
             selected.get_id(),
@@ -143,9 +144,13 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
         // delete collection
         Some(2) => {
             if let Err(e) = app.db.as_ref().delete_collection(selected.get_id()) {
-                app.goto_screen(&Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
+                    format!("Error: {e}"),
+                ))));
             }
-            app.goto_screen(&Screen::Success);
+            app.goto_screen(&Screen::SavedCollections(Some(InputOpt::AlertMessage(
+                String::from("Success: collection deleted"),
+            ))));
         }
         // cancel
         Some(3) => {

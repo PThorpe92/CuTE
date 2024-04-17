@@ -145,11 +145,11 @@ impl<'a> App<'a> {
                 self.selected = None;
                 return;
             }
-            Screen::SavedCommands(col_name) => {
+            Screen::SavedCommands { id, .. } => {
                 self.items = self
                     .db
                     .as_ref()
-                    .get_commands(*col_name)
+                    .get_commands(*id)
                     .unwrap_or_default()
                     .iter()
                     .map(|cmd| {
@@ -285,10 +285,10 @@ impl<'a> App<'a> {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>(),
             ),
-            Screen::SavedCommands(coll_id) => Some(
+            Screen::SavedCommands { id, .. } => Some(
                 self.db
                     .as_ref()
-                    .get_commands(coll_id)
+                    .get_commands(id)
                     .unwrap_or_default()
                     .into_iter()
                     .map(|x| format!("{:?}", x))
