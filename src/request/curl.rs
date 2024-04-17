@@ -399,19 +399,23 @@ impl Curl {
         let mut list = List::new();
         self.opts = opts.to_vec();
         curl::init();
-
-        // Setup auth if we have it, will return whether we appended to the list
+        // if it's a PUT method, we have to set the method again after setting the request body,
+        // else the curl lib will default it to POST again
+        if self.method == Some(Method::Put)
+            && self.opts.iter().any(|x| {
+                std::mem::discriminant(x)
+                    == std::mem::discriminant(&AppOptions::RequestBody("".to_string()))
+            })
+        {
+            self.curl.put(true).unwrap();
+        }
         let mut has_headers = self.handle_auth_exec(&mut list);
-
-        // Handle headers
         if let Some(ref headers) = self.headers {
             headers
                 .iter()
                 .for_each(|h| list.append(h.as_str()).unwrap());
             has_headers = true;
         }
-
-        // Save command to DB
         if self.will_save_command() {
             if let Some(ref mut db) = db {
                 self.build_command_string();
@@ -658,7 +662,7 @@ impl Curl {
         self.save.1
     }
 
-    fn set_options_method(&mut self) {
+    pub fn set_options_method(&mut self) {
         if self.method.is_some() {
             self.curl.reset();
         }
@@ -682,7 +686,7 @@ impl Curl {
             }
         }
         for opt in opts {
-            self.add_option(&opt);
+            self.add_option(opt);
         }
     }
     pub fn set_any_auth(&mut self) {
@@ -795,188 +799,5 @@ impl Curl {
 
     pub fn url_encode(&mut self, data: &str) {
         self.url = self.curl.url_encode(data.as_bytes());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::ops::DerefMut;
-
-    use super::*;
-    use mockito::ServerGuard;
-    use serde_json::json;
-    fn setup(method: &str) -> ServerGuard {
-        let mut server = mockito::Server::new();
-        // Start a mock server
-        let _ = server
-            .mock(method, "/api/resource")
-            .with_status(200)
-            .with_body("Mocked Response")
-            .create();
-        server
-    }
-
-    #[test]
-    fn test_new_curl() {
-        let curl = Curl::new();
-        assert_eq!(curl.cmd, "curl");
-        assert_eq!(curl.opts.len(), 0);
-        assert_eq!(curl.resp, None);
-    }
-    #[test]
-    fn test_set_content_headers() {
-        let mut curl = Curl::new();
-        curl.set_content_header(HeaderKind::ContentType);
-        assert_eq!(curl.headers.as_ref().unwrap().len(), 1);
-        assert_eq!(
-            curl.headers.as_ref().unwrap()[0],
-            "Content-Type: application/json"
-        );
-    }
-
-    #[test]
-    fn test_remove_content_headers() {
-        let mut curl = Curl::new();
-        curl.add_headers("Authorization: Bearer 12345678910");
-        curl.set_content_header(HeaderKind::ContentType);
-        curl.remove_headers("Content-Type: application/json");
-        assert_eq!(curl.headers.as_ref().unwrap().len(), 1);
-        assert!(curl.headers.is_some());
-    }
-
-    #[test]
-    fn test_build_command_str() {
-        let url = "https://example.com".to_string();
-        let mut curl = Curl::new();
-        curl.set_get_method();
-        curl.set_verbose(true);
-        curl.set_url(&url);
-        curl.build_command_string();
-        assert_eq!(curl.cmd, format!("curl -X GET {} -v", url));
-        assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.resp, None);
-    }
-
-    #[test]
-    fn test_set_method() {
-        // test POST method
-        let mut curl = Curl::new();
-        curl.set_post_method();
-        curl.build_command_string();
-        assert_eq!(curl.cmd, "curl -X POST");
-
-        // Test setting method to GET
-        let mut curl_get = Curl::new();
-        curl_get.set_get_method();
-        curl_get.build_command_string();
-        assert_eq!(curl_get.cmd, "curl -X GET");
-    }
-
-    #[test]
-    fn test_set_url() {
-        let mut curl = Curl::new();
-        let url = "https://example.com";
-        curl.set_url(url);
-        curl.set_get_method();
-        curl.build_command_string();
-        assert_eq!(curl.url, url);
-        // get is default method
-        assert_eq!(curl.cmd, format!("curl -X GET {}", url));
-    }
-
-    #[test]
-    fn test_set_response() {
-        let mut curl = Curl::new();
-        let response = "This is a response";
-        curl.set_response(response);
-        assert_eq!(curl.resp, Some(String::from(response)));
-    }
-
-    #[test]
-    fn test_write_output() {
-        let mut curl = Curl::new();
-        let response = "This is a response";
-        curl.set_response(response);
-        curl.set_outfile("output.txt");
-        curl.write_output().unwrap();
-        let _ = std::fs::remove_file("output.txt");
-    }
-
-    #[test]
-    fn test_parse_from_json() {
-        let mut curl = Curl::new();
-        let url = "https://google.com";
-        curl.set_url(url);
-        curl.set_post_method();
-        let json_str = serde_json::to_string(&curl).unwrap();
-        let new_curl: Curl = serde_json::from_str(&json_str).unwrap();
-        assert_eq!(curl.url, new_curl.url);
-        assert_eq!(curl.cmd, new_curl.cmd);
-    }
-
-    #[test]
-    fn test_deserialize_raw_str() {
-        let json = json!(
-        {
-                "method": "Get",
-                "auth": {"Bearer": "12345678910"},
-                "cmd": "curl -X GET https://example.com",
-                "headers": [],
-                "url": "https://example.com",
-                "opts": [],
-                "resp": "This is a response",
-                "upload_file": "",
-                "outfile": "output.txt",
-        }
-        );
-        let binding = json.to_string();
-        let curl: Curl = serde_json::from_str(&binding).unwrap();
-        assert_eq!(curl.auth, AuthKind::Bearer("12345678910".to_string()));
-        assert_eq!(curl.cmd, "curl -X GET https://example.com");
-        assert_eq!(curl.url, "https://example.com");
-    }
-    #[test]
-    fn test_serde_json() {
-        let mut curl = Curl::new();
-        let url = "https://google.com";
-        curl.set_url(url);
-        curl.set_verbose(true);
-        curl.set_get_method();
-        // serialize it
-        let json_str = serde_json::to_string(&curl).unwrap();
-
-        // deserialize it
-        let curl2: Curl = serde_json::from_str(&json_str).unwrap();
-        assert_eq!(curl2.url, url);
-    }
-
-    #[test]
-    fn test_parse_from_json_execute() {
-        let mut server = setup("GET");
-        let mut curl = Curl::new();
-        let url = server.deref_mut().url().clone();
-        curl.set_url(&url);
-        let json_str = serde_json::to_string(&curl).unwrap();
-        let mut new_curl: Curl = serde_json::from_str(&json_str).unwrap();
-        new_curl
-            .execute(None, &[AppOptions::URL(String::from(&url))])
-            .unwrap();
-        assert_eq!(new_curl.url, url);
-        assert!(new_curl.resp.is_some());
-    }
-    #[test]
-    fn test_execute() {
-        let mut server = setup("GET");
-        let mut curl = Curl::new();
-        curl.set_url(server.url().as_str());
-        curl.set_get_method();
-        assert!(curl
-            .execute(
-                None,
-                &[AppOptions::URL(String::from(server.url().as_str()))]
-            )
-            .is_ok());
-        assert_eq!(curl.url, server.deref_mut().url());
-        assert!(curl.resp.is_some());
     }
 }

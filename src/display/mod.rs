@@ -15,6 +15,7 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub enum HeaderKind {
+    // TODO: This should hold value of keys
     Accept,
     ContentType,
     None,

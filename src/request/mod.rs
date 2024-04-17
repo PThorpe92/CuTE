@@ -39,7 +39,7 @@ impl ExecuteOption for Curl {
             AppOptions::CookiePath(ref path) => self.set_cookie_path(path),
             AppOptions::NewCookie(ref new) => self.add_cookie(new),
             AppOptions::NewCookieSession => self.reset_cookie_session(),
-            AppOptions::Headers(ref headers) => self.remove_headers(headers),
+            AppOptions::Headers(ref headers) => self.add_headers(headers),
             AppOptions::Auth(auth) => self.set_auth(auth.clone()),
             AppOptions::EnableHeaders => self.enable_response_headers(true),
             AppOptions::ContentHeaders(ref headers) => self.set_content_header(*headers),

@@ -520,3 +520,277 @@ impl<'a> App<'a> {
         }
     }
 }
+#[cfg(test)]
+pub mod tests {
+    
+
+    use super::App;
+    use crate::request::curl::{AuthKind};
+
+    #[test]
+    fn test_basic_get_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        assert_eq!(app.command.get_url(), url);
+        app.command.set_get_method();
+        server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_basic_post_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.command.set_post_method();
+        app.command.set_request_body("hello world");
+        server.mock("POST", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_basic_put_method() {
+        let mut server = mockito::Server::new_with_port(12343);
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::ContentHeaders(
+            crate::display::HeaderKind::ContentType,
+        ));
+        app.add_app_option(crate::display::AppOptions::RequestBody(
+            "hello world".to_string(),
+        ));
+        app.add_app_option(crate::display::AppOptions::Headers(
+            "Content-Type: Application/json".to_string(),
+        ));
+        app.command.set_request_body("hello world");
+        app.command.set_method(crate::request::curl::Method::Put);
+        app.command
+            .set_content_header(crate::display::HeaderKind::ContentType);
+        let mock = server.mock("PUT", "/").create();
+        let _ = app.execute_command();
+        mock.expect(1)
+            .match_body("hello world")
+            .match_header("Content-Type", "application/json")
+            .assert();
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::ContentHeaders(
+                        crate::display::HeaderKind::ContentType
+                    ))
+                .unwrap()
+                .get_curl_flag_value(),
+            "-H \"Content-Type: Application/json\""
+        );
+    }
+    #[test]
+    fn test_basic_delete_method() {
+        let mut server = mockito::Server::new_with_port(12344);
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.command.set_method(crate::request::curl::Method::Delete);
+        let mock = server.mock("DELETE", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.expect(1).match_header("accept", "*/*").assert();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_basic_head_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Headers(String::from(
+            "Content-Type: text/html",
+        )));
+        app.command.set_head_method();
+        let mock = server
+            .mock("HEAD", "/")
+            .match_header("accept", "*/*")
+            .match_header("Content-Type", "text/html")
+            .create();
+        let _ = app.execute_command();
+        mock.expect(1).assert();
+    }
+    #[test]
+    fn test_basic_patch_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::RequestBody(
+            "hello world".to_string(),
+        ));
+        app.command.set_patch_method();
+        let mock = server.mock("PATCH", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.expect(1).match_header("accept", "*/*").assert();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_serlialize_curl_json() {
+        let mut app = App::default();
+        let mut server = mockito::Server::new();
+        let url = server.url();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Headers(
+            "Content-Type: application/json".to_string(),
+        ));
+        app.command.set_method(crate::request::curl::Method::Get);
+        // send request first
+        let mock = server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let json = serde_json::to_string(&app.command).unwrap();
+        app.execute_saved_command(&json);
+        mock.match_header("Content-Type", "application/json")
+            .expect(2)
+            .assert();
+    }
+
+    #[test]
+    fn test_add_bearer_auth() {
+        let mut app = App::default();
+        let token = "helloworld";
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Bearer(
+            token.to_string(),
+        )));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::Auth(AuthKind::Bearer(token.to_string())))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("-H 'Authorization: Bearer helloworld'")
+        );
+    }
+    #[test]
+    fn test_add_basic_auth() {
+        let mut app = App::default();
+        let user = "user";
+        let pass = "pass";
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Basic(format!(
+            "{}:{}",
+            user, pass
+        ))));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::Auth(AuthKind::Basic(format!(
+                        "{}:{}",
+                        user, pass
+                    ))))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("-u user:pass")
+        );
+    }
+    #[test]
+    fn test_add_digest_auth() {
+        let mut app = App::default();
+        let user = "user";
+        let pass = "pass";
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Digest(format!(
+            "{}:{}",
+            user, pass
+        ))));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::Auth(AuthKind::Digest(format!(
+                        "{}:{}",
+                        user, pass
+                    ))))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("--digest -u user:pass")
+        );
+    }
+    #[test]
+    fn test_add_ntlm_auth() {
+        let mut app = App::default();
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Ntlm));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x == &&crate::display::AppOptions::Auth(AuthKind::Ntlm))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("--ntlm")
+        );
+    }
+    #[test]
+    fn test_add_options() {
+        let mut app = App::default();
+        let mut server = mockito::Server::new_with_port(12348);
+        let url = "http://localhost";
+        let outfile = "output.txt";
+        let response = "response.txt";
+        let body = "hello world";
+        let user_agent = "user-agent";
+        let referrer = "referrer";
+        let cookie = "cookie";
+        let cookie_jar = "cookie-jar";
+        let ca_path = "ca-path";
+        let max_redirects = 5;
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Outfile(outfile.to_string()));
+        app.add_app_option(crate::display::AppOptions::Response(response.to_string()));
+        app.add_app_option(crate::display::AppOptions::RequestBody(body.to_string()));
+        app.add_app_option(crate::display::AppOptions::UserAgent(
+            user_agent.to_string(),
+        ));
+        app.add_app_option(crate::display::AppOptions::Referrer(referrer.to_string()));
+        app.add_app_option(crate::display::AppOptions::CookiePath(cookie.to_string()));
+        app.add_app_option(crate::display::AppOptions::CookieJar(
+            cookie_jar.to_string(),
+        ));
+        app.add_app_option(crate::display::AppOptions::CaPath(ca_path.to_string()));
+        app.add_app_option(crate::display::AppOptions::MaxRedirects(max_redirects));
+        let mock = server.mock("GET", "/").with_body("hello world").create();
+        mock.match_header("referrer", "referrer")
+            .match_header("user-agent", "user-agent")
+            .match_header("cookie", "cookie")
+            .match_header("cookie-jar", "cookie-jar")
+            .match_header("ca-path", "ca-path")
+            .match_header("max-redirects", "5")
+            .match_body("hello world")
+            .expect(1);
+    }
+
+    #[test]
+    fn test_send_with_headers() {
+        let mut server = mockito::Server::new_with_port(12346);
+        let url = server.url();
+        let mut app = App::default();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Headers(
+            "Content-Type: application/json".to_string(),
+        ));
+        app.command.set_method(crate::request::curl::Method::Get);
+        let mock = server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.match_header("Content-Type", "application/json")
+            .create()
+            .expect(1);
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+}
