@@ -39,25 +39,12 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) -> AppResult<()> {
                             app.select_item();
                         }
                         KeyCode::Char('a') => {
-                            if app.current_screen == Screen::SavedKeys {
-                                app.goto_screen(&Screen::InputMenu(InputOpt::ApiKey));
+                            if let Screen::SavedKeys(_) = app.current_screen {
+                                app.goto_screen(&Screen::SavedKeys(Some(InputOpt::ApiKey)))
                             }
                         }
                         KeyCode::Char('i') => match &app.current_screen {
-                            Screen::InputMenu(_) => {
-                                app.input_mode = InputMode::Editing;
-                            }
-                            Screen::RequestMenu(opt) if opt.is_some() => {
-                                if !opt.as_ref().unwrap().is_error() {
-                                    app.input_mode = InputMode::Editing;
-                                }
-                            }
-                            Screen::SavedCollections(opt) if opt.is_some() => {
-                                if !opt.as_ref().unwrap().is_error() {
-                                    app.input_mode = InputMode::Editing;
-                                }
-                            }
-                            Screen::RequestBodyInput => {
+                            screen if screen.is_input_screen() => {
                                 app.input_mode = InputMode::Editing;
                             }
                             _ => {}

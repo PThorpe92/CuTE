@@ -22,7 +22,7 @@ pub enum Screen {
     ViewSavedCollections,
     Authentication,
     Success,
-    SavedKeys,
+    SavedKeys(Option<InputOpt>),
     ColMenu(i32),
     // takes optional collection id
     SavedCommands(Option<i32>),
@@ -34,6 +34,18 @@ pub enum Screen {
     KeysMenu(usize),
     RequestBodyInput,
     CookieOptions,
+}
+impl Screen {
+    pub fn is_input_screen(&self) -> bool {
+        match self {
+            Screen::RequestMenu(opt) => opt.is_some(),
+            Screen::InputMenu(_) => true,
+            Screen::SavedKeys(opt) => opt.is_some(),
+            Screen::RequestBodyInput => true,
+            Screen::SavedCollections(opt) => opt.is_some(),
+            _ => false,
+        }
+    }
 }
 
 impl Display for Screen {
@@ -47,7 +59,7 @@ impl Display for Screen {
             Screen::Response(_) => "Response",
             Screen::Authentication => "Authentication",
             Screen::Success => "Success",
-            Screen::SavedKeys => "Saved Keys",
+            Screen::SavedKeys(_) => "Saved Keys",
             Screen::SavedCommands(_) => "My Saved Commands",
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
@@ -65,7 +77,7 @@ impl Display for Screen {
     }
 }
 
-pub fn determine_line_size(len: usize) -> &'static str {
+fn determine_line_size(len: usize) -> &'static str {
     match len {
         len if len <= 4 => OPTION_PADDING_MAX,
         len if len < 8 => OPTION_PADDING_MID,
@@ -156,7 +168,7 @@ impl<'a> Screen {
                 .iter()
                 .map(|i| ListItem::new(*i))
                 .collect(),
-            Screen::SavedKeys => {
+            Screen::SavedKeys(_) => {
                 let mut len = 0;
                 if items.is_some() {
                     len = items.as_ref().unwrap().len();

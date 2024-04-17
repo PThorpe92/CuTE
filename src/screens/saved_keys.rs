@@ -1,15 +1,19 @@
+use super::input::input_screen::handle_default_input_screen;
 use super::render::handle_screen_defaults;
 use super::{centered_rect, Screen, ScreenArea};
 use crate::app::App;
+use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::KEY_MENU_OPTIONS;
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
-pub fn handle_saved_keys_screen(app: &mut App, frame: &mut Frame<'_>) {
+pub fn handle_saved_keys_screen(app: &mut App, frame: &mut Frame<'_>, opt: Option<InputOpt>) {
     handle_screen_defaults(app, frame);
-    if app.items.is_empty() {
+    if let Some(opt) = opt {
+        handle_default_input_screen(app, frame, opt.clone());
+    } else if app.items.is_empty() {
         let paragraph = Paragraph::new("No Keys Found. Press 'a' to add a new key.").block(
             Block::default()
                 .borders(Borders::ALL)
@@ -80,9 +84,9 @@ pub fn handle_key_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
     match app.selected {
         // Add/Edit Label
         Some(0) => {
-            app.goto_screen(&Screen::InputMenu(
+            app.goto_screen(&Screen::SavedKeys(Some(
                 crate::display::inputopt::InputOpt::KeyLabel(selected.get_id()),
-            ));
+            )));
         }
         // delete item
         Some(1) => {
@@ -99,7 +103,7 @@ pub fn handle_key_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
         }
         // cancel
         Some(3) => {
-            app.goto_screen(&Screen::SavedKeys);
+            app.goto_screen(&Screen::SavedKeys(None));
         }
         _ => {}
     }

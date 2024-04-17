@@ -134,7 +134,7 @@ impl<'a> App<'a> {
                 self.input.reset();
                 self.items = screen.get_opts(None);
             }
-            Screen::SavedKeys => {
+            Screen::SavedKeys(_) => {
                 self.items = self
                     .get_saved_keys()
                     .unwrap_or_default()
@@ -265,7 +265,7 @@ impl<'a> App<'a> {
 
     pub fn get_special_items(&self) -> Option<Vec<String>> {
         match self.current_screen {
-            Screen::SavedKeys => Some(
+            Screen::SavedKeys(_) => Some(
                 self.get_saved_keys()
                     .unwrap_or_default()
                     .into_iter()
@@ -408,7 +408,7 @@ impl<'a> App<'a> {
 
     pub fn delete_saved_key(&mut self, index: i32) -> Result<(), rusqlite::Error> {
         self.db.as_ref().delete_key(index)?;
-        self.goto_screen(&Screen::SavedKeys);
+        self.goto_screen(&Screen::SavedKeys(None));
         Ok(())
     }
 
