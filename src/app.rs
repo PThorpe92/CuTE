@@ -1,7 +1,8 @@
-use crate::database::db::{SavedCollection, SavedCommand, SavedKey, DB};
+use crate::database::db::{SavedCommand, DB};
 use crate::display::menuopts::OPTION_PADDING_MID;
-use crate::display::{AppOptions, HeaderKind};
-use crate::request::curl::{AuthKind, Curl};
+use crate::display::AppOptions;
+use crate::request::curl::Curl;
+use crate::request::ExecuteOption;
 use crate::screens::screen::Screen;
 use crate::Config;
 use arboard::Clipboard;
@@ -33,7 +34,7 @@ pub struct App<'a> {
     /// index of selected item
     pub selected: Option<usize>,
     /// command (curl or wget)
-    pub command: Curl<'a>,
+    pub command: Curl,
     /// vec of applicable options
     pub opts: Vec<AppOptions>,
     /// Input struct for tui_input dependency
@@ -78,14 +79,12 @@ impl<'a> App<'a> {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn set_command(&mut self, command: Curl<'a>) {
+    pub fn set_command(&mut self, command: Curl) {
         self.command = command;
     }
     pub fn set_config(&mut self, config: Config) {
         self.config = config;
     }
-    pub fn tick(&self) {}
-
     pub fn redraw(&mut self) {
         if self.selected.is_some() {
             let selected = (self.selected, self.cursor);
@@ -136,7 +135,9 @@ impl<'a> App<'a> {
             }
             Screen::SavedKeys(_) => {
                 self.items = self
-                    .get_saved_keys()
+                    .db
+                    .as_ref()
+                    .get_keys()
                     .unwrap_or_default()
                     .iter()
                     .map(|key| ListItem::new(format!("{}{}", key, OPTION_PADDING_MID)))
@@ -146,7 +147,9 @@ impl<'a> App<'a> {
             }
             Screen::SavedCommands(col_name) => {
                 self.items = self
-                    .get_saved_commands(*col_name)
+                    .db
+                    .as_ref()
+                    .get_commands(*col_name)
                     .unwrap_or_default()
                     .iter()
                     .map(|cmd| {
@@ -158,6 +161,8 @@ impl<'a> App<'a> {
             }
             Screen::ViewSavedCollections => {
                 self.items = self
+                    .db
+                    .as_ref()
                     .get_collections()
                     .unwrap_or_default()
                     .iter()
@@ -202,11 +207,17 @@ impl<'a> App<'a> {
 
     pub fn quit(&mut self) {
         std::io::stdout()
-            .write_all(self.get_response().as_bytes())
+            .write_all(self.response.as_ref().unwrap_or(&String::new()).as_bytes())
             .unwrap();
-        // make sure the response is flushed to stdout
         std::io::stdout().flush().unwrap();
         self.running = false;
+    }
+
+    pub fn get_request_body(&self) -> Option<String> {
+        self.opts.iter().find_map(|opt| match opt {
+            AppOptions::RequestBody(body) => Some(body.clone()),
+            _ => None,
+        })
     }
 
     pub fn move_cursor_down(&mut self) {
@@ -263,31 +274,39 @@ impl<'a> App<'a> {
         });
     }
 
-    pub fn get_special_items(&self) -> Option<Vec<String>> {
+    pub fn get_database_items(&self) -> Option<Vec<String>> {
         match self.current_screen {
             Screen::SavedKeys(_) => Some(
-                self.get_saved_keys()
+                self.db
+                    .as_ref()
+                    .get_keys()
                     .unwrap_or_default()
                     .into_iter()
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>(),
             ),
             Screen::SavedCommands(coll_id) => Some(
-                self.get_saved_commands(coll_id)
+                self.db
+                    .as_ref()
+                    .get_commands(coll_id)
                     .unwrap_or_default()
                     .into_iter()
                     .map(|x| format!("{:?}", x))
                     .collect::<Vec<String>>(),
             ),
             Screen::ViewSavedCollections => Some(
-                self.get_collections()
+                self.db
+                    .as_ref()
+                    .get_collections()
                     .unwrap_or_default()
                     .into_iter()
                     .map(|x| x.get_name().to_string())
                     .collect::<Vec<String>>(),
             ),
             Screen::SavedCollections(_) => Some(
-                self.get_collections()
+                self.db
+                    .as_ref()
+                    .get_collections()
                     .unwrap_or_default()
                     .into_iter()
                     .map(|x| x.get_name().to_string())
@@ -306,53 +325,23 @@ impl<'a> App<'a> {
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        self.command.execute(Some(Box::new(self.db.deref_mut())))
+        let opts = &self.opts;
+        self.command
+            .execute(Some(Box::new(self.db.deref_mut())), opts.as_slice())
     }
 
-    pub fn get_saved_keys(&self) -> Result<Vec<SavedKey>, rusqlite::Error> {
-        self.db.as_ref().get_keys()
-    }
-
-    pub fn get_collections(&self) -> Result<Vec<SavedCollection>, rusqlite::Error> {
-        self.db.get_collections()
-    }
-
-    pub fn get_collection_by_id(&self, id: i32) -> Result<SavedCollection, rusqlite::Error> {
-        self.db.get_collection_by_id(id)
-    }
-
-    pub fn get_command_by_id(&self, id: i32) -> Result<SavedCommand, rusqlite::Error> {
-        self.db.get_command_by_id(id)
-    }
-
-    pub fn add_saved_key(&mut self, key: String) -> Result<(), rusqlite::Error> {
-        match self.db.as_ref().add_key(&key) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
-    }
-
-    pub fn get_saved_commands(
-        &self,
-        col_name: Option<i32>,
-    ) -> Result<Vec<SavedCommand>, rusqlite::Error> {
-        self.db.as_ref().get_commands(col_name)
-    }
-
-    pub fn create_postman_collection(&mut self, name: &str) -> Result<(), rusqlite::Error> {
-        self.db.create_collection(name)
-    }
-
-    #[rustfmt::skip]
-    pub fn import_postman_collection(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn import_postman_collection(
+        &mut self,
+        path: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let file = std::fs::File::open(path)?;
         let collection: Result<crate::database::postman::PostmanCollection, String> =
             serde_json::from_reader(file).map_err(|e| e.to_string());
-    match collection {
-        Ok(collection) =>  {
-            let name = collection.info.name.clone();
-            let cmds: Vec<SavedCommand> = collection.into();
-            self.db.add_collection(&name, cmds.as_slice())
+        match collection {
+            Ok(collection) => {
+                let name = collection.info.name.clone();
+                let cmds: Vec<SavedCommand> = collection.into();
+                self.db.add_collection(&name, cmds.as_slice())
             }
             Err(e) => Err(e.into()),
         }
@@ -363,15 +352,12 @@ impl<'a> App<'a> {
         let mut command: Curl = serde_json::from_str(json)
             .map_err(|e| e.to_string())
             .unwrap();
-        command.easy_from_opts();
-        match command.execute(None) {
-            Ok(_) => self.set_response(&command.get_response()),
+        let opts = &self.opts;
+        command.easy_from_opts(opts.as_slice());
+        match command.execute(None, opts.as_slice()) {
+            Ok(_) => self.set_response(&command.get_response().unwrap_or("".to_string())),
             Err(e) => self.set_response(&e),
         };
-    }
-
-    pub fn set_key_label(&self, key: i32, label: &str) -> Result<(), String> {
-        self.db.set_key_label(key, label).map_err(|e| e.to_string())
     }
 
     pub fn copy_to_clipboard(&self, opt: &str) -> Result<(), String> {
@@ -393,80 +379,17 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn get_response(&self) -> &str {
-        match self.response.as_ref() {
-            Some(response) => response,
-            None => "",
-        }
-    }
-
-    pub fn delete_saved_command(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
-        self.db.delete_command(ind)?;
-        self.goto_screen(&Screen::SavedCommands(None));
-        Ok(())
-    }
-
-    pub fn delete_saved_key(&mut self, index: i32) -> Result<(), rusqlite::Error> {
-        self.db.as_ref().delete_key(index)?;
-        self.goto_screen(&Screen::SavedKeys(None));
-        Ok(())
-    }
-
-    pub fn delete_collection(&mut self, id: i32) -> Result<(), rusqlite::Error> {
-        self.db.delete_collection(id)?;
-        self.goto_screen(&Screen::SavedCommands(None));
-        Ok(())
-    }
-
-    pub fn rename_collection(&mut self, id: i32, name: &str) -> Result<(), rusqlite::Error> {
-        self.db.rename_collection(id, name)?;
-        self.goto_screen(&Screen::SavedCollections(None));
-        Ok(())
-    }
-
     pub fn delete_item(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
         match self.current_screen {
-            Screen::CmdMenu(_) => self.delete_saved_command(ind),
-            Screen::KeysMenu(_) => self.delete_saved_key(ind),
+            Screen::CmdMenu(_) => self.db.as_ref().delete_command(ind),
+            Screen::KeysMenu(_) => self.db.as_ref().delete_key(ind),
+            Screen::ViewSavedCollections => self.db.as_ref().delete_collection(ind),
             _ => Ok(()),
         }
     }
 
-    // I know this is a hideous slab of code but due to the enormous verbosity of all these match statments
-    // this is better than the alternative
-#[rustfmt::skip]
     pub fn remove_app_option(&mut self, opt: &AppOptions) {
-        match opt {
-            AppOptions::URL(_)             => self.command.set_url(""),
-            AppOptions::Outfile(_)         => self.command.set_outfile(""),
-            AppOptions::UploadFile(_)      => self.command.set_upload_file(""),
-            AppOptions::UnixSocket(_)      => self.command.set_unix_socket(""),
-            AppOptions::ProgressBar        => self.command.enable_progress_bar(false),
-            AppOptions::FailOnError        => self.command.set_fail_on_error(false),
-            AppOptions::Verbose            => self.command.set_verbose(false),
-            AppOptions::Response(_)        => self.command.set_response(""),
-            AppOptions::SaveCommand        => self.command.save_command(false),
-            AppOptions::SaveToken          => self.command.save_token(false),
-            AppOptions::FollowRedirects    => self.command.set_follow_redirects(false),
-            AppOptions::UnrestrictedAuth   => self.command.set_unrestricted_auth(false),
-            AppOptions::TcpKeepAlive       => self.command.set_tcp_keepalive(false),
-            AppOptions::ProxyTunnel        => self.command.set_proxy_tunnel(false),
-            AppOptions::CertInfo           => self.command.set_cert_info(false),
-            AppOptions::MatchWildcard      => self.command.match_wildcard(false),
-            AppOptions::CaPath(_)          => self.command.set_ca_path(""),
-            AppOptions::MaxRedirects(_)    => self.command.set_max_redirects(0),
-            AppOptions::UserAgent(_)       => self.command.set_user_agent(""),
-            AppOptions::Referrer(_)        => self.command.set_referrer(""),
-            AppOptions::RequestBody(_)     => self.command.set_request_body(""),
-            AppOptions::CookieJar(_)       => self.command.set_cookie_jar(&opt.get_value()),
-            AppOptions::CookiePath(_)      => self.command.set_cookie_path(&opt.get_value()),
-            AppOptions::NewCookie(_)       => self.command.add_cookie(&opt.get_value()),
-            AppOptions::NewCookieSession   => self.command.reset_cookie_session(),
-            AppOptions::Headers(_)         => self.command.remove_headers(&opt.get_value()),
-            AppOptions::Auth(_)            => self.command.set_auth(crate::request::curl::AuthKind::None),
-            AppOptions::EnableHeaders      => self.command.enable_response_headers(false),
-            AppOptions::ContentHeaders(_)  => self.command.set_content_header(HeaderKind::None),
-        }
+        self.command.remove_option(opt);
         self.opts
             .retain(|x| mem::discriminant(x) != mem::discriminant(opt));
     }
@@ -477,7 +400,7 @@ impl<'a> App<'a> {
         self.response = None;
     }
 
-    pub fn has_app_option(&self, opt: &AppOptions) -> bool {
+    fn has_app_option(&self, opt: &AppOptions) -> bool {
         self.opts
             .iter()
             .any(|x| mem::discriminant(x) == mem::discriminant(opt))
@@ -485,9 +408,7 @@ impl<'a> App<'a> {
 
     fn should_add_option(&self, opt: &AppOptions) -> bool {
         match opt {
-            // push headers, reset everything else
-            AppOptions::Headers(_) => true,
-            AppOptions::NewCookie(_) => true,
+            opt if opt.should_append() => true,
             _ => !self.has_app_option(opt),
         }
     }
@@ -497,110 +418,28 @@ impl<'a> App<'a> {
         self.command.set_response(response);
     }
 
-    fn should_toggle(&self, opt: &AppOptions) -> bool {
-        match opt {
-            // Any Option with no string value (boolean) should be toggled
-            AppOptions::Verbose
-            | AppOptions::FollowRedirects
-            | AppOptions::UnrestrictedAuth
-            | AppOptions::TcpKeepAlive
-            | AppOptions::ProxyTunnel
-            | AppOptions::CertInfo
-            | AppOptions::MatchWildcard
-            | AppOptions::FailOnError
-            | AppOptions::ProgressBar
-            | AppOptions::SaveCommand
-            | AppOptions::SaveToken
-            | AppOptions::ContentHeaders(_) // Headers can be pushed but these are pre-defined
-            | AppOptions::EnableHeaders => true,
-            _ => false,
-        }
-    }
-
-#[rustfmt::skip]
     fn toggle_app_option(&mut self, opt: AppOptions) {
         if self.has_app_option(&opt) {
             self.remove_app_option(&opt);
             self.redraw();
             return;
         }
-        match opt {
-            AppOptions::Verbose          => self.command.set_verbose(true),
-            AppOptions::EnableHeaders    => self.command.enable_response_headers(true),
-            AppOptions::ProgressBar      => self.command.enable_progress_bar(true),
-            AppOptions::FailOnError      => self.command.set_fail_on_error(true),
-            AppOptions::MatchWildcard    => self.command.match_wildcard(true),
-            AppOptions::CertInfo         => self.command.set_cert_info(true),
-            AppOptions::ProxyTunnel      => self.command.set_proxy_tunnel(true),
-            AppOptions::SaveCommand      => self.command.save_command(true),
-            AppOptions::FollowRedirects  => self.command.set_follow_redirects(true),
-            AppOptions::UnrestrictedAuth => self.command.set_unrestricted_auth(true),
-            AppOptions::TcpKeepAlive     => self.command.set_tcp_keepalive(true),
-            AppOptions::SaveToken        => self.command.save_token(true),
-            AppOptions::ContentHeaders(k)=> self.command.set_content_header(k),
-            AppOptions::Auth(ref kind)   => self.command.set_auth(kind.clone()),
-            // Auth will be toggled for all types except for Basic, Bearer and digest 
-            _ => {}
+        if opt.should_toggle() {
+            self.opts.push(opt.clone());
+            self.command.add_option(&opt);
         }
-        self.opts.push(opt);
         self.redraw();
     }
 
-#[rustfmt::skip]
     pub fn add_app_option(&mut self, opt: AppOptions) {
-        if self.should_toggle(&opt) {
+        if opt.should_toggle() {
             self.toggle_app_option(opt);
             return;
         }
-
         if self.should_add_option(&opt) {
             self.opts.push(opt.clone());
-            match opt.clone() {
-                // other options will be set at the input menu
-                // TODO: Consolidate this garbage spaghetti nonsense
-                AppOptions::Auth(authkind) => match authkind {
-                    AuthKind::Spnego => {
-                        self.command.set_auth(authkind);
-                    }
-                    AuthKind::Ntlm => {
-                        self.command.set_auth(authkind);
-                    }
-                    AuthKind::AwsSigv4 => {
-                        self.command.set_auth(authkind);
-                    }
-                    // all auth that doesn't take input is toggled
-                    _ => self.toggle_app_option(opt),
-                }
-                AppOptions::UnixSocket(socket) =>  self.command.set_unix_socket(&socket),
-
-                AppOptions::Headers(value) => self.command.add_headers(&value),
-
-                AppOptions::URL(url) => self.command.set_url(&url),
-
-                AppOptions::Outfile(outfile) => self.command.set_outfile(&outfile),
-
-                AppOptions::NewCookie(cookie) => self.command.add_cookie(&cookie),
-
-                AppOptions::CookieJar(cookie) => self.command.set_cookie_jar(&cookie),
-
-                AppOptions::Response(resp) => self.command.set_response(&resp),
-
-                AppOptions::CookiePath(cookie) => self.command.set_cookie_path(&cookie),
-
-                AppOptions::Referrer(referrer) => self.command.set_referrer(&referrer),
-
-                AppOptions::UserAgent(agent) => self.command.set_user_agent(&agent),
-
-                AppOptions::CaPath(ca_path) => self.command.set_ca_path(&ca_path),
-
-                AppOptions::RequestBody(body) => self.command.set_request_body(&body),
-
-                AppOptions::MaxRedirects(max_redirects) => self.command.set_max_redirects(max_redirects),
-                _ => {}
-            }
+            self.command.add_option(&opt);
         } else {
-            // We Should Replace An Option, so we iterate over all the opts and replace the value
-            // with the new value.
             self.handle_replace(opt.clone());
         }
         self.selected = None;
@@ -679,5 +518,277 @@ impl<'a> App<'a> {
                 _ => {}
             }
         }
+    }
+}
+#[cfg(test)]
+pub mod tests {
+    use super::App;
+    use crate::request::curl::AuthKind;
+
+    #[test]
+    fn test_basic_get_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        assert_eq!(app.command.get_url(), url);
+        app.command.set_get_method();
+        server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_basic_post_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.command.set_post_method();
+        app.command.set_request_body("hello world");
+        server.mock("POST", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_basic_put_method() {
+        let mut server = mockito::Server::new_with_port(12343);
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::ContentHeaders(
+            crate::display::HeaderKind::ContentType,
+        ));
+        app.add_app_option(crate::display::AppOptions::RequestBody(
+            "hello world".to_string(),
+        ));
+        app.add_app_option(crate::display::AppOptions::Headers(
+            "Content-Type: Application/json".to_string(),
+        ));
+        app.command.set_request_body("hello world");
+        app.command.set_method(crate::request::curl::Method::Put);
+        app.command
+            .set_content_header(crate::display::HeaderKind::ContentType);
+        let mock = server.mock("PUT", "/").create();
+        let _ = app.execute_command();
+        mock.expect(1)
+            .match_body("hello world")
+            .match_header("Content-Type", "application/json")
+            .assert();
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::ContentHeaders(
+                        crate::display::HeaderKind::ContentType
+                    ))
+                .unwrap()
+                .get_curl_flag_value(),
+            "-H \"Content-Type: Application/json\""
+        );
+    }
+    #[test]
+    fn test_basic_delete_method() {
+        let mut server = mockito::Server::new_with_port(12344);
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.command.set_method(crate::request::curl::Method::Delete);
+        let mock = server.mock("DELETE", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.expect(1).match_header("accept", "*/*").assert();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_basic_head_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Headers(String::from(
+            "Content-Type: text/html",
+        )));
+        app.command.set_head_method();
+        let mock = server
+            .mock("HEAD", "/")
+            .match_header("accept", "*/*")
+            .match_header("Content-Type", "text/html")
+            .create();
+        let _ = app.execute_command();
+        mock.expect(1).assert();
+    }
+    #[test]
+    fn test_basic_patch_method() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::RequestBody(
+            "hello world".to_string(),
+        ));
+        app.command.set_patch_method();
+        let mock = server.mock("PATCH", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.expect(1).match_header("accept", "*/*").assert();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_serlialize_curl_json() {
+        let mut app = App::default();
+        let mut server = mockito::Server::new();
+        let url = server.url();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Headers(
+            "Content-Type: application/json".to_string(),
+        ));
+        app.command.set_method(crate::request::curl::Method::Get);
+        // send request first
+        let mock = server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let json = serde_json::to_string(&app.command).unwrap();
+        app.execute_saved_command(&json);
+        mock.match_header("Content-Type", "application/json")
+            .expect(2)
+            .assert();
+    }
+
+    #[test]
+    fn test_add_bearer_auth() {
+        let mut app = App::default();
+        let token = "helloworld";
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Bearer(
+            token.to_string(),
+        )));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::Auth(AuthKind::Bearer(token.to_string())))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("-H 'Authorization: Bearer helloworld'")
+        );
+    }
+    #[test]
+    fn test_add_basic_auth() {
+        let mut app = App::default();
+        let user = "user";
+        let pass = "pass";
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Basic(format!(
+            "{}:{}",
+            user, pass
+        ))));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::Auth(AuthKind::Basic(format!(
+                        "{}:{}",
+                        user, pass
+                    ))))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("-u user:pass")
+        );
+    }
+    #[test]
+    fn test_add_digest_auth() {
+        let mut app = App::default();
+        let user = "user";
+        let pass = "pass";
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Digest(format!(
+            "{}:{}",
+            user, pass
+        ))));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x
+                    == &&crate::display::AppOptions::Auth(AuthKind::Digest(format!(
+                        "{}:{}",
+                        user, pass
+                    ))))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("--digest -u user:pass")
+        );
+    }
+    #[test]
+    fn test_add_ntlm_auth() {
+        let mut app = App::default();
+        app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Ntlm));
+        assert_eq!(
+            app.opts
+                .iter()
+                .find(|x| x == &&crate::display::AppOptions::Auth(AuthKind::Ntlm))
+                .unwrap()
+                .get_curl_flag_value(),
+            String::from("--ntlm")
+        );
+    }
+    #[test]
+    fn test_add_options() {
+        let mut app = App::default();
+        let mut server = mockito::Server::new_with_port(12348);
+        let url = "http://localhost";
+        let outfile = "output.txt";
+        let response = "response.txt";
+        let body = "hello world";
+        let user_agent = "user-agent";
+        let referrer = "referrer";
+        let cookie = "cookie";
+        let cookie_jar = "cookie-jar";
+        let ca_path = "ca-path";
+        let max_redirects = 5;
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Outfile(outfile.to_string()));
+        app.add_app_option(crate::display::AppOptions::Response(response.to_string()));
+        app.add_app_option(crate::display::AppOptions::RequestBody(body.to_string()));
+        app.add_app_option(crate::display::AppOptions::UserAgent(
+            user_agent.to_string(),
+        ));
+        app.add_app_option(crate::display::AppOptions::Referrer(referrer.to_string()));
+        app.add_app_option(crate::display::AppOptions::CookiePath(cookie.to_string()));
+        app.add_app_option(crate::display::AppOptions::CookieJar(
+            cookie_jar.to_string(),
+        ));
+        app.add_app_option(crate::display::AppOptions::CaPath(ca_path.to_string()));
+        app.add_app_option(crate::display::AppOptions::MaxRedirects(max_redirects));
+        let mock = server.mock("GET", "/").with_body("hello world").create();
+        mock.match_header("referrer", "referrer")
+            .match_header("user-agent", "user-agent")
+            .match_header("cookie", "cookie")
+            .match_header("cookie-jar", "cookie-jar")
+            .match_header("ca-path", "ca-path")
+            .match_header("max-redirects", "5")
+            .match_body("hello world")
+            .expect(1);
+    }
+
+    #[test]
+    fn test_send_with_headers() {
+        let mut server = mockito::Server::new_with_port(12346);
+        let url = server.url();
+        let mut app = App::default();
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.add_app_option(crate::display::AppOptions::Headers(
+            "Content-Type: application/json".to_string(),
+        ));
+        app.command.set_method(crate::request::curl::Method::Get);
+        let mock = server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.match_header("Content-Type", "application/json")
+            .create()
+            .expect(1);
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
     }
 }

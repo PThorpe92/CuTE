@@ -112,7 +112,13 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
                     String::from("Error: You have already entered a URL"),
                 ))));
             }
-            let socket = app.command.get_unix_socket();
+            let socket = app.opts.iter().find_map(|f| {
+                if let AppOptions::UnixSocket(s) = f {
+                    Some(s)
+                } else {
+                    None
+                }
+            });
             if socket.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
                 let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                 for ch in socket.unwrap().chars() {
@@ -121,7 +127,13 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             }
         }
         InputOpt::CookiePath => {
-            if let Some(cookie) = app.command.get_cookie_path() {
+            if let Some(cookie) = app.opts.iter().find_map(|f| {
+                if let AppOptions::CookiePath(s) = f {
+                    Some(s)
+                } else {
+                    None
+                }
+            }) {
                 if app.input.value().is_empty() && app.input.cursor() == 0 {
                     let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                     for ch in cookie.chars() {
@@ -131,7 +143,13 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             }
         }
         InputOpt::CookieJar => {
-            if let Some(cookie) = app.command.get_cookie_jar_path() {
+            if let Some(cookie) = app.opts.iter().find_map(|f| {
+                if let AppOptions::CookieJar(s) = f {
+                    Some(s)
+                } else {
+                    None
+                }
+            }) {
                 if app.input.value().is_empty() && app.input.cursor() == 0 {
                     let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
                     for ch in cookie.chars() {
@@ -205,7 +223,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::ApiKey => {
-            let _ = app.add_saved_key(message.clone());
+            let _ = app.db.as_ref().add_key(&message);
             app.goto_screen(&Screen::SavedKeys(None));
         }
         InputOpt::UnixSocket => {
@@ -227,7 +245,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             }
         }
         InputOpt::RenameCollection(ref id) => {
-            if app.rename_collection(*id, &message).is_ok() {
+            if app.db.as_ref().rename_collection(*id, &message).is_ok() {
                 app.goto_screen(&Screen::SavedCollections(None));
             } else {
                 app.goto_screen(&Screen::Error("Failed to rename collection".to_string()));
@@ -300,7 +318,9 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             if let Err(e) = app.command.write_output() {
                 app.goto_screen(&Screen::Error(e.to_string()));
             } else {
-                app.goto_screen(&Screen::Response(String::from(app.get_response())));
+                app.goto_screen(&Screen::Response(String::from(
+                    app.response.as_ref().unwrap_or(&String::new()).as_str(),
+                )));
             }
         }
         InputOpt::RequestBody => {
@@ -314,9 +334,9 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 app.goto_screen(&Screen::Success);
             }
         }
-        InputOpt::KeyLabel(id) => match app.set_key_label(id, &message) {
+        InputOpt::KeyLabel(id) => match app.db.set_key_label(id, &message) {
             Ok(_) => app.goto_screen(&Screen::SavedKeys(None)),
-            Err(e) => app.goto_screen(&Screen::Error(e)),
+            Err(e) => app.goto_screen(&Screen::Error(e.to_string())),
         },
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);

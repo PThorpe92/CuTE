@@ -82,7 +82,7 @@ pub fn render(app: &mut App, frame: &mut Frame<'_>) {
 }
 
 pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
-    let items = app.get_special_items();
+    let items = app.get_database_items();
     let menu_options = app.current_screen.get_list(items);
     let area = centered_rect(frame.size(), ScreenArea::Center);
 

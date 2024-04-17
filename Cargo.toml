@@ -21,7 +21,6 @@ tui = { package = "ratatui", features = [
 ], version = "0.26.0" }
 tui-input = "0.8.0"
 tui-widget-list = "0.8.2"
-lazy_static = "1.4.0"
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 serde_json = { version = "1.0.114", features = ["std"] }
 serde = { version = "1.0.196", features = ["derive"] }
@@ -34,7 +33,6 @@ toml = "0.8.12"
 arboard = "3.3.2"
 log = "0.4.21"
 clap = "4.5.3"
-once_cell = "1.19.0"
 
 [profile.release]
 strip = "debuginfo"

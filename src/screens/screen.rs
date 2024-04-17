@@ -9,6 +9,21 @@ use std::fmt::{Display, Formatter};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
 
+// TODO: Impl a trait for the screen to load the correct options,
+// render the correct menu + styles and handle input
+#[derive(Debug, PartialEq, Clone)]
+pub enum ScreenLayout {
+    BasicMenu,    // cursor + items. Input on top, options below
+    SelectedItem, // alert menu w/ options about a selected item
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct AppScreen {
+    layout: ScreenLayout,
+    screen: Screen,
+    items: Option<Vec<String>>,
+}
+
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum Screen {
     #[default]
@@ -35,6 +50,7 @@ pub enum Screen {
     RequestBodyInput,
     CookieOptions,
 }
+
 impl Screen {
     pub fn is_input_screen(&self) -> bool {
         match self {
@@ -84,6 +100,7 @@ fn determine_line_size(len: usize) -> &'static str {
         _ => OPTION_PADDING_MIN,
     }
 }
+
 impl<'a> Screen {
     pub fn get_opts(&self, items: Option<Vec<String>>) -> Vec<ListItem<'a>> {
         match &self {
