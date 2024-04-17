@@ -9,6 +9,8 @@ use std::fmt::{Display, Formatter};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
 
+// TODO: Impl a trait for the screen to load the correct options,
+// render the correct menu + styles and handle input
 #[derive(Debug, PartialEq, Clone)]
 pub enum ScreenLayout {
     BasicMenu,    // cursor + items. Input on top, options below

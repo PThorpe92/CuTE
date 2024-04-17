@@ -137,9 +137,9 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
             app.goto_screen(&Screen::SavedCommands(Some(selected.get_id())));
         }
         // Rename Collection
-        Some(1) => app.goto_screen(&Screen::InputMenu(InputOpt::RenameCollection(
+        Some(1) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RenameCollection(
             selected.get_id(),
-        ))),
+        )))),
         // delete collection
         Some(2) => {
             if let Err(e) = app.db.as_ref().delete_collection(selected.get_id()) {

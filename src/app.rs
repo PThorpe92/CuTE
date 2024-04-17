@@ -522,10 +522,8 @@ impl<'a> App<'a> {
 }
 #[cfg(test)]
 pub mod tests {
-    
-
     use super::App;
-    use crate::request::curl::{AuthKind};
+    use crate::request::curl::AuthKind;
 
     #[test]
     fn test_basic_get_method() {
