@@ -1,7 +1,6 @@
 use crate::app::{App, InputMode};
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
-use crate::request::curl::Method;
 use crate::screens::{centered_rect, Screen, ScreenArea};
 use tui::text::{Line, Text};
 use tui::widgets::{Block, Borders, Paragraph};
@@ -49,18 +48,10 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     let prompt = Text::from(
         "Enter your Request body,\n press ESC to exit Insert Mode\n then press Enter to submit",
     );
-    match app.command.get_method() {
-        Some(Method::Get | Method::Delete | Method::Head) => {
-            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
-                String::from("Error: Request Bodies are not allowed for this HTTP method"),
-            ))));
-        }
-        Some(_) => {}
-        None => {
-            app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
-                String::from("Alert: Please select a HTTP method first"),
-            ))));
-        }
+    if !app.command.method.needs_reset() {
+        app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
+            String::from("Error: Request Bodies are not allowed for this HTTP method"),
+        ))));
     }
 
     let msg = Paragraph::new(Line::from(msg));

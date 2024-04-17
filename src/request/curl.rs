@@ -38,7 +38,7 @@ pub struct Curl {
     // The libcurl interface for our command/request
     #[serde(skip)]
     curl: CurlHandler,
-    method: Option<Method>,
+    pub method: Method,
     auth: AuthKind,
     // The final cli command string
     cmd: String,
@@ -59,14 +59,20 @@ impl Default for CurlHandler {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Eq, Clone, PartialEq)]
 pub enum Method {
+    #[default]
     Get,
     Post,
     Put,
     Patch,
     Delete,
     Head,
+}
+impl Method {
+    pub fn needs_reset(&self) -> bool {
+        matches!(self, Method::Put | Method::Patch | Method::Post)
+    }
 }
 impl FromStr for Method {
     type Err = String;
@@ -103,13 +109,12 @@ impl Clone for Curl {
         curl.set_url(self.url.as_str());
 
         match self.method {
-            Some(Method::Get) => curl.set_get_method(),
-            Some(Method::Post) => curl.set_post_method(),
-            Some(Method::Put) => curl.set_put_method(),
-            Some(Method::Patch) => curl.set_patch_method(),
-            Some(Method::Delete) => curl.set_delete_method(),
-            Some(Method::Head) => curl.set_head_method(),
-            None => {}
+            Method::Get => curl.set_get_method(),
+            Method::Post => curl.set_post_method(),
+            Method::Put => curl.set_put_method(),
+            Method::Patch => curl.set_patch_method(),
+            Method::Delete => curl.set_delete_method(),
+            Method::Head => curl.set_head_method(),
         }
         if let Some(ref res) = self.resp {
             curl.set_response(res.as_str());
@@ -203,7 +208,7 @@ impl Default for Curl {
     fn default() -> Self {
         Self {
             curl: CurlHandler::default(),
-            method: None,
+            method: Method::Get,
             auth: AuthKind::None,
             cmd: String::from(CURL),
             url: String::new(),
@@ -223,21 +228,20 @@ impl Curl {
     pub fn get_url(&self) -> &str {
         &self.url
     }
-    pub fn get_method(&self) -> Option<Method> {
-        self.method.clone()
+    pub fn get_method(&self) -> &Method {
+        &self.method
     }
     pub fn add_basic_auth(&mut self, info: &str) {
         self.auth = AuthKind::Basic(String::from(info));
     }
     fn apply_method(&mut self) {
         match self.method {
-            Some(Method::Get) => self.set_get_method(),
-            Some(Method::Post) => self.set_post_method(),
-            Some(Method::Put) => self.set_put_method(),
-            Some(Method::Patch) => self.set_patch_method(),
-            Some(Method::Delete) => self.set_delete_method(),
-            Some(Method::Head) => self.set_head_method(),
-            None => {}
+            Method::Get => self.set_get_method(),
+            Method::Post => self.set_post_method(),
+            Method::Put => self.set_put_method(),
+            Method::Patch => self.set_patch_method(),
+            Method::Delete => self.set_delete_method(),
+            Method::Head => self.set_head_method(),
         }
     }
 
@@ -247,10 +251,8 @@ impl Curl {
 
     pub fn build_command_string(&mut self) {
         let mut cmd: Vec<String> = vec![self.cmd.clone()];
-        if let Some(ref method) = &self.method {
-            cmd.push(String::from("-X"));
-            cmd.push(method.to_string());
-        }
+        cmd.push(String::from("-X"));
+        cmd.push(self.method.to_string());
         cmd.push(self.url.clone());
         for flag in self.opts.iter() {
             cmd.push(flag.get_curl_flag_value());
@@ -305,17 +307,14 @@ impl Curl {
         self.upload_file.clone()
     }
 
-    pub fn execute(
-        &mut self,
-        mut db: Option<Box<&mut DB>>,
-        opts: &[AppOptions],
-    ) -> Result<(), String> {
+    #[rustfmt::skip]
+    pub fn execute(&mut self, mut db: Option<Box<&mut DB>>, opts: &[AppOptions]) -> Result<(), String> {
         let mut list = List::new();
         self.opts = opts.to_vec();
         curl::init();
         // we do this again because if it's a patch | put and there's a
         // body, it will default to post
-        self.apply_method();
+        self.apply_method(); 
         let mut has_headers = self.handle_auth_exec(&mut list);
         if let Some(ref headers) = self.headers {
             headers
@@ -575,16 +574,7 @@ impl Curl {
         self.build_command_string();
         let url = self.url.clone();
         self.set_url(&url);
-        if let Some(ref method) = self.method {
-            match method {
-                Method::Get => self.set_get_method(),
-                Method::Post => self.set_post_method(),
-                Method::Put => self.set_put_method(),
-                Method::Patch => self.set_patch_method(),
-                Method::Delete => self.set_delete_method(),
-                Method::Head => self.curl.nobody(true).unwrap(),
-            }
-        }
+        self.apply_method();
         for opt in opts {
             self.add_option(opt);
         }
@@ -598,10 +588,7 @@ impl Curl {
     }
 
     pub fn set_head_method(&mut self) {
-        if self.method.is_some() {
-            self.curl.reset();
-        }
-        self.method = Some(Method::Head);
+        self.method = Method::Head;
         self.curl.nobody(true).unwrap();
     }
 
@@ -623,27 +610,27 @@ impl Curl {
     }
 
     pub fn set_get_method(&mut self) {
-        self.method = Some(Method::Get);
+        self.method = Method::Get;
         self.curl.get(true).unwrap();
     }
 
     pub fn set_post_method(&mut self) {
-        self.method = Some(Method::Post);
+        self.method = Method::Post;
         self.curl.post(true).unwrap();
     }
 
     pub fn set_put_method(&mut self) {
-        self.method = Some(Method::Put);
+        self.method = Method::Put;
         self.curl.put(true).unwrap();
     }
 
     pub fn set_patch_method(&mut self) {
-        self.method = Some(Method::Patch);
+        self.method = Method::Patch;
         self.curl.custom_request("PATCH").unwrap();
     }
 
     pub fn set_delete_method(&mut self) {
-        self.method = Some(Method::Delete);
+        self.method = Method::Delete;
         self.curl.custom_request("DELETE").unwrap();
     }
 
