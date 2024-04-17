@@ -1,22 +1,19 @@
-use std::fmt::{Display, Formatter};
-
-use crate::{
-    display::menuopts::{DISPLAY_OPT_COOKIE_JAR, DISPLAY_OPT_MAX_REDIRECTS, DISPLAY_OPT_REFERRER},
-    request::curl::AuthKind,
-};
+use serde::{Deserialize, Serialize};
 
 use self::menuopts::{
     DISPLAY_OPT_AUTH, DISPLAY_OPT_BODY, DISPLAY_OPT_CA_PATH, DISPLAY_OPT_CERT_INFO,
     DISPLAY_OPT_COMMAND_SAVED, DISPLAY_OPT_CONTENT_HEADERS, DISPLAY_OPT_COOKIE,
-    DISPLAY_OPT_FAIL_ON_ERROR, DISPLAY_OPT_FOLLOW_REDIRECTS, DISPLAY_OPT_HEADERS,
-    DISPLAY_OPT_MATCH_WILDCARD, DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROGRESS_BAR,
-    DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_TCP_KEEPALIVE, DISPLAY_OPT_TOKEN_SAVED,
-    DISPLAY_OPT_UNIX_SOCKET, DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL,
-    DISPLAY_OPT_USERAGENT, DISPLAY_OPT_VERBOSE,
+    DISPLAY_OPT_COOKIE_JAR, DISPLAY_OPT_FAIL_ON_ERROR, DISPLAY_OPT_FOLLOW_REDIRECTS,
+    DISPLAY_OPT_HEADERS, DISPLAY_OPT_MATCH_WILDCARD, DISPLAY_OPT_MAX_REDIRECTS,
+    DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROGRESS_BAR, DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_REFERRER,
+    DISPLAY_OPT_TCP_KEEPALIVE, DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_UNIX_SOCKET,
+    DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL, DISPLAY_OPT_USERAGENT,
+    DISPLAY_OPT_VERBOSE,
 };
+use crate::request::curl::AuthKind;
+use std::fmt::{Display, Formatter};
 
-// TODO: clean all this up
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub enum HeaderKind {
     Accept,
     ContentType,
@@ -43,7 +40,7 @@ pub mod menuopts;
 
 /// Here are the options that require us to display a box letting
 /// the user know that they have selected that option.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum AppOptions {
     Verbose,
     Headers(String),
@@ -77,6 +74,67 @@ pub enum AppOptions {
 }
 
 impl AppOptions {
+    pub fn get_curl_flag_value(&self) -> String {
+        match self {
+            Self::Verbose => "-v".to_string(),
+            Self::Headers(ref str) => format!("-H {str}"),
+            Self::UploadFile(ref file) => format!("-T {file}"),
+            Self::Outfile(ref file) => format!("-o {file}"),
+            Self::NewCookie(ref cookie) => format!("--cookie {cookie}"),
+            Self::CookieJar(ref jar) => format!("--cookie-jar {jar}"),
+            Self::CookiePath(ref path) => format!("--cookie {path}"),
+            Self::Referrer(ref referrer) => format!("-e {referrer}"),
+            Self::CaPath(ref path) => format!("--cacert {path}"),
+            Self::MaxRedirects(ref size) => format!("--max-redirs {size}"),
+            Self::UserAgent(ref ua) => format!("-A {ua}"),
+            Self::RequestBody(ref body) => format!("-d {body}"),
+            Self::NewCookieSession => "--junk-session-cookies".to_string(),
+            Self::ProxyTunnel => "--proxy-tunnel".to_string(),
+            Self::CertInfo => "--certinfo".to_string(),
+            Self::FollowRedirects => "-L".to_string(),
+            Self::UnixSocket(ref socket) => format!("--unix-socket {socket}"),
+            Self::MatchWildcard => "-g".to_string(),
+            Self::ProgressBar => "--progress-bar".to_string(),
+            Self::Auth(ref kind) => match kind {
+                AuthKind::Basic(ref login) => {
+                    format!("-u {login}")
+                }
+                AuthKind::Digest(ref login) => {
+                    format!("--digest -u {login}")
+                }
+                AuthKind::Ntlm => "--ntlm".to_string(),
+                AuthKind::Bearer(ref token) => format!("-H 'Authorization: Bearer {token}'"),
+                AuthKind::AwsSigv4 => "--aws-sigv4".to_string(),
+                AuthKind::Spnego => "--spnego".to_string(),
+                AuthKind::None => "".to_string(),
+            },
+            Self::ContentHeaders(ref kind) => match kind {
+                HeaderKind::Accept => "-H \"Accept: Application/json\"".to_string(),
+                HeaderKind::ContentType => "-H \"Content-Type: Application/json\"".to_string(),
+                HeaderKind::None => "".to_string(),
+            },
+            Self::UnrestrictedAuth => "--anyauth".to_string(),
+            _ => "".to_string(),
+        }
+    }
+    pub fn should_toggle(&self) -> bool {
+        matches!(
+            self,
+            Self::Verbose
+                | Self::EnableHeaders
+                | Self::ProgressBar
+                | Self::FailOnError
+                | Self::ProxyTunnel
+                | Self::CertInfo
+                | Self::FollowRedirects
+                | Self::MatchWildcard
+                | Self::TcpKeepAlive
+                | Self::UnrestrictedAuth
+        )
+    }
+    pub fn should_append(&self) -> bool {
+        matches!(self, Self::Headers(_) | Self::NewCookie(_))
+    }
     pub fn replace_value(&mut self, val: String) {
         match self {
             AppOptions::ContentHeaders(ref mut kind) => match val.as_str() {

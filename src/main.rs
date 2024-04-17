@@ -1,20 +1,30 @@
 #![warn(clippy::all)]
 #![allow(non_snake_case)]
-use clap::builder::Command;
-use clap::Arg;
+use clap::{builder::Command, Arg};
 use dirs::config_dir;
-use once_cell::sync::Lazy;
 use std::io;
+use std::sync::OnceLock;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
 use CuTE_tui::app::{App, AppResult};
-use CuTE_tui::events::event::{Event, EventHandler};
-use CuTE_tui::events::handler::handle_key_events;
-use CuTE_tui::tui_cute::Tui;
-use CuTE_tui::Config;
+use CuTE_tui::events::{
+    event::{Event, EventHandler},
+    handler::handle_key_events,
+};
+use CuTE_tui::{tui_cute::Tui, Config};
+
+pub static CONFIG_PATH: OnceLock<String> = OnceLock::new();
 
 fn main() -> AppResult<()> {
     let mut app = App::new();
+    CONFIG_PATH.get_or_init(|| {
+        config_dir()
+            .unwrap()
+            .join("CuTE/config.toml")
+            .as_os_str()
+            .to_string_lossy()
+            .to_string()
+    });
     app.set_config(parse_cmdline().unwrap_or_default());
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
@@ -24,26 +34,13 @@ fn main() -> AppResult<()> {
 
     while app.running {
         tui.draw(&mut app)?;
-        match tui.events.next()? {
-            Event::Tick => app.tick(),
-            Event::Key(key_event) => handle_key_events(key_event, &mut app)?,
-            Event::Mouse(_) => {}
-            Event::Resize(_, _) => {}
+        if let Event::Key(key_event) = tui.events.next()? {
+            handle_key_events(key_event, &mut app)?
         }
     }
-
     tui.exit()?;
     Ok(())
 }
-
-pub static CONFIG_PATH: Lazy<String> = Lazy::new(|| {
-    config_dir()
-        .unwrap()
-        .join("CuTE/config.toml")
-        .as_os_str()
-        .to_string_lossy()
-        .to_string()
-});
 
 fn parse_cmdline() -> Option<Config> {
     let args = Command::new("CuTE")

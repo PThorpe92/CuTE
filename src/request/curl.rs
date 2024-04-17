@@ -1,5 +1,5 @@
 use crate::database::db::DB;
-use crate::display::HeaderKind;
+use crate::display::{AppOptions, HeaderKind};
 use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -14,6 +14,8 @@ use std::{
     io::Write,
 };
 
+use super::ExecuteOption;
+
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
 struct Collector(Vec<u8>);
 
@@ -25,7 +27,7 @@ impl Handler for Collector {
 }
 
 #[derive(Debug)]
-pub struct Curl<'a> {
+pub struct Curl {
     // The libcurl interface for our command/request
     curl: Easy2<Collector>,
     // The method type
@@ -39,7 +41,7 @@ pub struct Curl<'a> {
     // The url we will send the request to
     url: String,
     // The opts we will build incrementally and store
-    opts: Vec<CurlFlag<'a>>,
+    opts: Vec<AppOptions>,
     // The response we get back from the command if not sent to file
     resp: Option<String>,
     // Filepath of file to be uploaded
@@ -88,10 +90,10 @@ impl Display for Method {
         }
     }
 }
-impl<'a> Eq for Curl<'a> {}
+impl Eq for Curl {}
 
 // cannot derive (serialze, deserialize) due to curl::Easy2 (libcurl)
-impl<'a> Serialize for Curl<'a> {
+impl Serialize for Curl {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -111,7 +113,7 @@ impl<'a> Serialize for Curl<'a> {
     }
 }
 
-impl<'de> Deserialize<'de> for Curl<'de> {
+impl<'de> Deserialize<'de> for Curl {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -120,7 +122,7 @@ impl<'de> Deserialize<'de> for Curl<'de> {
         struct CurlVisitor;
 
         impl<'de> Visitor<'de> for CurlVisitor {
-            type Value = Curl<'de>;
+            type Value = Curl;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("struct Curl")
@@ -162,14 +164,16 @@ impl<'de> Deserialize<'de> for Curl<'de> {
                     cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
                     headers: headers.ok_or_else(|| serde::de::Error::missing_field("headers"))?,
                     url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
-                    opts: opts.ok_or_else(|| serde::de::Error::missing_field("opts"))?,
+                    opts: opts
+                        .to_owned()
+                        .ok_or_else(|| serde::de::Error::missing_field("opts"))?,
                     resp: resp.ok_or_else(|| serde::de::Error::missing_field("resp"))?,
                     upload_file: upload_file
                         .ok_or_else(|| serde::de::Error::missing_field("upload_file"))?,
                     outfile: outfile.ok_or_else(|| serde::de::Error::missing_field("outfile"))?,
                     save: (false, false),
                 };
-                res.easy_from_opts();
+                res.easy_from_opts(opts.unwrap_or_default().as_slice());
                 Ok(res)
             }
         }
@@ -193,10 +197,10 @@ impl<'de> Deserialize<'de> for Curl<'de> {
     }
 }
 
-impl<'a> Clone for Curl<'a> {
+impl Clone for Curl {
     fn clone(&self) -> Self {
         let mut curl = Curl::new();
-        let _ = self.opts.iter().map(|x| curl.add_flag(x.clone()));
+        let _ = self.opts.iter().map(|x| curl.add_option(x));
         curl.set_url(self.url.as_str());
 
         match self.method {
@@ -241,7 +245,7 @@ impl<'a> Clone for Curl<'a> {
     }
 }
 
-impl<'a> PartialEq for Curl<'a> {
+impl PartialEq for Curl {
     fn eq(&self, other: &Self) -> bool {
         self.method == other.method
             && self.auth == other.auth
@@ -292,7 +296,7 @@ impl Display for AuthKind {
     }
 }
 
-impl<'a> Default for Curl<'a> {
+impl Default for Curl {
     fn default() -> Self {
         Self {
             curl: Easy2::new(Collector(Vec::new())),
@@ -309,11 +313,10 @@ impl<'a> Default for Curl<'a> {
         }
     }
 }
-impl<'a> Curl<'a> {
+impl Curl {
     pub fn new() -> Self {
         Self::default()
     }
-
     pub fn get_url(&self) -> &str {
         &self.url
     }
@@ -321,11 +324,11 @@ impl<'a> Curl<'a> {
         self.method.clone()
     }
     pub fn add_basic_auth(&mut self, info: &str) {
-        self.add_flag(CurlFlag::Basic(
-            CurlFlagType::Basic.get_value(),
-            Some(String::from(info)),
-        ));
         self.auth = AuthKind::Basic(String::from(info));
+    }
+
+    pub fn get_response(&self) -> Option<String> {
+        self.resp.clone()
     }
 
     pub fn build_command_string(&mut self) {
@@ -335,11 +338,8 @@ impl<'a> Curl<'a> {
             cmd.push(method.to_string());
         }
         cmd.push(self.url.clone());
-        for flag in &self.opts {
-            cmd.push(flag.get_value().to_string());
-            if let Some(arg) = &flag.get_arg() {
-                cmd.push(arg.to_owned());
-            }
+        for flag in self.opts.iter() {
+            cmd.push(flag.get_curl_flag_value());
         }
         if self.headers.is_some() {
             self.headers.as_ref().unwrap().iter().for_each(|h| {
@@ -360,7 +360,6 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_outfile(&mut self, outfile: &str) {
-        self.add_flag(CurlFlag::Output(CurlFlagType::Output.get_value(), None));
         self.outfile = Some(String::from(outfile));
     }
 
@@ -377,41 +376,28 @@ impl<'a> Curl<'a> {
         self.resp = Some(String::from(response));
     }
 
-    pub fn get_cookie_path(&self) -> Option<String> {
-        let flag = &CurlFlag::CookieFile(CurlFlagType::CookieFile.get_value(), None);
-        self.opts
-            .iter()
-            .find(|pos| *pos == flag)
-            .and_then(|pos| pos.get_arg())
-    }
-
     pub fn set_cookie_path(&mut self, path: &str) {
-        let flag = CurlFlag::CookieFile(CurlFlagType::CookieFile.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.cookie_file(path).unwrap();
     }
 
     pub fn set_cookie_jar(&mut self, path: &str) {
-        let flag = CurlFlag::CookieJar(CurlFlagType::CookieJar.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.cookie_jar(path).unwrap();
     }
     pub fn reset_cookie_session(&mut self) {
-        let flag = CurlFlag::CookieSession(CurlFlagType::CookieSession.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.cookie_session(true).unwrap();
-    }
-
-    pub fn get_response(&self) -> String {
-        self.resp.clone().unwrap_or_default()
     }
 
     pub fn get_upload_file(&self) -> Option<String> {
         self.upload_file.clone()
     }
 
-    pub fn execute(&mut self, mut db: Option<Box<&mut DB>>) -> Result<(), String> {
+    pub fn execute(
+        &mut self,
+        mut db: Option<Box<&mut DB>>,
+        opts: &[AppOptions],
+    ) -> Result<(), String> {
         let mut list = List::new();
+        self.opts = opts.to_vec();
         curl::init();
 
         // Setup auth if we have it, will return whether we appended to the list
@@ -505,23 +491,6 @@ impl<'a> Curl<'a> {
         }
     }
 
-    pub fn has_unix_socket(&self) -> bool {
-        let flag = &CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
-        self.has_flag(flag)
-    }
-
-    pub fn get_unix_socket(&self) -> Option<String> {
-        if self.has_unix_socket() {
-            let flag = &CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
-            self.opts
-                .iter()
-                .find(|pos| *pos == flag)
-                .and_then(|pos| pos.get_arg())
-        } else {
-            None
-        }
-    }
-
     pub fn set_method(&mut self, method: Method) {
         match method {
             Method::Get => self.set_get_method(),
@@ -535,53 +504,31 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_cert_info(&mut self, opt: bool) {
-        let flag = CurlFlag::CertInfo(CurlFlagType::CertInfo.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.certinfo(opt).unwrap();
     }
 
     pub fn set_referrer(&mut self, referrer: &str) {
-        let flag = CurlFlag::Referrer(CurlFlagType::Referrer.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.referer(referrer).unwrap();
     }
 
     pub fn set_proxy_tunnel(&mut self, opt: bool) {
-        let flag = CurlFlag::ProxyTunnel(CurlFlagType::ProxyTunnel.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.http_proxy_tunnel(opt).unwrap();
     }
 
     pub fn set_verbose(&mut self, opt: bool) {
-        let flag = CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.verbose(opt).unwrap();
     }
 
     pub fn set_fail_on_error(&mut self, fail: bool) {
-        let flag = CurlFlag::FailOnError(CurlFlagType::FailOnError.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.fail_on_error(fail).unwrap();
     }
 
     pub fn set_unix_socket(&mut self, socket: &str) {
-        let flag = CurlFlag::UnixSocket(CurlFlagType::UnixSocket.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.unix_socket(socket).unwrap();
     }
 
     pub fn enable_progress_bar(&mut self, on: bool) {
-        let flag = CurlFlag::Progress(CurlFlagType::Progress.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.progress(on).unwrap();
-    }
-
-    pub fn get_cookie_jar_path(&self) -> Option<String> {
-        let flag = &CurlFlag::CookieJar(CurlFlagType::CookieJar.get_value(), None);
-        self.opts
-            .iter()
-            .find(|pos| *pos == flag)
-            .and_then(|pos| pos.get_arg())
     }
 
     pub fn set_content_header(&mut self, kind: HeaderKind) {
@@ -633,85 +580,46 @@ impl<'a> Curl<'a> {
         }
     }
     pub fn match_wildcard(&mut self, opt: bool) {
-        let flag = CurlFlag::MatchWildcard(CurlFlagType::MatchWildcard.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.wildcard_match(opt).unwrap();
     }
 
     pub fn set_unrestricted_auth(&mut self, opt: bool) {
-        let flag = CurlFlag::AnyAuth(CurlFlagType::AnyAuth.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.unrestricted_auth(opt).unwrap();
     }
 
     pub fn set_user_agent(&mut self, ua: &str) {
-        let flag = CurlFlag::User(CurlFlagType::User.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.useragent(ua).unwrap();
     }
 
     pub fn set_max_redirects(&mut self, redirects: usize) {
-        let flag = CurlFlag::MaxRedirects(
-            CurlFlagType::MaxRedirects.get_value(),
-            Some(redirects.to_string()),
-        );
-        self.toggle_flag(&flag);
         self.curl
             .max_redirections(redirects as u32)
             .unwrap_or_default();
     }
 
     pub fn set_ca_path(&mut self, ca_path: &str) {
-        let flag = CurlFlag::CaPath(CurlFlagType::CaPath.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.cainfo(ca_path).unwrap_or_default();
     }
 
     pub fn set_tcp_keepalive(&mut self, opt: bool) {
-        let flag = CurlFlag::TcpKeepAlive(CurlFlagType::TcpKeepAlive.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.tcp_keepalive(opt).unwrap_or_default();
     }
 
-    pub fn get_request_body(&self) -> Option<String> {
-        let flag = self.opts.iter().find(|pos| {
-            std::mem::discriminant(*pos)
-                == std::mem::discriminant(&CurlFlag::RequestBody(
-                    CurlFlagType::RequestBody.get_value(),
-                    None,
-                ))
-        });
-        flag.and_then(|pos| pos.get_arg())
-    }
-
     pub fn set_request_body(&mut self, body: &str) {
-        let flag = CurlFlag::RequestBody(
-            CurlFlagType::RequestBody.get_value(),
-            Some(body.trim().to_string()),
-        );
-        self.toggle_flag(&flag);
         self.curl
             .post_fields_copy(body.as_bytes())
             .unwrap_or_default();
     }
 
     pub fn set_follow_redirects(&mut self, opt: bool) {
-        let flag = CurlFlag::FollowRedirects(CurlFlagType::FollowRedirects.get_value(), None);
-        self.toggle_flag(&flag);
         self.curl.follow_location(opt).unwrap_or_default();
     }
 
     pub fn add_cookie(&mut self, cookie: &str) {
-        let flag = CurlFlag::Cookie(CurlFlagType::Cookie.get_value(), Some(String::from(cookie)));
-        self.toggle_flag(&flag);
         self.curl.cookie(cookie).unwrap_or_default();
     }
 
     pub fn set_upload_file(&mut self, file: &str) {
-        self.add_flag(CurlFlag::UploadFile(
-            CurlFlagType::UploadFile.get_value(),
-            Some(file.to_string()),
-        ));
         self.upload_file = Some(file.to_string());
         self.curl.upload(true).unwrap_or_default();
     }
@@ -750,11 +658,6 @@ impl<'a> Curl<'a> {
         self.save.1
     }
 
-    fn has_flag(&self, flag: &CurlFlag<'a>) -> bool {
-        self.opts
-            .iter()
-            .any(|has| std::mem::discriminant(has) == std::mem::discriminant(flag))
-    }
     fn set_options_method(&mut self) {
         if self.method.is_some() {
             self.curl.reset();
@@ -764,8 +667,7 @@ impl<'a> Curl<'a> {
     // This is a hack because when we deseialize json from the DB, we get a curl struct with no curl::Easy
     // field, so we have to manually add, then set the options one at a time from the opts vector.
     // ANY time we get a command from the database to run, we have to call this method first.
-    pub fn easy_from_opts(&mut self) {
-        let opts = self.opts.clone();
+    pub fn easy_from_opts(&mut self, opts: &[AppOptions]) {
         let url = self.url.clone();
         self.set_url(&url);
         if let Some(ref method) = self.method {
@@ -780,105 +682,15 @@ impl<'a> Curl<'a> {
             }
         }
         for opt in opts {
-            match opt {
-                CurlFlag::Verbose(..) => self.set_verbose(true),
-                CurlFlag::Headers(_, val) => self.add_headers(&val.unwrap_or("".to_string())),
-                CurlFlag::Output(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_outfile(&val);
-                    }
-                }
-                CurlFlag::Cookie(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.add_cookie(&val);
-                    }
-                }
-                CurlFlag::MatchWildcard(..) => {
-                    self.curl.wildcard_match(true).unwrap();
-                }
-                CurlFlag::User(..) => {}
-                CurlFlag::Digest(..) => {
-                    if let Some(login) = opt.get_arg() {
-                        self.set_digest_auth(&login);
-                    }
-                }
-                CurlFlag::AnyAuth(..) => self.set_any_auth(),
-                CurlFlag::Ntlm(..) => self.set_ntlm_auth(),
-
-                CurlFlag::AwsSigv4(..) => self.set_aws_sigv4_auth(),
-
-                CurlFlag::UnixSocket(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_unix_socket(val.as_str());
-                    }
-                }
-                CurlFlag::UploadFile(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_upload_file(val.as_str());
-                    }
-                }
-                CurlFlag::SpnegoAuth(..) => self.set_spnego_auth(),
-
-                CurlFlag::DumpHeaders(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.show_headers(val.as_str());
-                    }
-                }
-                CurlFlag::CaPath(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_ca_path(val.as_str());
-                    }
-                }
-                CurlFlag::MaxRedirects(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_max_redirects(val.parse::<usize>().unwrap());
-                    }
-                }
-                CurlFlag::CertInfo(..) => self.set_cert_info(true),
-                CurlFlag::FailOnError(..) => self.set_fail_on_error(true),
-                CurlFlag::Proxy(..) => {}
-                CurlFlag::ProxyTunnel(..) => self.set_proxy_tunnel(true),
-                CurlFlag::File(..) => {}
-                CurlFlag::DataUrlEncode(..) => {}
-                CurlFlag::Referrer(..) => {}
-                CurlFlag::FollowRedirects(..) => self.set_follow_redirects(true),
-                CurlFlag::TcpKeepAlive(..) => self.set_tcp_keepalive(true),
-                CurlFlag::PreventDefaultConfig(..) => {}
-                CurlFlag::Progress(..) => {}
-                CurlFlag::RequestBody(..) => {
-                    if let Some(val) = opt.get_arg() {
-                        self.set_request_body(&val);
-                    }
-                }
-                _ => {}
-            }
+            self.add_option(&opt);
         }
     }
-
-    pub fn remove_flag(&mut self, flag: &CurlFlag<'a>) {
-        self.opts
-            .retain(|x| std::mem::discriminant(x) != std::mem::discriminant(flag));
-    }
-
     pub fn set_any_auth(&mut self) {
-        self.add_flag(CurlFlag::AnyAuth(CurlFlagType::AnyAuth.get_value(), None));
         let _ = self.curl.http_auth(&Auth::new());
     }
 
     pub fn set_basic_auth(&mut self, login: &str) {
-        self.add_flag(CurlFlag::Basic(
-            CurlFlagType::Basic.get_value(),
-            Some(login.to_string()),
-        ));
         self.auth = AuthKind::Basic(String::from(login));
-    }
-
-    pub fn toggle_flag(&mut self, flag: &CurlFlag<'a>) {
-        if self.has_flag(flag) {
-            self.remove_flag(flag);
-        } else {
-            self.opts.push(flag.clone());
-        }
     }
 
     pub fn set_head_method(&mut self) {
@@ -890,23 +702,14 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_digest_auth(&mut self, login: &str) {
-        self.add_flag(CurlFlag::Digest(
-            CurlFlagType::Digest.get_value(),
-            Some(String::from(login)),
-        ));
         self.auth = AuthKind::Digest(String::from(login));
     }
 
     pub fn set_aws_sigv4_auth(&mut self) {
-        self.add_flag(CurlFlag::AwsSigv4(CurlFlagType::AwsSigv4.get_value(), None));
         self.auth = AuthKind::AwsSigv4;
     }
 
     pub fn set_spnego_auth(&mut self) {
-        self.add_flag(CurlFlag::SpnegoAuth(
-            CurlFlagType::SpnegoAuth.get_value(),
-            None,
-        ));
         self.auth = AuthKind::Spnego;
     }
 
@@ -941,23 +744,14 @@ impl<'a> Curl<'a> {
     }
 
     pub fn set_ntlm_auth(&mut self) {
-        self.add_flag(CurlFlag::Ntlm(CurlFlagType::Ntlm.get_value(), None));
         self.auth = AuthKind::Ntlm;
     }
 
     pub fn set_bearer_auth(&mut self, token: &str) {
-        self.add_flag(CurlFlag::Bearer(
-            CurlFlagType::Bearer.get_value(),
-            Some(format!("Authorization: Bearer {token}")),
-        ));
         self.auth = AuthKind::Bearer(String::from(token));
     }
 
-    pub fn show_headers(&mut self, file: &str) {
-        self.add_flag(CurlFlag::DumpHeaders(
-            CurlFlagType::DumpHeaders.get_value(),
-            Some(file.to_string()),
-        ));
+    pub fn show_headers(&mut self) {
         self.curl.show_header(true).unwrap();
     }
 
@@ -1000,104 +794,8 @@ impl<'a> Curl<'a> {
     }
 
     pub fn url_encode(&mut self, data: &str) {
-        self.add_flag(CurlFlag::DataUrlEncode(
-            CurlFlagType::DataUrlEncode.get_value(),
-            Some(data.to_string()),
-        ));
         self.url = self.curl.url_encode(data.as_bytes());
     }
-
-    pub fn add_flag(&mut self, flag: CurlFlag<'a>) {
-        self.opts.push(flag);
-    }
-}
-
-// curl.opts  =  Vec<Flag>  =  vec!["--cert-type", "PEM"] flag / argument
-// but we dont want to have to provide/remember the "-X"(flag) so we store it in the enum
-// We may have "--verbose" which is a flag with no value
-// But each enum variant has the default flag stored as a static string, so we can use that
-// to build the command incrementally by just providing the argument value when we create the flag.
-// YES, I know this ended up being more verbose than just passing in the flag values in the first
-// place but at this point its been refactored so many times that screw it, who cares
-#[macro_export]
-macro_rules! define_curl_flags {
-    (
-        $( $variant:ident($default:expr), )*
-    ) => {
-        #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
-        pub enum CurlFlag<'a> {
-            $( $variant(&'a str, Option<String>), )*
-        }
-
-        impl<'a> CurlFlag<'a> {
-            pub fn new(flag: CurlFlagType, value: Option<String>) -> Self {
-                match flag {
-                    $( CurlFlagType::$variant => CurlFlag::$variant(flag.get_value(), value),)*
-                }
-            }
-
-            pub fn get_arg(&self) -> Option<String> {
-                match self {
-                    $( CurlFlag::$variant(_, arg) => arg.clone(), )*
-                }
-            }
-
-            pub fn get_value(&self) -> &'a str {
-                match self {
-                    $( CurlFlag::$variant(flag, _) => flag, )*
-                }
-            }
-        }
-
-        #[derive(Debug, Eq, Copy, Clone, PartialEq)]
-        pub enum CurlFlagType {
-            $( $variant, )*
-        }
-        impl CurlFlagType {
-            pub fn get_value(&self) -> &'static str {
-            match self {
-                $( CurlFlagType::$variant => $default, )*
-            }
-            }
-        }
-    };
-}
-
-define_curl_flags! {
-    Verbose("-v"),
-    Cookie("-b"),
-    Output("-o"),
-    User("-u"),
-    Bearer("-H"),// bearer/basic auth are just headers
-    CertInfo("--certinfo"),
-    Headers("-H"),
-    Digest("--digest"),
-    CookieSession("--junk-session-cookies"),
-    Basic("-H"),
-    AnyAuth("--any-auth"),
-    UnixSocket("--unix-socket"),
-    UploadFile("--upload-file"),
-    Ntlm("--ntlm"),
-    Proxy("-x"),
-    AwsSigv4("--aws-sigv4"),
-    ProxyTunnel("--proxy-tunnel"),
-    File("-F"),
-    DataUrlEncode("--data-urlencode"),
-    DumpHeaders("--dump-headers"),
-    Referrer("-e"),
-    MatchWildcard("--glob"),
-    FailOnError("--fail"),
-    FollowRedirects("-L"),
-    MaxRedirects("--max-redirs"),
-    PreventDefaultConfig("-q"),
-    // is default on CLI, so flag has no value
-    TcpKeepAlive(" "),
-    CaPath("--capath"),
-    SpnegoAuth("--negotiate -u:"),
-    Progress("--progress-bar"),
-    RequestBody("--data"),
-    CookieFile("-c"),
-    CookieJar("-b"),
 }
 
 #[cfg(test)]
@@ -1205,17 +903,6 @@ mod tests {
     }
 
     #[test]
-    fn test_set_unix_socket() {
-        let mut curl = Curl::new();
-        curl.set_unix_socket("/var/run/docker.sock");
-        assert_eq!(curl.opts.len(), 1);
-        assert!(curl.opts.contains(&CurlFlag::UnixSocket(
-            CurlFlagType::UnixSocket.get_value(),
-            None
-        )));
-    }
-
-    #[test]
     fn test_parse_from_json() {
         let mut curl = Curl::new();
         let url = "https://google.com";
@@ -1225,7 +912,6 @@ mod tests {
         let new_curl: Curl = serde_json::from_str(&json_str).unwrap();
         assert_eq!(curl.url, new_curl.url);
         assert_eq!(curl.cmd, new_curl.cmd);
-        assert_eq!(curl.opts.len(), new_curl.opts.len());
     }
 
     #[test]
@@ -1248,7 +934,6 @@ mod tests {
         assert_eq!(curl.auth, AuthKind::Bearer("12345678910".to_string()));
         assert_eq!(curl.cmd, "curl -X GET https://example.com");
         assert_eq!(curl.url, "https://example.com");
-        assert_eq!(curl.opts.len(), 0);
     }
     #[test]
     fn test_serde_json() {
@@ -1273,220 +958,25 @@ mod tests {
         curl.set_url(&url);
         let json_str = serde_json::to_string(&curl).unwrap();
         let mut new_curl: Curl = serde_json::from_str(&json_str).unwrap();
-        new_curl.execute(None).unwrap();
+        new_curl
+            .execute(None, &[AppOptions::URL(String::from(&url))])
+            .unwrap();
         assert_eq!(new_curl.url, url);
         assert!(new_curl.resp.is_some());
     }
-
-    #[test]
-    fn test_set_upload_file() {
-        let mut curl = Curl::new();
-        curl.set_upload_file("file.txt");
-        assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.upload_file, Some("file.txt".to_string()));
-        assert!(curl.opts.contains(&CurlFlag::UploadFile(
-            CurlFlagType::UploadFile.get_value(),
-            Some("file.txt".to_string())
-        )));
-    }
-
-    #[test]
-    fn test_set_outfile() {
-        let mut curl = Curl::new();
-        let output = "output.txt";
-        curl.set_outfile(output);
-        assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.outfile, Some(output.to_string()));
-    }
-
-    #[test]
-    fn test_opts_len() {
-        let mut curl = Curl::new();
-        curl.set_verbose(true);
-        assert_eq!(curl.opts.len(), 1);
-    }
-
-    #[test]
-    fn test_remove_flag() {
-        let mut curl = Curl::new();
-        let flag = CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None);
-        curl.add_flag(flag.clone());
-        assert_eq!(curl.opts.len(), 1);
-        curl.remove_flag(&flag);
-        assert_eq!(curl.opts.len(), 0);
-        assert!(!curl.opts.contains(&flag));
-    }
-
-    #[test]
-    fn test_add_headers() {
-        let mut curl = Curl::new();
-        let headers = String::from("Header2: Value2");
-        curl.add_headers(&headers);
-        assert_eq!(curl.opts.len(), 0);
-        assert!(curl.headers.is_some());
-        assert!(curl.headers.as_ref().unwrap().contains(&headers));
-    }
-
     #[test]
     fn test_execute() {
         let mut server = setup("GET");
-
         let mut curl = Curl::new();
         curl.set_url(server.url().as_str());
         curl.set_get_method();
-        assert!(curl.execute(None).is_ok());
+        assert!(curl
+            .execute(
+                None,
+                &[AppOptions::URL(String::from(server.url().as_str()))]
+            )
+            .is_ok());
         assert_eq!(curl.url, server.deref_mut().url());
-        assert!(curl.resp.is_some());
-    }
-
-    #[test]
-    fn test_show_headers() {
-        let mut curl = Curl::new();
-        curl.show_headers("headers.txt");
-        assert_eq!(curl.opts.len(), 1);
-        assert!(curl.opts.contains(&CurlFlag::DumpHeaders(
-            CurlFlagType::DumpHeaders.get_value(),
-            Some("headers.txt".to_string())
-        )));
-    }
-
-    #[test]
-    fn test_set_verbose() {
-        let mut curl = Curl::new();
-        curl.set_verbose(true);
-        assert_eq!(curl.opts.len(), 1);
-        assert!(curl
-            .opts
-            .contains(&CurlFlag::Verbose(CurlFlagType::Verbose.get_value(), None)));
-    }
-
-    #[test]
-    fn test_set_any_auth() {
-        let mut curl = Curl::new();
-        curl.set_any_auth();
-        assert_eq!(curl.opts.len(), 1);
-        assert!(curl
-            .opts
-            .contains(&CurlFlag::AnyAuth(CurlFlagType::AnyAuth.get_value(), None)));
-    }
-
-    #[test]
-    fn test_set_basic_auth() {
-        let mut curl = Curl::new();
-        let usr_pwd = "username:password";
-        curl.set_basic_auth(usr_pwd);
-        assert_eq!(curl.opts.len(), 1);
-        assert!(curl.opts.contains(&CurlFlag::Basic(
-            CurlFlagType::Basic.get_value(),
-            Some(usr_pwd.to_string())
-        )));
-    }
-
-    #[test]
-    fn test_set_digest_auth() {
-        let mut curl = Curl::new();
-        curl.set_digest_auth("username:password");
-        assert_eq!(curl.opts.len(), 1);
-        assert!(curl.opts.contains(&CurlFlag::Digest(
-            CurlFlagType::Digest.get_value(),
-            Some(String::from("username:password")),
-        )));
-    }
-
-    #[test]
-    fn test_set_aws_sigv4_auth() {
-        let mut curl = Curl::new();
-        curl.set_aws_sigv4_auth();
-        curl.build_command_string();
-        assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.auth, AuthKind::AwsSigv4);
-        assert_eq!(curl.cmd, "curl  --aws-sigv4");
-        assert!(curl.opts.contains(&CurlFlag::AwsSigv4(
-            CurlFlagType::AwsSigv4.get_value(),
-            None
-        )));
-    }
-
-    #[test]
-    fn test_set_spnego_auth() {
-        let mut curl = Curl::new();
-        curl.set_spnego_auth();
-        curl.build_command_string();
-        assert_eq!(curl.opts.len(), 1);
-        assert_eq!(curl.auth, AuthKind::Spnego);
-        assert!(curl.opts.contains(&CurlFlag::SpnegoAuth(
-            CurlFlagType::SpnegoAuth.get_value(),
-            None,
-        )));
-    }
-
-    #[test]
-    fn test_set_get_method() {
-        let mut curl = Curl::new();
-        let mut server = setup("GET");
-        curl.set_get_method();
-        let url = server.deref_mut().url();
-        curl.set_url(&url);
-        curl.build_command_string();
-        assert_eq!(curl.cmd, format!("curl -X GET {}", url));
-        curl.execute(None).unwrap();
-        assert!(curl.resp.is_some());
-    }
-
-    #[test]
-    fn test_set_post_method() {
-        let mut server = setup("POST");
-        let url = server.deref_mut().url();
-        let mut curl = Curl::new();
-        curl.set_post_method();
-        curl.set_url(&url);
-        curl.build_command_string();
-        assert_eq!(curl.cmd, format!("curl -X POST {}", url));
-        curl.execute(None).unwrap();
-        assert!(curl.resp.is_some());
-    }
-
-    #[test]
-    fn test_set_put_method() {
-        let mut server = setup("PUT");
-
-        let url = server.deref_mut().url();
-        let mut curl = Curl::new();
-        curl.set_put_method();
-        curl.set_url(&url);
-        curl.build_command_string();
-        assert_eq!(curl.cmd, format!("curl -X PUT {}", url));
-        curl.execute(None).unwrap();
-        assert!(curl.resp.is_some());
-    }
-
-    #[test]
-    fn test_set_patch_method() {
-        let mut server = setup("PATCH");
-
-        let url = server.deref_mut().url();
-
-        let mut curl = Curl::new();
-        curl.set_patch_method();
-        curl.set_url(&url);
-        curl.build_command_string();
-        assert_eq!(curl.cmd, format!("curl -X PATCH {}", url));
-        curl.execute(None).unwrap();
-        assert!(curl.resp.is_some());
-    }
-
-    #[test]
-    fn test_set_delete_method() {
-        let mut server = setup("DELETE");
-
-        let url = server.deref_mut().url();
-
-        let mut curl = Curl::new();
-        curl.set_delete_method();
-        curl.set_url(&url);
-        curl.build_command_string();
-        assert_eq!(curl.cmd, format!("curl -X DELETE {}", url));
-        curl.execute(None).unwrap();
         assert!(curl.resp.is_some());
     }
 }

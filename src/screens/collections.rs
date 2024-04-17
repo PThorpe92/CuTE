@@ -39,7 +39,7 @@ pub fn handle_collection_menu(app: &mut App, frame: &mut Frame<'_>, opt: Option<
 }
 
 pub fn handle_collections_screen(app: &mut App, frame: &mut Frame<'_>) {
-    let collections = app.get_collections().unwrap_or_default();
+    let collections = app.db.as_ref().get_collections().unwrap_or_default();
     let items = Some(
         collections
             .clone()
@@ -107,7 +107,11 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
-    let selected = app.get_collection_by_id(cmd).unwrap_or_default();
+    let selected = app
+        .db
+        .as_ref()
+        .get_collection_by_id(cmd)
+        .unwrap_or_default();
     let count = app
         .db
         .get_number_of_commands_in_collection(cmd)
@@ -138,7 +142,7 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
         ))),
         // delete collection
         Some(2) => {
-            if let Err(e) = app.delete_collection(selected.get_id()) {
+            if let Err(e) = app.db.as_ref().delete_collection(selected.get_id()) {
                 app.goto_screen(&Screen::Error(e.to_string()));
             }
             app.goto_screen(&Screen::Success);

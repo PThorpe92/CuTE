@@ -8,7 +8,7 @@ use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use tui::Frame;
 
 pub fn handle_saved_commands_screen(app: &mut App, frame: &mut Frame<'_>, coll: Option<i32>) {
-    let commands = app.get_saved_commands(coll).unwrap_or_default();
+    let commands = app.db.as_ref().get_commands(coll).unwrap_or_default();
     let items = Some(
         commands
             .iter()
@@ -85,7 +85,7 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
-    if let Ok(command) = app.get_command_by_id(cmd) {
+    if let Ok(command) = app.db.as_ref().get_command_by_id(cmd) {
         let paragraph = Paragraph::new(format!("{:?}", command))
             .block(Block::default().borders(Borders::ALL).title("Command"))
             .alignment(tui::layout::Alignment::Center);

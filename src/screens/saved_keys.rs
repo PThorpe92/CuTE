@@ -73,7 +73,7 @@ pub fn handle_key_menu(app: &mut App, frame: &mut Frame<'_>, cmd: usize) {
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(alert_box)[1];
-    let show_cmds = app.get_saved_keys().unwrap();
+    let show_cmds = app.db.as_ref().get_keys().unwrap();
     let selected = show_cmds.get(cmd).unwrap().clone();
     let paragraph = Paragraph::new(format!("{:?}", selected))
         .block(Block::default().borders(Borders::ALL).title("Selected Key"))

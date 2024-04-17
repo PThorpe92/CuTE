@@ -22,7 +22,6 @@ pub mod collections;
 pub mod error;
 pub mod headers;
 pub mod saved_commands;
-
 pub fn error_alert_box(frame: &mut Frame<'_>, error_message: &str) -> Rect {
     let layout = Layout::default()
         .direction(Direction::Vertical)

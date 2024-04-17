@@ -70,13 +70,8 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
 
     let width = chunks[0].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
-    if app
-        .command
-        .get_request_body()
-        .is_some_and(|s| !s.is_empty())
-        && app.input.value().is_empty()
-    {
-        let body = app.command.get_request_body().unwrap();
+    if app.get_request_body().is_some_and(|s| !s.is_empty()) && app.input.value().is_empty() {
+        let body = app.get_request_body().unwrap();
         for ch in body.chars() {
             app.input.handle(tui_input::InputRequest::InsertChar(ch));
         }

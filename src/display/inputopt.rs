@@ -31,6 +31,7 @@ pub enum InputOpt {
     RenameCollection(i32),
     RequestError(String),
     Method(Method),
+    NewProtoFile,
 }
 
 impl InputOpt {
@@ -69,6 +70,7 @@ impl Display for InputOpt {
             InputOpt::RequestError(ref err) => write!(f, "| Error: {}", err),
             InputOpt::Method(method) => write!(f, "| Method: {}", method),
             InputOpt::CookieJar => write!(f, "| Cookie Jar"),
+            InputOpt::NewProtoFile => write!(f, "| New Proto File"),
         }
     }
 }

@@ -48,7 +48,13 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, opt: Opt
         }
         // Execute command
         Some(9) => {
-            if app.command.get_url().is_empty() && !app.command.has_unix_socket() {
+            if app.command.get_url().is_empty()
+                && !app
+                    .opts
+                    .iter()
+                    .find(|x| *x == &AppOptions::SaveCommand)
+                    .is_some()
+            {
                 app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
                     String::from(VALID_COMMAND_ERROR),
                 ))));
@@ -56,7 +62,7 @@ pub fn handle_request_menu_screen(app: &mut App, frame: &mut Frame<'_>, opt: Opt
             }
             match app.execute_command() {
                 Ok(()) => {
-                    let response = app.command.get_response();
+                    let response = app.command.get_response().unwrap_or_default();
                     app.set_response(&response);
                     app.goto_screen(&Screen::Response(response));
                 }
