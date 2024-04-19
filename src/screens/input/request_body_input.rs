@@ -46,7 +46,7 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
         ),
     };
     let prompt = Text::from(
-        "Enter your Request body,\n press ESC to exit Insert Mode\n then press Enter to submit",
+        "Enter your Request body,\nOr the file path to the body\na .json filepath will automatically add Content-Type Header\nthen press Enter to submit\n",
     );
     if !app.command.method.needs_reset() {
         app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
@@ -87,6 +87,17 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
 
     // we have input (the user has typed something and pressed Enter while in insert mode)
     if !app.messages.is_empty() {
+        let input = app.messages[0].clone();
+        if app.messages[0].ends_with(".json") && std::path::Path::new(&input).exists() {
+            let body = std::fs::read_to_string(input).unwrap();
+            app.command.set_request_body(&body);
+            app.add_app_option(AppOptions::RequestBody(body));
+            app.add_app_option(AppOptions::ContentHeaders(
+                crate::display::HeaderKind::ContentType("application/json".to_string()),
+            ));
+            app.goto_screen(&Screen::RequestMenu(None));
+            app.messages.clear();
+        }
         app.add_app_option(AppOptions::RequestBody(app.messages[0].clone()));
         app.goto_screen(&Screen::RequestMenu(None));
         app.messages.clear();

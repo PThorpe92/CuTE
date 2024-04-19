@@ -42,7 +42,7 @@ impl ExecuteOption for Curl {
             AppOptions::Headers(ref headers) => self.add_headers(headers),
             AppOptions::Auth(auth) => self.set_auth(auth.clone()),
             AppOptions::EnableHeaders => self.enable_response_headers(true),
-            AppOptions::ContentHeaders(ref headers) => self.set_content_header(*headers),
+            AppOptions::ContentHeaders(ref headers) => self.set_content_header(headers),
         }
     }
     fn remove_option(&mut self, opt: &AppOptions) {
@@ -75,7 +75,7 @@ impl ExecuteOption for Curl {
             AppOptions::Headers(_) => self.remove_headers(""),
             AppOptions::Auth(_) => self.set_auth(crate::request::curl::AuthKind::None),
             AppOptions::EnableHeaders => self.enable_response_headers(false),
-            AppOptions::ContentHeaders(_) => self.set_content_header(HeaderKind::None),
+            AppOptions::ContentHeaders(_) => self.set_content_header(&HeaderKind::None),
         }
     }
 }

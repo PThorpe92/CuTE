@@ -15,12 +15,16 @@ pub fn handle_headers_screen(app: &mut App, frame: &mut Frame<'_>) {
         //
         // add content-type application/json
         Some(1) => {
-            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::ContentType));
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::ContentType(
+                String::from("application/json"),
+            )));
         }
         //
         // add accept application/json
         Some(2) => {
-            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::Accept));
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::Accept(
+                String::from("application/json"),
+            )));
         }
         //
         // accept headers in response

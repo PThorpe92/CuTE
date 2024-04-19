@@ -13,19 +13,24 @@ use self::menuopts::{
 use crate::request::curl::AuthKind;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum HeaderKind {
-    // TODO: This should hold value of keys
-    Accept,
-    ContentType,
+    Accept(String),
+    ContentType(String),
+    Allow(String),
+    Connection(String),
+    ContentLength(String),
     None,
 }
 impl Display for HeaderKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            HeaderKind::Accept => write!(f, "Accept: Application/json"),
-            HeaderKind::ContentType => write!(f, "Content-Type: Application/json"),
+            HeaderKind::Accept(kind) => write!(f, "Accept: {}", kind),
+            HeaderKind::ContentType(kind) => write!(f, "Content-Type: {}", kind),
             HeaderKind::None => write!(f, ""),
+            HeaderKind::Connection(con) => write!(f, "Connection: {}", con),
+            HeaderKind::ContentLength(len) => write!(f, "Content-Length: {}", len),
+            HeaderKind::Allow(allow) => write!(f, "Allow: {}", allow),
         }
     }
 }
@@ -110,8 +115,11 @@ impl AppOptions {
                 AuthKind::None => "".to_string(),
             },
             Self::ContentHeaders(ref kind) => match kind {
-                HeaderKind::Accept => "-H \"Accept: Application/json\"".to_string(),
-                HeaderKind::ContentType => "-H \"Content-Type: Application/json\"".to_string(),
+                HeaderKind::Accept(val) => format!("-H \"Accept: {}\"", val),
+                HeaderKind::ContentType(val) => format!("-H \"Content-Type: {}\"", val),
+                HeaderKind::Allow(val) => format!("-H \"Allow: {}\"", val),
+                HeaderKind::Connection(val) => format!("-H \"Connection: {}\"", val),
+                HeaderKind::ContentLength(val) => format!("-H \"Content-Length: {}\"", val),
                 HeaderKind::None => "".to_string(),
             },
             Self::UnrestrictedAuth => "--anyauth".to_string(),
@@ -139,8 +147,11 @@ impl AppOptions {
     pub fn replace_value(&mut self, val: String) {
         match self {
             AppOptions::ContentHeaders(ref mut kind) => match val.as_str() {
-                "Accept" => *kind = HeaderKind::Accept,
-                "Content-Type" => *kind = HeaderKind::ContentType,
+                "Accept" => *kind = HeaderKind::Accept(val),
+                "Content-Type" => *kind = HeaderKind::ContentType(val),
+                "Allow" => *kind = HeaderKind::Allow(val),
+                "Connection" => *kind = HeaderKind::Connection(val),
+                "Content-Length" => *kind = HeaderKind::ContentLength(val),
                 _ => *kind = HeaderKind::None,
             },
             AppOptions::Headers(ref mut key) => {

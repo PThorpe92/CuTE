@@ -323,8 +323,20 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             }
         }
         InputOpt::RequestBody => {
-            app.add_app_option(AppOptions::RequestBody(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(None));
+            // if the body is a path to a file, we need to read the file and set the body
+            // otherwise we just set the body
+            if Path::new(&message).exists() {
+                match std::fs::read_to_string(&message) {
+                    Ok(body) => {
+                        app.add_app_option(AppOptions::RequestBody(body));
+                        app.goto_screen(&Screen::RequestMenu(None));
+                    }
+                    Err(e) => app.goto_screen(&Screen::Error(e.to_string())),
+                }
+            } else {
+                app.add_app_option(AppOptions::RequestBody(message.clone()));
+                app.goto_screen(&Screen::RequestMenu(None));
+            }
         }
         InputOpt::ImportCollection => {
             if let Err(e) = app.import_postman_collection(&message) {

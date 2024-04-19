@@ -561,7 +561,7 @@ pub mod tests {
         app.command.set_url(&url);
         app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
         app.add_app_option(crate::display::AppOptions::ContentHeaders(
-            crate::display::HeaderKind::ContentType,
+            crate::display::HeaderKind::ContentType("application/json".to_string()),
         ));
         app.add_app_option(crate::display::AppOptions::RequestBody(
             "hello world".to_string(),
@@ -572,7 +572,9 @@ pub mod tests {
         app.command.set_request_body("hello world");
         app.command.set_method(crate::request::curl::Method::Put);
         app.command
-            .set_content_header(crate::display::HeaderKind::ContentType);
+            .set_content_header(&crate::display::HeaderKind::ContentType(String::from(
+                "application/json",
+            )));
         let mock = server.mock("PUT", "/").create();
         let _ = app.execute_command();
         mock.expect(1)
@@ -584,7 +586,7 @@ pub mod tests {
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::ContentHeaders(
-                        crate::display::HeaderKind::ContentType
+                        crate::display::HeaderKind::ContentType("application/json".to_string())
                     ))
                 .unwrap()
                 .get_curl_flag_value(),
@@ -771,11 +773,12 @@ pub mod tests {
             .match_header("max-redirects", "5")
             .match_body("hello world")
             .expect(1);
+        let _ = std::fs::remove_file("cookie-jar");
     }
 
     #[test]
     fn test_send_with_headers() {
-        let mut server = mockito::Server::new_with_port(12346);
+        let mut server = mockito::Server::new();
         let url = server.url();
         let mut app = App::default();
         app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
@@ -790,5 +793,43 @@ pub mod tests {
             .expect(1);
         let response = app.command.get_response();
         assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_write_response_to_file() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        assert_eq!(app.command.get_url(), url);
+        app.command.set_get_method();
+        app.add_app_option(crate::display::AppOptions::Outfile(
+            "output.txt".to_string(),
+        ));
+        server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+        let _ = app.command.write_output();
+        let contents = std::fs::read_to_string("output.txt").unwrap();
+        assert_eq!(contents, "hello world");
+        std::fs::remove_file("output.txt").unwrap();
+    }
+    #[test]
+    fn test_upload_file() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let file = "test.txt";
+        let _ = std::fs::write(file, "hello world");
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.command.set_post_method();
+        app.add_app_option(crate::display::AppOptions::RequestBody(file.to_string()));
+        let mock = server.mock("POST", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.expect(1).match_body("hello world").assert();
+        std::fs::remove_file("test.txt").unwrap();
+        let _ = std::fs::remove_file("cookie-jar");
     }
 }

@@ -440,23 +440,11 @@ impl Curl {
         self.curl.progress(on).unwrap();
     }
 
-    pub fn set_content_header(&mut self, kind: HeaderKind) {
-        if kind == HeaderKind::None && self.headers.is_some() {
-            self.headers
-                .as_mut()
-                .unwrap()
-                .retain(|x| !x.contains("application/json"));
-        }
-        let header_value = match kind {
-            HeaderKind::Accept => "Accept: application/json",
-            HeaderKind::ContentType => "Content-Type: application/json",
-            HeaderKind::None => "",
-        };
-
+    pub fn set_content_header(&mut self, kind: &HeaderKind) {
         if let Some(ref mut headers) = self.headers {
-            headers.push(String::from(header_value));
+            headers.push(kind.to_string());
         } else {
-            self.headers = Some(vec![String::from(header_value)]);
+            self.headers = Some(vec![kind.to_string()]);
         }
     }
 
