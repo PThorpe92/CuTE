@@ -45,8 +45,8 @@ pub fn render(app: &mut App, frame: &mut Frame<'_>) {
             frame.render_widget(logo, centered_rect(frame.size(), ScreenArea::Bottom));
         }
         let area = centered_rect(frame.size(), ScreenArea::Bottom);
-        let opts = app.opts.clone();
-        let display_opts = handle_display_options(&opts);
+        let opts = &app.command.opts;
+        let display_opts = handle_display_options(opts);
         frame.render_widget(
             Paragraph::new(display_opts)
                 .block(

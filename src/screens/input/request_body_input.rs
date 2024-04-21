@@ -2,7 +2,8 @@ use crate::app::{App, InputMode};
 use crate::display::inputopt::InputOpt;
 use crate::display::AppOptions;
 use crate::screens::{centered_rect, Screen, ScreenArea};
-use tui::text::{Line, Text};
+use tui::style::Styled;
+use tui::text::Line;
 use tui::widgets::{Block, Borders, Paragraph};
 use tui::{
     prelude::{Constraint, Direction, Layout},
@@ -10,8 +11,6 @@ use tui::{
     text::Span,
     Frame,
 };
-
-use super::input_screen::render_input_with_prompt;
 
 pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: InputOpt) {
     let chunks = Layout::default()
@@ -45,9 +44,15 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
             Style::default(),
         ),
     };
-    let prompt = Text::from(
-        "Enter your Request body,\nOr the file path to the body\na .json filepath will automatically add Content-Type Header\nthen press Enter to submit\n",
-    );
+    let prompt = vec![
+        Line::raw("Enter your Request body Or the path to a file containing the body."),
+        Line::raw(" "),
+        Line::raw("Example: {\"key\", \"value\"} (no outside quotes needed)\n"),
+        Line::raw(" "),
+        Line::raw("a .json filepath will automatically add Content-Type Header"),
+        Line::raw(" "),
+        Line::raw("then press Enter to submit"),
+    ];
     if !app.command.method.needs_reset() {
         app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
             String::from("Error: Request Bodies are not allowed for this HTTP method"),
@@ -55,9 +60,9 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
     }
 
     let msg = Paragraph::new(Line::from(msg));
-    let prompt = prompt.patch_style(style);
+    let prompt = Paragraph::new(prompt).set_style(style);
     frame.render_widget(msg, centered_rect(frame.size(), ScreenArea::Top));
-    render_input_with_prompt(frame, prompt);
+    frame.render_widget(&prompt, chunks[0]);
 
     let width = chunks[0].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
@@ -97,6 +102,7 @@ pub fn handle_req_body_input_screen(app: &mut App, frame: &mut Frame<'_>, _opt: 
             ));
             app.goto_screen(&Screen::RequestMenu(None));
             app.messages.clear();
+            return;
         }
         app.add_app_option(AppOptions::RequestBody(app.messages[0].clone()));
         app.goto_screen(&Screen::RequestMenu(None));

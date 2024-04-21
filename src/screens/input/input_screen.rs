@@ -111,7 +111,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
                     String::from("Error: You have already entered a URL"),
                 ))));
             }
-            let socket = app.opts.iter().find_map(|f| {
+            let socket = app.command.opts.iter().find_map(|f| {
                 if let AppOptions::UnixSocket(s) = f {
                     Some(s)
                 } else {
@@ -126,7 +126,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             }
         }
         InputOpt::CookiePath => {
-            if let Some(cookie) = app.opts.iter().find_map(|f| {
+            if let Some(cookie) = app.command.opts.iter().find_map(|f| {
                 if let AppOptions::CookiePath(s) = f {
                     Some(s)
                 } else {
@@ -142,7 +142,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             }
         }
         InputOpt::CookieJar => {
-            if let Some(cookie) = app.opts.iter().find_map(|f| {
+            if let Some(cookie) = app.command.opts.iter().find_map(|f| {
                 if let AppOptions::CookieJar(s) = f {
                     Some(s)
                 } else {
@@ -361,7 +361,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     }
 }
 
-pub fn render_input_with_prompt(frame: &mut Frame<'_>, prompt: Text) {
+pub fn render_input_with_prompt<'a, T: Into<Text<'a>>>(frame: &mut Frame<'_>, prompt: T) {
     // Render the input with the provided prompt
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -397,9 +397,11 @@ fn parse_auth(auth: AuthKind, app: &mut App, message: &str) {
         _ => AuthKind::None,
     });
     if app.command.has_auth() {
-        app.opts.retain(|x| !matches!(x, AppOptions::Auth(_)));
+        app.command
+            .opts
+            .retain(|x| !matches!(x, AppOptions::Auth(_)));
     }
-    app.opts.push(AppOptions::Auth(match auth {
+    app.command.opts.push(AppOptions::Auth(match auth {
         AuthKind::Basic(_) => AuthKind::Basic(String::from(message)),
         AuthKind::Bearer(_) => AuthKind::Bearer(String::from(message)),
         AuthKind::Digest(_) => AuthKind::Digest(String::from(message)),

@@ -35,8 +35,6 @@ pub struct App<'a> {
     pub selected: Option<usize>,
     /// command (curl or wget)
     pub command: Curl,
-    /// vec of applicable options
-    pub opts: Vec<AppOptions>,
     /// Input struct for tui_input dependency
     pub input: Input,
     /// vec for user input to push into
@@ -64,7 +62,6 @@ impl<'a> Default for App<'a> {
             command: Curl::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
-            opts: Vec::new(),
             items: Screen::Home.get_opts(None),
             input: Input::default(),
             state: None,
@@ -214,7 +211,7 @@ impl<'a> App<'a> {
     }
 
     pub fn get_request_body(&self) -> Option<String> {
-        self.opts.iter().find_map(|opt| match opt {
+        self.command.opts.iter().find_map(|opt| match opt {
             AppOptions::RequestBody(body) => Some(body.clone()),
             _ => None,
         })
@@ -325,9 +322,7 @@ impl<'a> App<'a> {
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        let opts = &self.opts;
-        self.command
-            .execute(Some(Box::new(self.db.deref_mut())), opts.as_slice())
+        self.command.execute(Some(Box::new(self.db.deref_mut())))
     }
 
     pub fn import_postman_collection(
@@ -352,9 +347,8 @@ impl<'a> App<'a> {
         let mut command: Curl = serde_json::from_str(json)
             .map_err(|e| e.to_string())
             .unwrap();
-        let opts = &self.opts;
-        command.easy_from_opts(opts.as_slice());
-        match command.execute(None, opts.as_slice()) {
+        command.easy_from_opts();
+        match command.execute(None) {
             Ok(_) => self.set_response(&command.get_response().unwrap_or("".to_string())),
             Err(e) => self.set_response(&e),
         };
@@ -390,18 +384,20 @@ impl<'a> App<'a> {
 
     pub fn remove_app_option(&mut self, opt: &AppOptions) {
         self.command.remove_option(opt);
-        self.opts
+        self.command
+            .opts
             .retain(|x| mem::discriminant(x) != mem::discriminant(opt));
     }
 
     pub fn clear_all_options(&mut self) {
-        self.opts.clear();
+        self.command.opts.clear();
         self.messages.clear();
         self.response = None;
     }
 
     fn has_app_option(&self, opt: &AppOptions) -> bool {
-        self.opts
+        self.command
+            .opts
             .iter()
             .any(|x| mem::discriminant(x) == mem::discriminant(opt))
     }
@@ -425,7 +421,7 @@ impl<'a> App<'a> {
             return;
         }
         if opt.should_toggle() {
-            self.opts.push(opt.clone());
+            self.command.opts.push(opt.clone());
             self.command.add_option(&opt);
         }
         self.redraw();
@@ -437,87 +433,21 @@ impl<'a> App<'a> {
             return;
         }
         if self.should_add_option(&opt) {
-            self.opts.push(opt.clone());
+            self.command.opts.push(opt.clone());
             self.command.add_option(&opt);
         } else {
-            self.handle_replace(opt.clone());
+            self.handle_replace(&opt);
         }
         self.selected = None;
     }
 
-    fn handle_replace(&mut self, mut opt: AppOptions) {
-        for option in self.opts.iter_mut() {
-            match option {
-                AppOptions::URL(_) => {
-                    if let AppOptions::URL(ref url) = opt {
-                        self.command.set_url(url);
-                        option.replace_value(url.clone());
-                    }
-                }
-                AppOptions::Outfile(_) => {
-                    if let AppOptions::Outfile(ref outfile) = opt {
-                        option.replace_value(outfile.clone());
-                        self.command.set_outfile(outfile);
-                    }
-                }
-                AppOptions::Response(_) => {
-                    if let AppOptions::Response(ref response) = opt {
-                        option.replace_value(opt.clone().get_value());
-                        self.command.set_response(response);
-                    }
-                }
-                AppOptions::Auth(_) => {} // This is handled by the screen
-                AppOptions::UserAgent(_) => {
-                    if let AppOptions::UserAgent(ref agent) = opt {
-                        option.replace_value(String::from(agent));
-                        self.command.set_user_agent(agent);
-                    }
-                }
-                AppOptions::Referrer(_) => {
-                    if let AppOptions::Referrer(ref referrer) = opt {
-                        option.replace_value(String::from(referrer));
-                        self.command.set_referrer(referrer);
-                    }
-                }
-                AppOptions::CookiePath(_) => {
-                    if let AppOptions::CookiePath(ref mut cookie) = opt {
-                        option.replace_value(cookie.clone());
-                        self.command.add_cookie(cookie);
-                    }
-                }
-                AppOptions::CookieJar(_) => {
-                    if let AppOptions::CookieJar(ref mut cookie) = opt {
-                        option.replace_value(cookie.clone());
-                        self.command.set_cookie_jar(cookie);
-                    }
-                }
-                AppOptions::CaPath(_) => {
-                    if let AppOptions::CaPath(ref ca_path) = opt {
-                        option.replace_value(String::from(ca_path));
-                        self.command.set_ca_path(ca_path);
-                    }
-                }
-                AppOptions::MaxRedirects(_) => {
-                    if let AppOptions::MaxRedirects(ref max_redirects) = opt {
-                        option.replace_value(max_redirects.to_string());
-                        self.command.set_max_redirects(*max_redirects);
-                    }
-                }
-                AppOptions::UnixSocket(_) => {
-                    if let AppOptions::UnixSocket(ref mut socket) = opt {
-                        option.replace_value(socket.clone());
-                        self.command.set_unix_socket(socket);
-                    }
-                }
-                AppOptions::RequestBody(_) => {
-                    if let AppOptions::RequestBody(ref mut body) = opt {
-                        option.replace_value(body.clone());
-                        self.command.set_request_body(body);
-                    }
-                }
-                _ => {}
-            }
-        }
+    fn handle_replace(&mut self, opt: &AppOptions) {
+        self.command
+            .opts
+            .retain(|option| std::mem::discriminant(option) != std::mem::discriminant(opt));
+        self.command.remove_option(opt);
+        self.command.add_option(opt);
+        self.command.opts.push(opt.clone());
     }
 }
 #[cfg(test)]
@@ -567,7 +497,7 @@ pub mod tests {
             "hello world".to_string(),
         ));
         app.add_app_option(crate::display::AppOptions::Headers(
-            "Content-Type: Application/json".to_string(),
+            "Content-Type: application/json".to_string(),
         ));
         app.command.set_request_body("hello world");
         app.command.set_method(crate::request::curl::Method::Put);
@@ -582,7 +512,8 @@ pub mod tests {
             .match_header("Content-Type", "application/json")
             .assert();
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::ContentHeaders(
@@ -590,7 +521,7 @@ pub mod tests {
                     ))
                 .unwrap()
                 .get_curl_flag_value(),
-            "-H \"Content-Type: Application/json\""
+            "-H \"Content-Type: application/json\""
         );
     }
     #[test]
@@ -670,7 +601,8 @@ pub mod tests {
             token.to_string(),
         )));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::Auth(AuthKind::Bearer(token.to_string())))
@@ -689,7 +621,8 @@ pub mod tests {
             user, pass
         ))));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::Auth(AuthKind::Basic(format!(
@@ -711,7 +644,8 @@ pub mod tests {
             user, pass
         ))));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::Auth(AuthKind::Digest(format!(
@@ -728,7 +662,8 @@ pub mod tests {
         let mut app = App::default();
         app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Ntlm));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x == &&crate::display::AppOptions::Auth(AuthKind::Ntlm))
                 .unwrap()

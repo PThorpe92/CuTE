@@ -45,7 +45,7 @@ pub struct Curl {
     headers: Option<Vec<String>>,
     url: String,
     // Build this on the App struct and pass it here to store for serialization
-    opts: Vec<AppOptions>,
+    pub opts: Vec<AppOptions>,
     resp: Option<String>,
     upload_file: Option<String>,
     outfile: Option<String>,
@@ -308,9 +308,8 @@ impl Curl {
     }
 
     #[rustfmt::skip]
-    pub fn execute(&mut self, mut db: Option<Box<&mut DB>>, opts: &[AppOptions]) -> Result<(), String> {
+    pub fn execute(&mut self, mut db: Option<Box<&mut DB>>) -> Result<(), String> {
         let mut list = List::new();
-        self.opts = opts.to_vec();
         curl::init();
         // we do this again because if it's a patch | put and there's a
         // body, it will default to post
@@ -555,15 +554,12 @@ impl Curl {
         self.save.1
     }
 
-    // This is a hack because when we deseialize json from the DB, we get a curl struct with no curl::Easy
-    // field, so we have to manually add, then set the options one at a time from the opts vector.
-    // ANY time we get a command from the database to run, we have to call this method first.
-    pub fn easy_from_opts(&mut self, opts: &[AppOptions]) {
+    pub fn easy_from_opts(&mut self) {
         self.build_command_string();
-        let url = self.url.clone();
-        self.set_url(&url);
+        self.curl.url(&self.url).unwrap();
         self.apply_method();
-        for opt in opts {
+        let opts = self.opts.clone();
+        for opt in opts.iter() {
             self.add_option(opt);
         }
     }
