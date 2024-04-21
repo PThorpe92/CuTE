@@ -54,7 +54,7 @@ pub fn render(app: &mut App, frame: &mut Frame<'_>) {
                         .borders(Borders::ALL)
                         .border_type(BorderType::Double)
                         .title_style(Style::new().bold().italic())
-                        .title("-Request Options-"),
+                        .title("* Request Options *"),
                 )
                 .fg(app.config.get_fg_color())
                 .bg(app.config.get_bg_color())

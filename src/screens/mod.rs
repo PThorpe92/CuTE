@@ -84,6 +84,7 @@ pub fn centered_rect(r: Rect, area: ScreenArea) -> Rect {
             ]
             .as_ref(),
         )
+        .vertical_margin(2)
         .split(r)[1];
     Layout::default()
         .direction(Direction::Vertical)
