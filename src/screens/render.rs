@@ -175,8 +175,8 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         Screen::SavedKeys(opt) => {
             saved_keys::handle_saved_keys_screen(app, frame, opt);
         }
-        Screen::CmdMenu(cmd) => {
-            saved_commands::handle_alert_menu(app, frame, cmd);
+        Screen::CmdMenu { id, opt } => {
+            saved_commands::handle_alert_menu(app, frame, id, opt);
         }
         Screen::CookieOptions => {
             cookies::handle_cookies_menu(app, frame);

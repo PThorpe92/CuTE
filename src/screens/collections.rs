@@ -137,12 +137,15 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
             id: Some(cmd),
             opt: None,
         }),
+        Some(1) => app.goto_screen(&Screen::SavedCollections(Some(
+            InputOpt::CollectionDescription(selected.get_id()),
+        ))),
         // Rename Collection
-        Some(1) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RenameCollection(
+        Some(2) => app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RenameCollection(
             selected.get_id(),
         )))),
         // delete collection
-        Some(2) => {
+        Some(3) => {
             if let Err(e) = app.db.as_ref().delete_collection(selected.get_id()) {
                 app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
                     format!("Error: {e}"),
@@ -153,7 +156,7 @@ pub fn handle_collection_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i
             ))));
         }
         // cancel
-        Some(3) => {
+        Some(4) => {
             app.goto_screen(&Screen::ViewSavedCollections);
         }
         _ => {}

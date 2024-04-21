@@ -42,15 +42,15 @@ pub struct Curl {
     auth: AuthKind,
     // The final cli command string
     cmd: String,
-    headers: Option<Vec<String>>,
+    pub headers: Option<Vec<String>>,
     url: String,
-    // Build this on the App struct and pass it here to store for serialization
     pub opts: Vec<AppOptions>,
     resp: Option<String>,
     upload_file: Option<String>,
     outfile: Option<String>,
     // Whether to save the (command, auth/key) to DB after execution
     save: (bool, bool),
+    ser: bool,
 }
 
 impl Default for CurlHandler {
@@ -143,6 +143,7 @@ impl Clone for Curl {
             upload_file: self.upload_file.clone(),
             outfile: self.outfile.clone(),
             save: self.save,
+            ser: self.ser,
         }
     }
 }
@@ -159,6 +160,7 @@ impl PartialEq for Curl {
             && self.upload_file == other.upload_file
             && self.outfile == other.outfile
             && self.save == other.save
+            && self.ser == other.ser
     }
 }
 
@@ -218,12 +220,19 @@ impl Default for Curl {
             upload_file: None,
             outfile: None,
             save: (false, false),
+            ser: false,
         }
     }
 }
 impl Curl {
     pub fn new() -> Self {
         Self::default()
+    }
+    pub fn new_serializing() -> Self {
+        Self {
+            ser: true,
+            ..Self::default()
+        }
     }
     pub fn get_url(&self) -> &str {
         &self.url
@@ -280,6 +289,10 @@ impl Curl {
     }
 
     pub fn set_url(&mut self, url: &str) {
+        if self.ser {
+            // if we're serializing, we need to store the URL in the opts
+            self.opts.push(AppOptions::URL(url.to_string()));
+        }
         self.url = String::from(url.trim());
         self.curl.url(url).unwrap();
     }
@@ -293,13 +306,22 @@ impl Curl {
     }
 
     pub fn set_cookie_path(&mut self, path: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::CookieJar(path.to_string()));
+        }
         self.curl.cookie_file(path).unwrap();
     }
 
     pub fn set_cookie_jar(&mut self, path: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::CookieJar(path.to_string()));
+        }
         self.curl.cookie_jar(path).unwrap();
     }
     pub fn reset_cookie_session(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::NewCookieSession);
+        }
         self.curl.cookie_session(true).unwrap();
     }
 
@@ -389,6 +411,9 @@ impl Curl {
     }
 
     pub fn set_auth(&mut self, auth: AuthKind) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(auth.clone()));
+        }
         match auth {
             AuthKind::Basic(ref info) => self.set_basic_auth(info),
             AuthKind::Ntlm => self.set_ntlm_auth(),
@@ -412,34 +437,51 @@ impl Curl {
     }
 
     pub fn set_cert_info(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::CertInfo);
+        }
         self.curl.certinfo(opt).unwrap();
     }
 
     pub fn set_referrer(&mut self, referrer: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Referrer(String::from(referrer)));
+        }
         self.curl.referer(referrer).unwrap();
     }
 
     pub fn set_proxy_tunnel(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::ProxyTunnel);
+        }
         self.curl.http_proxy_tunnel(opt).unwrap();
     }
 
     pub fn set_verbose(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::Verbose);
+        }
         self.curl.verbose(opt).unwrap();
     }
 
     pub fn set_fail_on_error(&mut self, fail: bool) {
+        if self.ser {
+        self.opts.push(AppOptions::FailOnError);
+        }
         self.curl.fail_on_error(fail).unwrap();
     }
 
     pub fn set_unix_socket(&mut self, socket: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::UnixSocket(String::from(socket)));
+        }
         self.curl.unix_socket(socket).unwrap();
     }
 
-    pub fn enable_progress_bar(&mut self, on: bool) {
-        self.curl.progress(on).unwrap();
-    }
-
     pub fn set_content_header(&mut self, kind: &HeaderKind) {
+        if self.ser {
+            self.opts.push(AppOptions::ContentHeaders(kind.clone()));
+        }
         if let Some(ref mut headers) = self.headers {
             headers.push(kind.to_string());
         } else {
@@ -452,6 +494,9 @@ impl Curl {
     }
 
     pub fn add_headers(&mut self, headers: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Headers(headers.to_string()));
+        }
         if self.headers.is_some() {
             self.headers.as_mut().unwrap().push(headers.to_string());
         } else {
@@ -476,52 +521,82 @@ impl Curl {
         }
     }
     pub fn match_wildcard(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::MatchWildcard);
+        }
         self.curl.wildcard_match(opt).unwrap();
     }
 
     pub fn set_unrestricted_auth(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::UnrestrictedAuth);
+        }
         self.curl.unrestricted_auth(opt).unwrap();
     }
 
     pub fn set_user_agent(&mut self, ua: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::UserAgent(ua.to_string()));
+        }
         self.curl.useragent(ua).unwrap();
     }
 
     pub fn set_max_redirects(&mut self, redirects: usize) {
+        if self.ser {
+            self.opts.push(AppOptions::MaxRedirects(redirects));
+        }
         self.curl
             .max_redirections(redirects as u32)
             .unwrap_or_default();
     }
 
     pub fn set_ca_path(&mut self, ca_path: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::CaPath(ca_path.to_string()));
+        }
         self.curl.cainfo(ca_path).unwrap_or_default();
     }
 
     pub fn set_tcp_keepalive(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::TcpKeepAlive);
+        }
         self.curl.tcp_keepalive(opt).unwrap_or_default();
     }
 
     pub fn set_request_body(&mut self, body: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::RequestBody(body.to_string()));
+        }
+        self.opts.push(AppOptions::RequestBody(body.to_string()));
         self.curl
             .post_fields_copy(body.as_bytes())
             .unwrap_or_default();
     }
 
     pub fn set_follow_redirects(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::FollowRedirects);
+        }
         self.curl.follow_location(opt).unwrap_or_default();
     }
 
     pub fn add_cookie(&mut self, cookie: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::NewCookie(cookie.to_string()));
+        }
         self.curl.cookie(cookie).unwrap_or_default();
     }
 
     pub fn set_upload_file(&mut self, file: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::UploadFile(file.to_string()));
+        }
         self.upload_file = Some(file.to_string());
         self.curl.upload(true).unwrap_or_default();
     }
 
     pub fn write_output(&mut self) -> Result<(), std::io::Error> {
-        println!("{}", self.outfile.as_ref().unwrap().clone());
         match self.outfile {
             Some(ref mut outfile) => {
                 let mut file = match std::fs::File::create(outfile) {
@@ -546,6 +621,9 @@ impl Curl {
         }
     }
     pub fn enable_response_headers(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::EnableHeaders);
+        }
         self.curl.show_header(opt).unwrap_or_default();
     }
 
@@ -555,6 +633,7 @@ impl Curl {
     }
 
     pub fn easy_from_opts(&mut self) {
+        self.ser = true;
         self.build_command_string();
         self.curl.url(&self.url).unwrap();
         self.apply_method();
@@ -563,11 +642,18 @@ impl Curl {
             self.add_option(opt);
         }
     }
+
     pub fn set_any_auth(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::None));
+        }
         let _ = self.curl.http_auth(&Auth::new());
     }
 
     pub fn set_basic_auth(&mut self, login: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::Basic(login.to_string())));
+        }
         self.auth = AuthKind::Basic(String::from(login));
     }
 
@@ -577,14 +663,23 @@ impl Curl {
     }
 
     pub fn set_digest_auth(&mut self, login: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::Digest(login.to_string())));
+        }
         self.auth = AuthKind::Digest(String::from(login));
     }
 
     pub fn set_aws_sigv4_auth(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::AwsSigv4));
+        }
         self.auth = AuthKind::AwsSigv4;
     }
 
     pub fn set_spnego_auth(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::Spnego));
+        }
         self.auth = AuthKind::Spnego;
     }
 
@@ -627,6 +722,9 @@ impl Curl {
     }
 
     pub fn show_headers(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::EnableHeaders);
+        }
         self.curl.show_header(true).unwrap();
     }
 
@@ -669,6 +767,7 @@ impl Curl {
     }
 
     pub fn url_encode(&mut self, data: &str) {
-        self.url = self.curl.url_encode(data.as_bytes());
+        let encoded = self.curl.url_encode(data.as_bytes());
+        self.opts.push(AppOptions::RequestBody(encoded));
     }
 }

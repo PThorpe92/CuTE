@@ -1,8 +1,8 @@
 use super::db::SavedCommand;
-use crate::request::curl::Curl;
+use crate::request::curl::{Curl, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct PostmanCollection {
@@ -13,39 +13,40 @@ pub struct PostmanCollection {
 impl From<PostmanCollection> for Vec<SavedCommand> {
     fn from(collection: PostmanCollection) -> Vec<SavedCommand> {
         let mut saved_commands = Vec::new();
-        let mut curl_cmd = Curl::new();
         collection.item.iter().for_each(|item| {
+            let mut curl_cmd = Curl::new_serializing();
+            let mut cmd_name: Option<String> = None;
+            let mut description: Option<String> = None;
+            if let Some(name) = item.get("name") {
+                if let Some(name) = name.as_str() {
+                    cmd_name = Some(name.to_string());
+                }
+            }
             if let Some(request) = item.get("request") {
                 if let Some(request) = request.as_str() {
                     // this means its a get request
                     curl_cmd.set_url(request);
                     curl_cmd.set_get_method();
                 } else if let Some(request) = request.as_object() {
-                    if let Some(method) = request.get("method") {
-                        if let Some(method) = method.as_str() {
-                            match method {
-                                "GET" => {
-                                    curl_cmd.set_get_method();
-                                }
-                                "POST" => {
-                                    curl_cmd.set_post_method();
-                                }
-                                "PUT" => {
-                                    curl_cmd.set_put_method();
-                                }
-                                "DELETE" => {
-                                    curl_cmd.set_delete_method();
-                                }
-                                "PATCH" => {
-                                    curl_cmd.set_patch_method();
-                                }
-                                "HEAD" => {
-                                    curl_cmd.set_head_method();
-                                }
-                                _ => {
-                                    curl_cmd.set_get_method();
+                    if let Some(desc) = request.get("description") {
+                        if let Some(desc) = desc.as_str() {
+                            description = Some(desc.to_string());
+                        }
+                    }
+                    if let Some(url) = request.get("url") {
+                        if let Some(str_url) = url.as_str() {
+                            curl_cmd.set_url(str_url);
+                        } else if let Some(url) = url.as_object() {
+                            if let Some(raw) = url.get("raw") {
+                                if let Some(raw_str) = raw.as_str() {
+                                    curl_cmd.set_url(raw_str);
                                 }
                             }
+                        }
+                    }
+                    if let Some(method) = request.get("method") {
+                        if let Some(method) = method.as_str() {
+                            curl_cmd.set_method(Method::from_str(method).unwrap_or_default());
                         }
                     }
                     if let Some(headers) = request.get("header") {
@@ -143,37 +144,40 @@ impl From<PostmanCollection> for Vec<SavedCommand> {
                             }
                         }
                     }
-                } else if let Some(url) = request.get("url") {
-                    if let Some(url) = url.as_object() {
-                        if let Some(url) = url.get("raw") {
-                            if let Some(url) = url.as_str() {
-                                curl_cmd.set_url(url);
-                            }
-                        }
-                    }
-                }
-                if let Some(cookie) = request.get("cookie") {
-                    if let Some(cookie) = cookie.as_array() {
-                        cookie.iter().for_each(|ck| {
-                            if let Some(ck) = ck.as_object() {
-                                if let Some(key) = ck.get("key") {
-                                    if let Some(key) = key.as_str() {
-                                        if let Some(value) = ck.get("value") {
-                                            if let Some(value) = value.as_str() {
-                                                curl_cmd.add_cookie(&format!("{}: {}", key, value));
+                    if let Some(cookie) = request.get("cookie") {
+                        if let Some(cookie) = cookie.as_array() {
+                            cookie.iter().for_each(|ck| {
+                                if let Some(ck) = ck.as_object() {
+                                    if let Some(key) = ck.get("key") {
+                                        if let Some(key) = key.as_str() {
+                                            if let Some(value) = ck.get("value") {
+                                                if let Some(value) = value.as_str() {
+                                                    curl_cmd
+                                                        .add_cookie(&format!("{}: {}", key, value));
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        });
+                            });
+                        }
                     }
                 }
             }
+            if cmd_name.is_none() {
+                cmd_name = Some(String::from(curl_cmd.get_url()));
+            }
+            let cmd = curl_cmd.get_command_string();
+            let curl_json: String = serde_json::to_string(&curl_cmd).unwrap_or_default();
+            saved_commands.push(SavedCommand::new(
+                &cmd,
+                cmd_name,
+                description,
+                &curl_json,
+                None,
+            ));
         });
-        let cmd = curl_cmd.get_command_string();
-        let curl_json: String = serde_json::to_string(&curl_cmd).unwrap_or_default();
-        saved_commands.push(SavedCommand::new(&cmd, &curl_json, None));
+
         saved_commands
     }
 }
@@ -182,4 +186,5 @@ impl From<PostmanCollection> for Vec<SavedCommand> {
 pub struct Info {
     pub name: String,
     schema: String,
+    pub description: String,
 }

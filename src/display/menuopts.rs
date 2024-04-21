@@ -70,7 +70,6 @@ pub const CUTE_LOGO2: &str = "
 pub const DISPLAY_OPT_VERBOSE: &str = " Verbose";
 pub const DISPLAY_OPT_COMMAND_SAVED: &str = " Request will be saved  ";
 pub const DISPLAY_OPT_HEADERS: &str = " Response headers included 󱈝 ";
-pub const DISPLAY_OPT_PROGRESS_BAR: &str = " Enable Progress Bar 󰦖 ";
 pub const DISPLAY_OPT_FAIL_ON_ERROR: &str = " Fail on error  ";
 pub const DISPLAY_OPT_TOKEN_SAVED: &str = " Token will be saved  ";
 pub const DISPLAY_OPT_FOLLOW_REDIRECTS: &str = " Follow redirects 󱀀 ";
@@ -107,10 +106,12 @@ pub const SAVE_AUTH_ERROR: &str =
 pub const VALID_COMMAND_ERROR: &str =
     "Error: Invalid command.\n You must add either a URL or Unix Socket to execute a command";
 
-pub const CMD_MENU_OPTIONS: [&str; 4] = [
+pub const CMD_MENU_OPTIONS: [&str; 6] = [
     "Execute   ",
+    "Add a label 󰈮 ",
+    "Add a description 󰈮 ",
     "Delete   ",
-    "Copy to Clipboard  󰅎 ",
+    "Copy CLI command to clipboard  󰅎 ",
     "Cancel   ",
 ];
 pub const KEY_MENU_OPTIONS: [&str; 4] = [
@@ -132,8 +133,9 @@ pub const MAIN_MENU_OPTIONS: [&str; 4] = [
     "View or Import Postman Collections",
     "View Saved API keys 󱂛  ",
 ];
-pub const COLLECTION_ALERT_MENU_OPTS: [&str; 4] = [
+pub const COLLECTION_ALERT_MENU_OPTS: [&str; 5] = [
     "View Requests in this collection",
+    "Add a description",
     "Rename this collection",
     "Delete this collection",
     "Cancel",
@@ -189,7 +191,7 @@ pub const AUTHENTICATION_MENU_OPTIONS: [&str; 6] = [
     "Ntlm",
     "SPNEGO",
 ];
-pub const MORE_FLAGS_MENU: [&str; 12] = [
+pub const MORE_FLAGS_MENU: [&str; 11] = [
     "Follow Redirects 󱀀 ",
     "Specify Max redirects 󱀀 ",
     "Enable HTTP Proxy-Tunnel  󱠾 ",
@@ -197,7 +199,6 @@ pub const MORE_FLAGS_MENU: [&str; 12] = [
     "Specify Referrer  󰆽 ",
     "Specify SSL Certificate path 󰄤 ",
     "Request Certificate Info 󰄤 ",
-    "Add Progress Bar 󰦖 ",
     "Fail on Error  ",
     "Match wildcard 󰛄 ",
     "Specify User-Agent  󰖟 ",

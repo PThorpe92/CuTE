@@ -26,6 +26,9 @@ pub enum InputOpt {
     CaPath,
     CaCert,
     KeyLabel(i32),
+    CmdLabel(i32),
+    CmdDescription(i32),
+    CollectionDescription(i32),
     ImportCollection,
     RenameCollection(i32),
     RequestError(String),
@@ -70,6 +73,9 @@ impl Display for InputOpt {
             InputOpt::Method(method) => write!(f, "| Method: {}", method),
             InputOpt::CookieJar => write!(f, "| Cookie Jar"),
             InputOpt::AlertMessage(msg) => write!(f, "| Alert: {}", msg),
+            InputOpt::CmdLabel(_) => write!(f, "| Command Label"),
+            InputOpt::CmdDescription(_) => write!(f, "| Command Description"),
+            InputOpt::CollectionDescription(_) => write!(f, "| Collection Description"),
         }
     }
 }

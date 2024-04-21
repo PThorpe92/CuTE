@@ -11,16 +11,20 @@ use std::{
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCommand {
-    id: i32,
+    pub id: i32,
     command: String,
+    pub description: Option<String>,
+    pub label: Option<String>,
     curl_json: String,
-    collection_id: Option<i32>,
+    pub collection_id: Option<i32>,
+    pub collection_name: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SavedCollection {
     id: i32,
-    name: String,
+    pub name: String,
+    pub description: Option<String>,
 }
 
 impl Display for SavedCollection {
@@ -42,6 +46,23 @@ pub struct DB {
 }
 
 impl DB {
+    pub fn new_test() -> Result<Self, rusqlite::Error> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute(
+            "CREATE TABLE commands (id INTEGER PRIMARY KEY, command TEXT, label TEXT, description TEXT, curl_json TEXT, collection_id INT);",
+            params![],
+        )?;
+        conn.execute(
+            "CREATE TABLE keys (id INTEGER PRIMARY KEY, key TEXT, label TEXT);",
+            params![],
+        )?;
+        conn.execute(
+            "CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT, description TEXT);",
+            params![],
+        )?;
+        Ok(DB { conn })
+    }
+
     pub fn new() -> Result<Self, rusqlite::Error> {
         let mut _path: PathBuf = PathBuf::new();
         if std::env::var("CUTE_DB_PATH").is_ok() {
@@ -79,7 +100,7 @@ impl DB {
         conn.execute("BEGIN;", params![])?;
         // collection_id needs to be nullable
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS commands (id INTEGER PRIMARY KEY, command TEXT, curl_json TEXT, collection_id INT NULL);",
+            "CREATE TABLE IF NOT EXISTS commands (id INTEGER PRIMARY KEY, label TEXT, description TEXT, command TEXT, curl_json TEXT, collection_id INT);",
             params![],
         )?;
 
@@ -89,7 +110,7 @@ impl DB {
         )?;
 
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS collections (id INTEGER PRIMARY KEY, name TEXT);",
+            "CREATE TABLE IF NOT EXISTS collections (id INTEGER PRIMARY KEY, name TEXT, description TEXT);",
             params![],
         )?;
 
@@ -106,6 +127,18 @@ impl DB {
         Ok(())
     }
 
+    pub fn set_collection_description(
+        &self,
+        id: i32,
+        description: &str,
+    ) -> Result<(), rusqlite::Error> {
+        let mut stmt = self
+            .conn
+            .prepare("UPDATE collections SET description = ? WHERE id = ?")?;
+        stmt.execute(params![description, id])?;
+        Ok(())
+    }
+
     pub fn get_number_of_commands_in_collection(&self, id: i32) -> Result<i32> {
         let mut stmt = self
             .conn
@@ -115,45 +148,48 @@ impl DB {
     }
 
 #[rustfmt::skip]
-    pub fn add_collection(&self, name: &str, commands: &[SavedCommand]) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn add_collection(&self, name: &str, desc: &str, commands: &[SavedCommand]) -> Result<(), Box<dyn std::error::Error>> {
         let mut stmt = self
             .conn
-            .prepare("INSERT INTO collections (name) VALUES (?1)")?;
-        let _ = stmt.execute(params![name])?;
-        let mut stmt = self
-            .conn
-            .prepare("SELECT id FROM collections WHERE name = ?1")?;
-        let id: i32 = stmt.query_row(params![name], |row| row.get(0))?;
+            .prepare("INSERT INTO collections (name, description) VALUES (?1, ?2)")?;
+        let id = stmt.insert(params![name, desc])?;
         for command in commands {
-            self.add_command_from_collection(&command.command, &command.curl_json, id)?;
+            self.add_command_from_collection(&command.command, command.label.as_deref(), command.description.as_deref(), &command.curl_json, id as i32)?;
         }
         Ok(())
     }
 
     pub fn get_command_by_id(&self, id: i32) -> Result<SavedCommand> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT id, command, curl_json, collection_id from commands WHERE id = ?1")?;
+        let mut stmt = self.conn.prepare(
+                "SELECT cmd.id, cmd.command, cmd.label, cmd.description, cmd.curl_json, cmd.collection_id, col.name as collection_name FROM commands cmd LEFT JOIN collections col ON cmd.collection_id = col.id WHERE cmd.id = ?"
+        )?;
         stmt.query_row(params![id], |row| {
             Ok(SavedCommand {
                 id: row.get(0)?,
                 command: row.get(1)?,
-                curl_json: row.get(2)?,
-                collection_id: row.get(3)?,
+                label: row.get(2)?,
+                description: row.get(3)?,
+                curl_json: row.get(4)?,
+                collection_id: row.get(5)?,
+                collection_name: row.get(6)?,
             })
         })
     }
 
-    pub fn get_collection_by_id(&self, id: i32) -> Result<SavedCollection> {
+    pub fn get_collection_by_id(&self, id: i32) -> Result<SavedCollection, String> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, name FROM collections WHERE id = ?")?;
-        let collection = stmt.query_row(params![id], |row| {
-            Ok(SavedCollection {
-                id: row.get(0)?,
-                name: row.get(1)?,
+            .prepare("SELECT id, name, description FROM collections WHERE id = ?")
+            .map_err(|_| "No Collection".to_string())?;
+        let collection = stmt
+            .query_row(params![id], |row| {
+                Ok(SavedCollection {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    description: row.get(2)?,
+                })
             })
-        })?;
+            .map_err(|_| ("No Collection".to_string()))?;
         Ok(collection)
     }
 
@@ -166,11 +202,14 @@ impl DB {
     }
 
     pub fn get_collections(&self) -> Result<Vec<SavedCollection>> {
-        let mut stmt = self.conn.prepare("SELECT id, name FROM collections")?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, description FROM collections")?;
         let rows = stmt.query_map(params![], |row| {
             Ok(SavedCollection {
                 id: row.get(0)?,
                 name: row.get(1)?,
+                description: row.get(2)?,
             })
         })?;
         Ok(rows
@@ -188,25 +227,55 @@ impl DB {
         &self,
         command: &str,
         json_str: String,
-        col_name: Option<i32>,
+        col_id: Option<i32>,
     ) -> Result<(), rusqlite::Error> {
         let mut stmt = self.conn.prepare(
             "INSERT INTO commands (command, curl_json, collection_id) VALUES (?1, ?2, ?3)",
         )?;
-        let _ = stmt.execute(params![command, &json_str, col_name])?;
+        let _ = stmt.execute(params![command, &json_str, col_id])?;
         Ok(())
+    }
+
+    pub fn set_command_description(
+        &self,
+        id: i32,
+        description: &str,
+    ) -> Result<Option<i32>, rusqlite::Error> {
+        let mut stmt = self
+            .conn
+            .prepare("UPDATE commands SET description = ?1 WHERE id = ?2")?;
+        stmt.execute(params![description, id])?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT collection_id FROM commands WHERE id = ?")?;
+        let collection_id: Option<i32> = stmt.query_row(params![id], |row| row.get(0))?;
+        Ok(collection_id)
+    }
+
+    pub fn set_command_label(&self, id: i32, label: &str) -> Result<Option<i32>, rusqlite::Error> {
+        let mut stmt = self
+            .conn
+            .prepare("UPDATE commands SET label = ?1 WHERE id = ?2")?;
+        stmt.execute(params![label, id])?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT collection_id FROM commands WHERE id = ?")?;
+        let collection_id: Option<i32> = stmt.query_row(params![id], |row| row.get(0))?;
+        Ok(collection_id)
     }
 
     pub fn add_command_from_collection(
         &self,
         command: &str,
+        label: Option<&str>,
+        desc: Option<&str>,
         json_str: &str,
         collection_id: i32,
     ) -> Result<(), rusqlite::Error> {
         let mut stmt = self.conn.prepare(
-            "INSERT INTO commands (command, curl_json, collection_id) VALUES (?1, ?2, ?3)",
+            "INSERT INTO commands (command, label, description, curl_json, collection_id) VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
-        let _ = stmt.execute(params![command, &json_str, collection_id])?;
+        let _ = stmt.execute(params![command, label, desc, json_str, collection_id])?;
         Ok(())
     }
 
@@ -236,26 +305,32 @@ impl DB {
         if let Some(id) = id {
             let mut stmt = self
                 .conn
-                .prepare("SELECT id, command, curl_json, collection_id FROM commands WHERE collection_id = ?")?;
+                .prepare("SELECT cmd.id, cmd.command, cmd.label, cmd.description, cmd.curl_json, cmd.collection_id, col.name as collection_name FROM commands cmd LEFT JOIN collections col ON cmd.collection_id = col.id WHERE cmd.collection_id = ?")?;
             let rows = stmt.query_map(params![id], |row| {
                 Ok(SavedCommand {
                     id: row.get(0)?,
                     command: row.get(1)?,
-                    curl_json: row.get(2)?,
-                    collection_id: row.get(3)?,
+                    label: row.get(2)?,
+                    description: row.get(3)?,
+                    curl_json: row.get(4)?,
+                    collection_id: row.get(5)?,
+                    collection_name: row.get(6)?,
                 })
             })?;
-            return Ok(rows.into_iter().map(|row| row.unwrap()).collect());
+            return Ok(rows.into_iter().filter_map(|row| row.ok()).collect());
         }
         let mut stmt = self
             .conn
-            .prepare("SELECT id, command, curl_json FROM commands")?;
+            .prepare("SELECT cmd.id, cmd.command, cmd.label, cmd.description, cmd.curl_json, cmd.collection_id, col.name FROM commands cmd LEFT JOIN collections col ON cmd.collection_id = col.id")?;
         let rows = stmt.query_map(params![], |row| {
             Ok(SavedCommand {
                 id: row.get(0)?,
                 command: row.get(1)?,
-                curl_json: row.get(2)?,
-                collection_id: None,
+                label: row.get(2)?,
+                description: row.get(3)?,
+                curl_json: row.get(4)?,
+                collection_id: row.get(5)?,
+                collection_name: row.get(6)?,
             })
         })?;
         let mut commands = Vec::new();
@@ -328,11 +403,19 @@ impl SavedCommand {
         Ok(serde_json::to_string(&self).expect("Failed to serialize"))
     }
 
-    pub fn new(command: &str, curl_json: &str, collection_id: Option<i32>) -> Self {
+    pub fn new(
+        command: &str,
+        label: Option<String>,
+        description: Option<String>,
+        curl_json: &str,
+        collection_id: Option<i32>,
+    ) -> Self {
         SavedCommand {
             command: command.to_string(),
+            label,
             curl_json: curl_json.to_string(),
             collection_id,
+            description,
             ..Default::default()
         }
     }

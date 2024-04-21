@@ -67,12 +67,18 @@ impl<'a> Default for App<'a> {
             state: None,
             current_screen: Screen::Home,
             response: None,
-            db: Box::new(DB::new().unwrap()),
+            db: Box::new(DB::new().expect("Failed to create database")),
         }
     }
 }
 
 impl<'a> App<'a> {
+    fn new_test_db() -> Self {
+        Self {
+            db: Box::new(DB::new_test().expect("Failed to create database")),
+            ..Default::default()
+        }
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -185,7 +191,7 @@ impl<'a> App<'a> {
             }
             Some(
                 Screen::InputMenu(_)
-                | Screen::CmdMenu(_)
+                | Screen::CmdMenu { .. }
                 | Screen::ColMenu(_)
                 | Screen::KeysMenu(_),
             ) => self.go_back_screen(),
@@ -335,8 +341,9 @@ impl<'a> App<'a> {
         match collection {
             Ok(collection) => {
                 let name = collection.info.name.clone();
+                let description = collection.info.description.clone();
                 let cmds: Vec<SavedCommand> = collection.into();
-                self.db.add_collection(&name, cmds.as_slice())
+                self.db.add_collection(&name, &description, cmds.as_slice())
             }
             Err(e) => Err(e.into()),
         }
@@ -375,7 +382,7 @@ impl<'a> App<'a> {
 
     pub fn delete_item(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
         match self.current_screen {
-            Screen::CmdMenu(_) => self.db.as_ref().delete_command(ind),
+            Screen::CmdMenu { .. } => self.db.as_ref().delete_command(ind),
             Screen::KeysMenu(_) => self.db.as_ref().delete_key(ind),
             Screen::ViewSavedCollections => self.db.as_ref().delete_collection(ind),
             _ => Ok(()),
@@ -453,7 +460,7 @@ impl<'a> App<'a> {
 #[cfg(test)]
 pub mod tests {
     use super::App;
-    use crate::request::curl::AuthKind;
+    use crate::request::curl::{AuthKind, Curl};
 
     #[test]
     fn test_basic_get_method() {
@@ -766,5 +773,33 @@ pub mod tests {
         mock.expect(1).match_body("hello world").assert();
         std::fs::remove_file("test.txt").unwrap();
         let _ = std::fs::remove_file("cookie-jar");
+    }
+    #[test]
+    fn test_import_postman_collection() {
+        let mut app = App::new_test_db();
+        let path = "test_collection.json";
+        let res = app.import_postman_collection(path);
+        let file = std::fs::File::open(path).unwrap();
+        let collection: crate::database::postman::PostmanCollection =
+            serde_json::from_reader(file).unwrap();
+        assert_eq!(collection.info.name.clone().as_str(), "Test Collection");
+        let cmds: Vec<crate::database::db::SavedCommand> = collection.into();
+        let db = app.db.as_ref();
+        let collections = db.get_collections().unwrap();
+        let commands = db.get_commands(None).unwrap();
+        let command = commands[0].clone();
+        let curl: Curl = serde_json::from_str(command.get_curl_json()).unwrap();
+        assert!(res.is_ok());
+        assert_eq!(collections.len(), 1);
+        assert_eq!(commands.len(), cmds.len());
+        assert_eq!(curl.get_method().to_string(), "POST");
+        assert_eq!(curl.get_url(), "https://echo.getpostman.com/post");
+        assert_eq!(
+            curl.headers,
+            Some(vec![
+                String::from("Content-Type: application/json"),
+                String::from("Host: echo.getpostman.com")
+            ])
+        );
     }
 }

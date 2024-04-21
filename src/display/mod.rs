@@ -5,10 +5,9 @@ use self::menuopts::{
     DISPLAY_OPT_COMMAND_SAVED, DISPLAY_OPT_CONTENT_HEADERS, DISPLAY_OPT_COOKIE,
     DISPLAY_OPT_COOKIE_JAR, DISPLAY_OPT_FAIL_ON_ERROR, DISPLAY_OPT_FOLLOW_REDIRECTS,
     DISPLAY_OPT_HEADERS, DISPLAY_OPT_MATCH_WILDCARD, DISPLAY_OPT_MAX_REDIRECTS,
-    DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROGRESS_BAR, DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_REFERRER,
-    DISPLAY_OPT_TCP_KEEPALIVE, DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_UNIX_SOCKET,
-    DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL, DISPLAY_OPT_USERAGENT,
-    DISPLAY_OPT_VERBOSE,
+    DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_REFERRER, DISPLAY_OPT_TCP_KEEPALIVE,
+    DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_UNIX_SOCKET, DISPLAY_OPT_UNRESTRICTED_AUTH,
+    DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL, DISPLAY_OPT_USERAGENT, DISPLAY_OPT_VERBOSE,
 };
 use crate::request::curl::AuthKind;
 use std::fmt::{Display, Formatter};
@@ -62,7 +61,6 @@ pub enum AppOptions {
     CookiePath(String),
     EnableHeaders,
     ContentHeaders(HeaderKind),
-    ProgressBar,
     FailOnError,
     ProxyTunnel,
     CaPath(String),
@@ -100,7 +98,6 @@ impl AppOptions {
             Self::FollowRedirects => "-L".to_string(),
             Self::UnixSocket(ref socket) => format!("--unix-socket {socket}"),
             Self::MatchWildcard => "-g".to_string(),
-            Self::ProgressBar => "--progress-bar".to_string(),
             Self::Auth(ref kind) => match kind {
                 AuthKind::Basic(ref login) => {
                     format!("-u {login}")
@@ -131,7 +128,6 @@ impl AppOptions {
             self,
             Self::Verbose
                 | Self::EnableHeaders
-                | Self::ProgressBar
                 | Self::FailOnError
                 | Self::ProxyTunnel
                 | Self::CertInfo
@@ -215,7 +211,6 @@ impl AppOptions {
             }
             AppOptions::NewCookie(cookie) => format!("{}{}", DISPLAY_OPT_COOKIE, cookie.clone()),
             AppOptions::EnableHeaders => DISPLAY_OPT_HEADERS.to_string(),
-            AppOptions::ProgressBar => String::from(DISPLAY_OPT_PROGRESS_BAR),
             AppOptions::FailOnError => String::from(DISPLAY_OPT_FAIL_ON_ERROR),
             AppOptions::ProxyTunnel => DISPLAY_OPT_PROXY_TUNNEL.to_string(),
             AppOptions::UserAgent(ua) => format!("{}{}", DISPLAY_OPT_USERAGENT, ua),

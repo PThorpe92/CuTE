@@ -45,31 +45,25 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
 pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Percentage(15), Constraint::Percentage(85)])
+        .constraints(vec![
+            Constraint::Percentage(10),
+            Constraint::Percentage(10),
+            Constraint::Percentage(80),
+        ])
+        .horizontal_margin(6)
         .split(frame.size());
-    let input_textbox = chunks[0];
-    let text_chunk = Block::default().borders(Borders::ALL).style(
-        Style::default()
-            .bg(app.config.get_bg_color())
-            .fg(Color::LightBlue)
-            .add_modifier(tui::style::Modifier::BOLD),
-    );
-    frame.render_widget(text_chunk, input_textbox);
-    let bottom_box = centered_rect(chunks[1], crate::screens::ScreenArea::Top);
+    let input_textbox = chunks[1];
+    let bottom_box = centered_rect(chunks[2], crate::screens::ScreenArea::Top);
     let prompt = get_input_prompt(opt.clone());
     frame.render_widget(
-        Paragraph::new(prompt).style(
-            Style::default()
-                .fg(Color::LightBlue)
-                .add_modifier(Modifier::BOLD),
-        ),
+        Paragraph::new(prompt).style(Style::default().add_modifier(Modifier::BOLD)),
         centered_rect(bottom_box, crate::screens::ScreenArea::Top),
     );
     let top_box = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
         .split(input_textbox);
-    let width = top_box[0].width.max(3) - 3;
+    let width = top_box[1].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
     match opt {
         InputOpt::URL => {
@@ -161,8 +155,8 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     }
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
-            InputMode::Normal => Style::default().fg(app.config.get_body_color()),
-            InputMode::Editing => Style::default().fg(Color::White),
+            InputMode::Normal => Style::default().fg(Color::Blue),
+            InputMode::Editing => Style::default().fg(Color::Yellow),
         })
         .block(Block::default().borders(Borders::ALL).title("Input"));
     let (msg, style) = match app.input_mode {
@@ -265,6 +259,24 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         InputOpt::NewCookie => {
             app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieValue(message))));
         }
+        InputOpt::CmdDescription(id) => {
+            let coll_id = app
+                .db
+                .set_command_description(id, &message)
+                .unwrap_or_default();
+            app.goto_screen(&Screen::SavedCommands {
+                id: coll_id,
+                opt: Some(InputOpt::RequestError(String::from("Description Updated"))),
+            });
+        }
+        InputOpt::CollectionDescription(id) => {
+            app.db
+                .set_collection_description(id, &message)
+                .unwrap_or_default();
+            app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
+                String::from("Description Updated"),
+            ))));
+        }
         InputOpt::CookieValue(ref name) => {
             let cookie = format!("{}={};", name, message);
             app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieExpires(cookie))));
@@ -340,9 +352,13 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         }
         InputOpt::ImportCollection => {
             if let Err(e) = app.import_postman_collection(&message) {
-                app.goto_screen(&Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::AlertMessage(
+                    e.to_string(),
+                ))));
             } else {
-                app.goto_screen(&Screen::Success);
+                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::AlertMessage(
+                    String::from("Collection Imported"),
+                ))));
             }
         }
         InputOpt::KeyLabel(id) => match app.db.set_key_label(id, &message) {
@@ -353,6 +369,16 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 "Error: {}",
                 e
             ))))),
+        },
+        InputOpt::CmdLabel(id) => match app.db.set_command_label(id, &message) {
+            Ok(collection_id) => app.goto_screen(&Screen::SavedCommands {
+                id: collection_id,
+                opt: Some(InputOpt::AlertMessage(String::from("Label Updated"))),
+            }),
+            Err(e) => app.goto_screen(&Screen::SavedCommands {
+                id: None,
+                opt: Some(InputOpt::RequestError(format!("Error: {}", e))),
+            }),
         },
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);

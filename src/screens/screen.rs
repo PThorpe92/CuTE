@@ -33,7 +33,10 @@ pub enum Screen {
     ViewBody,
     MoreFlags,
     Headers,
-    CmdMenu(i32),
+    CmdMenu {
+        id: i32,
+        opt: Option<InputOpt>,
+    },
     KeysMenu(usize),
     RequestBodyInput,
     CookieOptions,
@@ -47,6 +50,7 @@ impl Screen {
             Screen::SavedKeys(opt) => opt.is_some(),
             Screen::RequestBodyInput => true,
             Screen::SavedCollections(opt) => opt.is_some(),
+            Screen::CmdMenu { opt, .. } => opt.is_some(),
             _ => false,
         }
     }
@@ -69,7 +73,7 @@ impl Display for Screen {
             Screen::ViewBody => "ViewBody",
             Screen::MoreFlags => "MoreFlags",
             Screen::Headers => "Headers",
-            Screen::CmdMenu(_) => "CmdMenu",
+            Screen::CmdMenu { .. } => "CmdMenu",
             Screen::KeysMenu(_) => "KeysMenu",
             Screen::RequestBodyInput => "RequestBodyInput",
             Screen::SavedCollections(_) => "Saved Collections",
@@ -165,7 +169,7 @@ impl<'a> Screen {
             Screen::RequestBodyInput => {
                 vec![ListItem::new("Request Body Input").style(Style::default().fg(Color::Green))]
             }
-            Screen::CmdMenu(_) => CMD_MENU_OPTIONS
+            Screen::CmdMenu { .. } => CMD_MENU_OPTIONS
                 .iter()
                 .map(|i| ListItem::new(format!("{i}{}", NEWLINE)))
                 .collect(),

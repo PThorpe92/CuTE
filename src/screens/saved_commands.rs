@@ -1,3 +1,4 @@
+use super::input::input_screen::handle_default_input_screen;
 use super::render::render_header_paragraph;
 use super::{centered_rect, error_alert_box, Screen, ScreenArea};
 use crate::app::App;
@@ -5,7 +6,9 @@ use crate::display::inputopt::InputOpt;
 use crate::display::menuopts::{CMD_MENU_OPTIONS, SAVED_COMMANDS_PARAGRAPH, SAVED_COMMANDS_TITLE};
 use tui::prelude::{Constraint, Direction, Layout, Margin};
 use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use tui::text::{Line, Span};
+
+use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
 use tui::Frame;
 
 pub fn handle_saved_commands_screen(
@@ -20,9 +23,12 @@ pub fn handle_saved_commands_screen(
             .iter()
             .map(|x| {
                 format!(
-                    "Request: {} Collection: {:?}",
-                    x.get_command(),
-                    x.get_collection_id()
+                    "Request: {}  |  Collection: {:?}",
+                    x.label.clone().unwrap_or(String::from("No label")),
+                    match x.collection_name.clone() {
+                        Some(name) => name,
+                        None => "No Collection".to_string(),
+                    }
                 )
             })
             .collect::<Vec<String>>(),
@@ -48,14 +54,23 @@ pub fn handle_saved_commands_screen(
     if let Some(selected) = app.selected {
         let cmd = commands.get(selected);
         if let Some(cmd) = cmd {
-            app.goto_screen(&Screen::CmdMenu(cmd.get_id()));
+            app.goto_screen(&Screen::CmdMenu {
+                id: cmd.get_id(),
+                opt: None,
+            });
         } else {
-            app.goto_screen(&Screen::Error("No commands found".to_string()));
+            app.goto_screen(&Screen::SavedCommands {
+                id: None,
+                opt: Some(InputOpt::RequestError("No commands found".to_string())),
+            });
         }
     }
 }
 
-pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
+pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32, opt: Option<InputOpt>) {
+    if let Some(opt) = opt {
+        handle_default_input_screen(app, frame, opt);
+    }
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -68,15 +83,9 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
         )
         .horizontal_margin(5)
         .split(frame.size());
-    // Render the alert box
-    let alert_box = layout[1];
-    let alert_text_chunk = Block::default()
-        .borders(Borders::ALL)
-        .style(Style::default().bg(Color::Black).fg(Color::LightGreen))
-        .title("Alert");
     let options_box = layout[1].inner(&Margin {
         vertical: 1,
-        horizontal: 1,
+        horizontal: 25,
     });
     let mut list_state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(list_state.clone());
@@ -88,7 +97,7 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
         .block(Block::default())
         .highlight_style(
             Style::default()
-                .bg(Color::White)
+                .bg(Color::Blue)
                 .fg(Color::Black)
                 .add_modifier(Modifier::BOLD),
         )
@@ -96,22 +105,81 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
     let cmd_str = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(alert_box)[1];
+        .split(layout[1])[1];
     if let Ok(command) = app.db.as_ref().get_command_by_id(cmd) {
-        let paragraph = Paragraph::new(format!("{:?}", command))
-            .block(Block::default().borders(Borders::ALL).title("Command"))
-            .alignment(tui::layout::Alignment::Center);
-        frame.render_widget(paragraph, cmd_str);
-        frame.render_widget(alert_text_chunk, alert_box);
+        let collection_name = match app
+            .db
+            .as_ref()
+            .get_collection_by_id(command.collection_id.unwrap_or(0))
+        {
+            Ok(collection) => collection.name,
+            Err(_) => "No Collection".to_string(),
+        };
+        let alert_text = vec![
+            Line::raw("\n"),
+            Line::default().spans(vec![
+                Span::styled("Label: ", Style::default().fg(Color::LightGreen)),
+                Span::styled(
+                    command.label.clone().unwrap_or("None".to_string()),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::default().spans(vec![
+                Span::styled("Description: ", Style::default().fg(Color::LightGreen)),
+                Span::styled(
+                    command.description.clone().unwrap_or("None".to_string()),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::default().spans(vec![
+                Span::styled("Collection: ", Style::default().fg(Color::LightGreen)),
+                Span::styled(collection_name, Style::default().fg(Color::White)),
+            ]),
+            Line::default().spans(vec![
+                Span::styled("ID: ", Style::default().fg(Color::LightGreen)),
+                Span::styled(command.id.to_string(), Style::default().fg(Color::White)),
+            ]),
+        ];
+        let alert_text = List::new(alert_text)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Command Details"),
+            )
+            .style(Style::default().fg(Color::Blue))
+            .highlight_style(Style::default().fg(Color::LightGreen));
         frame.render_stateful_widget(list, options_box, &mut list_state);
+        frame.render_widget(alert_text, layout[0]);
+        let header = Block::default().borders(Borders::ALL).title("* Request *");
+        frame.render_widget(header, layout[0]);
+        let paragraph = Paragraph::new(command.get_command())
+            .block(Block::default().borders(Borders::ALL).title("* Command *"))
+            .alignment(tui::layout::Alignment::Center)
+            .centered()
+            .wrap(Wrap::default());
+        frame.render_widget(paragraph, cmd_str);
         match app.selected {
             // execute saved command
             Some(0) => {
                 app.execute_saved_command(command.get_curl_json());
                 app.goto_screen(&Screen::Response(app.response.clone().unwrap()));
             }
-            // delete item
+            // add a label
             Some(1) => {
+                app.goto_screen(&Screen::CmdMenu {
+                    id: cmd,
+                    opt: Some(InputOpt::CmdLabel(cmd)),
+                });
+            }
+            // add a description
+            Some(2) => {
+                app.goto_screen(&Screen::CmdMenu {
+                    id: cmd,
+                    opt: Some(InputOpt::CmdDescription(cmd)),
+                });
+            }
+            // delete item
+            Some(3) => {
                 if let Err(e) = app.delete_item(command.get_id()) {
                     app.goto_screen(&Screen::SavedCommands {
                         id: None,
@@ -127,7 +195,7 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
                 }
             }
             // copy to clipboard
-            Some(2) => {
+            Some(4) => {
                 if let Err(e) = app.copy_to_clipboard(command.get_command()) {
                     app.goto_screen(&Screen::Error(e.to_string()));
                 }
@@ -139,7 +207,7 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32) {
                 });
             }
             // cancel
-            Some(3) => {
+            Some(5) => {
                 app.goto_screen(&Screen::SavedCommands {
                     id: None,
                     opt: None,
