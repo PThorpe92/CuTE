@@ -28,13 +28,6 @@ pub const ERROR_MENU_TITLE: &str = "* CuTE ** Error! *";
 pub const SUCCESS_MENU_TITLE: &str = "* CuTE ** Success! *";
 pub const POSTMAN_COLLECTION_TITLE: &str = "* CuTE ** Postman Collections";
 pub const SUCCESS_MESSAGE: &str = "Request saved successfully";
-pub const INPUT_OPT_URL: &str = "Enter a URL for your {}\n and press Enter";
-pub const INPUT_OPT_HEADERS: &str =
-    "MUST be \"Key:Value\" pair and press Enter \n Example: Content-Type: application/json";
-pub const INPUT_OPT_AUTH_BASIC: &str = "Enter username:password and press Enter";
-pub const INPUT_OPT_AUTH_ANY: &str = "Enter your username and press Enter";
-pub const INPUT_OPT_AUTH_BEARER: &str = "Enter your API token and press Enter";
-pub const INPUT_OPT_BASIC: &str = "Enter a value and press Enter";
 // This padds the choices in the menu. This is the least hideous way to do this.(I think)
 pub const OPTION_PADDING_MAX: &str = "\n\n\n\n";
 pub const OPTION_PADDING_MID: &str = "\n\n\n";

@@ -33,7 +33,7 @@ pub struct App<'a> {
     pub screen_stack: Vec<Screen>,
     /// index of selected item
     pub selected: Option<usize>,
-    /// command (curl or wget)
+    /// command curl
     pub command: Curl,
     /// Input struct for tui_input dependency
     pub input: Input,
@@ -351,14 +351,17 @@ impl<'a> App<'a> {
 
     // Takes an array index of the selected item
     pub fn execute_saved_command(&mut self, json: &str) {
-        let mut command: Curl = serde_json::from_str(json)
-            .map_err(|e| e.to_string())
-            .unwrap();
-        command.easy_from_opts();
-        match command.execute(None) {
-            Ok(_) => self.set_response(&command.get_response().unwrap_or("".to_string())),
+        let command: Result<Curl, String> = serde_json::from_str(json).map_err(|e| e.to_string());
+        match command {
+            Ok(mut cmd) => {
+                cmd.easy_from_opts();
+                match cmd.execute(None) {
+                    Ok(_) => self.set_response(&cmd.get_response().unwrap_or("".to_string())),
+                    Err(e) => self.set_response(&e),
+                };
+            }
             Err(e) => self.set_response(&e),
-        };
+        }
     }
 
     pub fn copy_to_clipboard(&self, opt: &str) -> Result<(), String> {
@@ -410,6 +413,15 @@ impl<'a> App<'a> {
     }
 
     fn should_add_option(&self, opt: &AppOptions) -> bool {
+        if let AppOptions::ContentHeaders(headers) = opt {
+            return !self.command.opts.iter().any(|x| {
+                if let AppOptions::ContentHeaders(h) = x {
+                    h == headers
+                } else {
+                    false
+                }
+            });
+        }
         match opt {
             opt if opt.should_append() => true,
             _ => !self.has_app_option(opt),

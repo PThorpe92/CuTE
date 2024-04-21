@@ -1,4 +1,7 @@
-use crate::request::curl::{AuthKind, Method};
+use crate::{
+    request::curl::{AuthKind, Method},
+    screens::Screen,
+};
 use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,8 +40,49 @@ pub enum InputOpt {
 }
 
 impl InputOpt {
+    pub fn get_return_screen(&self) -> Screen {
+        match self {
+            InputOpt::KeyLabel(_) => Screen::SavedKeys(None),
+            InputOpt::CmdLabel(id) => Screen::SavedCommands {
+                id: Some(*id),
+                opt: None,
+            },
+            InputOpt::CaPath => Screen::RequestMenu(None),
+            InputOpt::CaCert => Screen::RequestMenu(None),
+            InputOpt::CookiePath => Screen::RequestMenu(None),
+            InputOpt::CookieJar => Screen::RequestMenu(None),
+            InputOpt::CookieExpires(_) => Screen::RequestMenu(None),
+            InputOpt::CmdDescription(id) => Screen::SavedCommands {
+                id: Some(*id),
+                opt: None,
+            },
+            InputOpt::ApiKey => Screen::SavedKeys(None),
+            InputOpt::UnixSocket => Screen::RequestMenu(None),
+            InputOpt::UserAgent => Screen::RequestMenu(None),
+            InputOpt::MaxRedirects => Screen::RequestMenu(None),
+            InputOpt::NewCookie => Screen::RequestMenu(None),
+            InputOpt::Referrer => Screen::RequestMenu(None),
+            InputOpt::FtpAccount => Screen::RequestMenu(None),
+            InputOpt::VerifyPeer => Screen::RequestMenu(None),
+            InputOpt::Method(_) => Screen::RequestMenu(None),
+            InputOpt::RequestError(_) => Screen::RequestMenu(None),
+            InputOpt::AlertMessage(_) => Screen::RequestMenu(None),
+            InputOpt::ImportCollection => Screen::SavedCollections(None),
+            InputOpt::RenameCollection(_) => Screen::SavedCollections(None),
+            InputOpt::Execute => Screen::Response(String::new()),
+            InputOpt::CollectionDescription(_) => Screen::SavedCollections(None),
+            InputOpt::URL => Screen::RequestMenu(None),
+            InputOpt::UploadFile => Screen::RequestMenu(None),
+            InputOpt::Headers => Screen::Headers,
+            InputOpt::Output => Screen::Response(String::new()),
+            InputOpt::Verbose => Screen::RequestMenu(None),
+            InputOpt::RequestBody => Screen::RequestMenu(None),
+            InputOpt::Auth(_) => Screen::RequestMenu(None),
+            InputOpt::CookieValue(_) => Screen::RequestMenu(None),
+        }
+    }
     pub fn is_error(&self) -> bool {
-        matches!(self, InputOpt::RequestError(_))
+        matches!(self, InputOpt::RequestError(_) | InputOpt::AlertMessage(_))
     }
 }
 
