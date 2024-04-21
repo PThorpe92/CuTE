@@ -142,7 +142,10 @@ impl AppOptions {
         )
     }
     pub fn should_append(&self) -> bool {
-        matches!(self, Self::Headers(_) | Self::NewCookie(_))
+        matches!(
+            self,
+            Self::Headers(_) | Self::NewCookie(_) | Self::ContentHeaders(_)
+        )
     }
     pub fn replace_value(&mut self, val: String) {
         match self {

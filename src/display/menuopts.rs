@@ -170,10 +170,14 @@ pub const METHOD_MENU_OPTIONS: [&str; 7] = [
     "PATCH",
     "HEAD",
 ];
-pub const HEADER_MENU_OPTIONS: [&str; 5] = [
+pub const HEADER_MENU_OPTIONS: [&str; 9] = [
     "Add Custom Header 󰖟 ",
-    "Add Content-Type: Application/Json  ",
-    "Add Accept: Application/Json  ",
+    "Add Content-Type: application/json  ",
+    "Add Content-Type: application/xml  ",
+    "Add Content-Type: application/X-WWW-Form-Urlencoded  ",
+    "Add Accept: application/json  ",
+    "Add Accept: text/html  ",
+    "Add Accept: application/xml  ",
     "Enable Response Headers 󰰀 ",
     "Return to request menu  ",
 ];
