@@ -18,7 +18,6 @@ impl ExecuteOption for Curl {
             AppOptions::Outfile(ref file) => self.set_outfile(file),
             AppOptions::UploadFile(ref file) => self.set_upload_file(file),
             AppOptions::UnixSocket(ref file) => self.set_unix_socket(file),
-            AppOptions::ProgressBar => self.enable_progress_bar(true),
             AppOptions::FailOnError => self.set_fail_on_error(true),
             AppOptions::Verbose => self.set_verbose(true),
             AppOptions::Response(ref resp) => self.set_response(resp),
@@ -42,7 +41,7 @@ impl ExecuteOption for Curl {
             AppOptions::Headers(ref headers) => self.add_headers(headers),
             AppOptions::Auth(auth) => self.set_auth(auth.clone()),
             AppOptions::EnableHeaders => self.enable_response_headers(true),
-            AppOptions::ContentHeaders(ref headers) => self.set_content_header(*headers),
+            AppOptions::ContentHeaders(ref headers) => self.set_content_header(headers),
         }
     }
     fn remove_option(&mut self, opt: &AppOptions) {
@@ -51,7 +50,6 @@ impl ExecuteOption for Curl {
             AppOptions::Outfile(_) => self.set_outfile(""),
             AppOptions::UploadFile(_) => self.set_upload_file(""),
             AppOptions::UnixSocket(_) => self.set_unix_socket(""),
-            AppOptions::ProgressBar => self.enable_progress_bar(false),
             AppOptions::FailOnError => self.set_fail_on_error(false),
             AppOptions::Verbose => self.set_verbose(false),
             AppOptions::Response(_) => self.set_response(""),
@@ -75,7 +73,7 @@ impl ExecuteOption for Curl {
             AppOptions::Headers(_) => self.remove_headers(""),
             AppOptions::Auth(_) => self.set_auth(crate::request::curl::AuthKind::None),
             AppOptions::EnableHeaders => self.enable_response_headers(false),
-            AppOptions::ContentHeaders(_) => self.set_content_header(HeaderKind::None),
+            AppOptions::ContentHeaders(_) => self.set_content_header(&HeaderKind::None),
         }
     }
 }

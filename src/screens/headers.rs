@@ -11,25 +11,53 @@ pub fn handle_headers_screen(app: &mut App, frame: &mut Frame<'_>) {
 
     match app.selected {
         // add custom headers
-        Some(0) => app.goto_screen(&Screen::InputMenu(InputOpt::Headers)),
-        //
+        // "Add Content-Type: application/json  ",
+        // "Add Content-Type: application/xml  ",
+        // "Add Content-Type: application/X-WWW-Form-Urlencoded  ",
+        // "Add Accept: application/json  ",
+        // "Add Accept: text/html  ",
+        // "Add Accept: application/xml  ",
+        Some(0) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::Headers))),
         // add content-type application/json
         Some(1) => {
-            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::ContentType));
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::ContentType(
+                String::from("application/json"),
+            )));
         }
-        //
         // add accept application/json
         Some(2) => {
-            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::Accept));
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::ContentType(
+                String::from("application/xml"),
+            )));
         }
-        //
-        // accept headers in response
         Some(3) => {
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::ContentType(
+                String::from("application/www-form-urlencoded"),
+            )));
+        }
+        // add accept application/json
+        Some(4) => {
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::Accept(
+                String::from("application/json"),
+            )));
+        }
+        Some(5) => {
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::ContentType(
+                String::from("text/html"),
+            )));
+        }
+        // add accept application/json
+        Some(6) => {
+            app.add_app_option(AppOptions::ContentHeaders(HeaderKind::Accept(
+                String::from("application/xml"),
+            )));
+        }
+        // accept headers in response
+        Some(7) => {
             app.add_app_option(AppOptions::EnableHeaders);
         }
-        //
         // return to request menu
-        Some(4) => app.goto_screen(&Screen::RequestMenu(None)),
+        Some(8) => app.goto_screen(&Screen::RequestMenu(None)),
         _ => {}
     }
 }

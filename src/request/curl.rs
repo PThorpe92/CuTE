@@ -1,24 +1,31 @@
+use super::ExecuteOption;
 use crate::database::db::DB;
-use crate::display::{AppOptions, HeaderKind};
-use serde::de::{MapAccess, Visitor};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::str::FromStr;
-
-use crate::display::menuopts::CURL;
+use crate::display::{menuopts::CURL, AppOptions, HeaderKind};
 use curl::easy::{Auth, Easy2, Handler, List, WriteError};
-use std::io::Read;
-use std::u8;
+use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
 use std::{
     fmt::{Display, Formatter},
-    io::Write,
+    io::{Read, Write},
+    str::FromStr,
+    u8,
 };
+impl DerefMut for CurlHandler {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl Deref for CurlHandler {
+    type Target = Easy2<Collector>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
-use super::ExecuteOption;
-
+#[derive(Debug)]
+pub struct CurlHandler(Easy2<Collector>);
 #[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
-struct Collector(Vec<u8>);
-
+pub struct Collector(Vec<u8>);
 impl Handler for Collector {
     fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
         self.0.extend_from_slice(data);
@@ -26,41 +33,46 @@ impl Handler for Collector {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Curl {
     // The libcurl interface for our command/request
-    curl: Easy2<Collector>,
-    // The method type
-    method: Option<Method>,
-    // The auth type we will use
+    #[serde(skip)]
+    curl: CurlHandler,
+    pub method: Method,
     auth: AuthKind,
-    // The final command string we will run
+    // The final cli command string
     cmd: String,
-    // The strings of headers
-    headers: Option<Vec<String>>,
-    // The url we will send the request to
+    pub headers: Option<Vec<String>>,
     url: String,
-    // The opts we will build incrementally and store
-    opts: Vec<AppOptions>,
-    // The response we get back from the command if not sent to file
+    pub opts: Vec<AppOptions>,
     resp: Option<String>,
-    // Filepath of file to be uploaded
     upload_file: Option<String>,
-    // Filepath of the response output file or download
     outfile: Option<String>,
     // Whether to save the (command, auth/key) to DB after execution
     save: (bool, bool),
+    ser: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, Clone, PartialEq)]
+impl Default for CurlHandler {
+    fn default() -> Self {
+        Self(Easy2::new(Collector(Vec::new())))
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Eq, Clone, PartialEq)]
 pub enum Method {
+    #[default]
     Get,
     Post,
     Put,
     Patch,
     Delete,
     Head,
-    Options,
+}
+impl Method {
+    pub fn needs_reset(&self) -> bool {
+        matches!(self, Method::Put | Method::Patch | Method::Post)
+    }
 }
 impl FromStr for Method {
     type Err = String;
@@ -72,8 +84,7 @@ impl FromStr for Method {
             "PATCH" => Ok(Method::Patch),
             "DELETE" => Ok(Method::Delete),
             "HEAD" => Ok(Method::Head),
-            "OPTIONS" => Ok(Method::Options),
-            _ => Err(String::from("Invalid Method")),
+            _ => Err(String::from("GET")),
         }
     }
 }
@@ -85,117 +96,11 @@ impl Display for Method {
             Method::Put => write!(f, "PUT"),
             Method::Patch => write!(f, "PATCH"),
             Method::Delete => write!(f, "DELETE"),
-            Method::Options => write!(f, "OPTIONS"),
             Method::Head => write!(f, "HEAD"),
         }
     }
 }
 impl Eq for Curl {}
-
-// cannot derive (serialze, deserialize) due to curl::Easy2 (libcurl)
-impl Serialize for Curl {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // Serialize all fields except 'curl::Easy'
-        let mut state = serializer.serialize_struct("Curl", 9)?;
-        state.serialize_field("method", &self.method)?;
-        state.serialize_field("auth", &self.auth)?;
-        state.serialize_field("cmd", &self.cmd)?;
-        state.serialize_field("headers", &self.headers)?;
-        state.serialize_field("url", &self.url)?;
-        state.serialize_field("opts", &self.opts)?;
-        state.serialize_field("resp", &self.resp)?;
-        state.serialize_field("upload_file", &self.upload_file)?;
-        state.serialize_field("outfile", &self.outfile)?;
-        state.end()
-    }
-}
-
-impl<'de> Deserialize<'de> for Curl {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Deserialize all fields except 'curl::Easy'
-        struct CurlVisitor;
-
-        impl<'de> Visitor<'de> for CurlVisitor {
-            type Value = Curl;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct Curl")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: MapAccess<'de>,
-            {
-                let mut method = None;
-                let mut auth = None;
-                let mut cmd = None;
-                let mut headers = None;
-                let mut url = None;
-                let mut opts = None;
-                let mut resp = None;
-                let mut upload_file = None;
-                let mut outfile = None;
-
-                while let Some(key) = map.next_key()? {
-                    match key {
-                        "method" => method = Some(map.next_value()?),
-                        "auth" => auth = Some(map.next_value()?),
-                        "cmd" => cmd = Some(map.next_value()?),
-                        "headers" => headers = Some(map.next_value()?),
-                        "url" => url = Some(map.next_value()?),
-                        "opts" => opts = Some(map.next_value()?),
-                        "resp" => resp = Some(map.next_value()?),
-                        "upload_file" => upload_file = Some(map.next_value()?),
-                        "outfile" => outfile = Some(map.next_value()?),
-                        &_ => {}
-                    }
-                }
-                let curl = Easy2::new(Collector(Vec::new()));
-                let mut res = Curl {
-                    curl,
-                    method: method.ok_or_else(|| serde::de::Error::missing_field("method"))?,
-                    auth: auth.ok_or_else(|| serde::de::Error::missing_field("auth"))?,
-                    cmd: cmd.ok_or_else(|| serde::de::Error::missing_field("cmd"))?,
-                    headers: headers.ok_or_else(|| serde::de::Error::missing_field("headers"))?,
-                    url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
-                    opts: opts
-                        .to_owned()
-                        .ok_or_else(|| serde::de::Error::missing_field("opts"))?,
-                    resp: resp.ok_or_else(|| serde::de::Error::missing_field("resp"))?,
-                    upload_file: upload_file
-                        .ok_or_else(|| serde::de::Error::missing_field("upload_file"))?,
-                    outfile: outfile.ok_or_else(|| serde::de::Error::missing_field("outfile"))?,
-                    save: (false, false),
-                };
-                res.easy_from_opts(opts.unwrap_or_default().as_slice());
-                Ok(res)
-            }
-        }
-        deserializer.deserialize_struct(
-            "Curl",
-            &[
-                "curl",
-                "method",
-                "auth",
-                "cmd",
-                "headers",
-                "url",
-                "opts",
-                "resp",
-                "upload_file",
-                "outfile",
-                "save",
-            ],
-            CurlVisitor,
-        )
-    }
-}
 
 impl Clone for Curl {
     fn clone(&self) -> Self {
@@ -204,14 +109,12 @@ impl Clone for Curl {
         curl.set_url(self.url.as_str());
 
         match self.method {
-            Some(Method::Get) => curl.set_get_method(),
-            Some(Method::Post) => curl.set_post_method(),
-            Some(Method::Put) => curl.set_put_method(),
-            Some(Method::Patch) => curl.set_patch_method(),
-            Some(Method::Delete) => curl.set_delete_method(),
-            Some(Method::Head) => curl.set_head_method(),
-            Some(Method::Options) => curl.set_options_method(),
-            None => {}
+            Method::Get => curl.set_get_method(),
+            Method::Post => curl.set_post_method(),
+            Method::Put => curl.set_put_method(),
+            Method::Patch => curl.set_patch_method(),
+            Method::Delete => curl.set_delete_method(),
+            Method::Head => curl.set_head_method(),
         }
         if let Some(ref res) = self.resp {
             curl.set_response(res.as_str());
@@ -228,9 +131,8 @@ impl Clone for Curl {
             // our cmd string has been built
             curl.cmd = self.cmd.clone();
         }
-        curl.build_command_string();
         Self {
-            curl: Easy2::new(Collector(Vec::new())),
+            curl: CurlHandler::default(),
             method: self.method.clone(),
             auth: self.auth.clone(),
             cmd: self.cmd.clone(),
@@ -241,6 +143,7 @@ impl Clone for Curl {
             upload_file: self.upload_file.clone(),
             outfile: self.outfile.clone(),
             save: self.save,
+            ser: self.ser,
         }
     }
 }
@@ -257,6 +160,7 @@ impl PartialEq for Curl {
             && self.upload_file == other.upload_file
             && self.outfile == other.outfile
             && self.save == other.save
+            && self.ser == other.ser
     }
 }
 
@@ -272,6 +176,12 @@ pub enum AuthKind {
 }
 
 impl AuthKind {
+    pub fn has_token(&self) -> bool {
+        matches!(
+            self,
+            AuthKind::Bearer(_) | AuthKind::Basic(_) | AuthKind::Digest(_)
+        )
+    }
     pub fn get_token(&self) -> Option<String> {
         match self {
             AuthKind::Bearer(token) => Some(token.clone()),
@@ -299,8 +209,8 @@ impl Display for AuthKind {
 impl Default for Curl {
     fn default() -> Self {
         Self {
-            curl: Easy2::new(Collector(Vec::new())),
-            method: None,
+            curl: CurlHandler::default(),
+            method: Method::Get,
             auth: AuthKind::None,
             cmd: String::from(CURL),
             url: String::new(),
@@ -310,6 +220,7 @@ impl Default for Curl {
             upload_file: None,
             outfile: None,
             save: (false, false),
+            ser: false,
         }
     }
 }
@@ -317,14 +228,30 @@ impl Curl {
     pub fn new() -> Self {
         Self::default()
     }
+    pub fn new_serializing() -> Self {
+        Self {
+            ser: true,
+            ..Self::default()
+        }
+    }
     pub fn get_url(&self) -> &str {
         &self.url
     }
-    pub fn get_method(&self) -> Option<Method> {
-        self.method.clone()
+    pub fn get_method(&self) -> &Method {
+        &self.method
     }
     pub fn add_basic_auth(&mut self, info: &str) {
         self.auth = AuthKind::Basic(String::from(info));
+    }
+    fn apply_method(&mut self) {
+        match self.method {
+            Method::Get => self.set_get_method(),
+            Method::Post => self.set_post_method(),
+            Method::Put => self.set_put_method(),
+            Method::Patch => self.set_patch_method(),
+            Method::Delete => self.set_delete_method(),
+            Method::Head => self.set_head_method(),
+        }
     }
 
     pub fn get_response(&self) -> Option<String> {
@@ -333,10 +260,8 @@ impl Curl {
 
     pub fn build_command_string(&mut self) {
         let mut cmd: Vec<String> = vec![self.cmd.clone()];
-        if let Some(ref method) = &self.method {
-            cmd.push(String::from("-X"));
-            cmd.push(method.to_string());
-        }
+        cmd.push(String::from("-X"));
+        cmd.push(self.method.to_string());
         cmd.push(self.url.clone());
         for flag in self.opts.iter() {
             cmd.push(flag.get_curl_flag_value());
@@ -349,7 +274,7 @@ impl Curl {
         }
         self.cmd = cmd.join(" ").trim().to_string();
     }
-    //
+
     // this is only called after execution, we need to
     // find out if its been built already
     pub fn get_command_string(&mut self) -> String {
@@ -364,6 +289,10 @@ impl Curl {
     }
 
     pub fn set_url(&mut self, url: &str) {
+        if self.ser {
+            // if we're serializing, we need to store the URL in the opts
+            self.opts.push(AppOptions::URL(url.to_string()));
+        }
         self.url = String::from(url.trim());
         self.curl.url(url).unwrap();
     }
@@ -377,13 +306,22 @@ impl Curl {
     }
 
     pub fn set_cookie_path(&mut self, path: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::CookieJar(path.to_string()));
+        }
         self.curl.cookie_file(path).unwrap();
     }
 
     pub fn set_cookie_jar(&mut self, path: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::CookieJar(path.to_string()));
+        }
         self.curl.cookie_jar(path).unwrap();
     }
     pub fn reset_cookie_session(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::NewCookieSession);
+        }
         self.curl.cookie_session(true).unwrap();
     }
 
@@ -391,24 +329,13 @@ impl Curl {
         self.upload_file.clone()
     }
 
-    pub fn execute(
-        &mut self,
-        mut db: Option<Box<&mut DB>>,
-        opts: &[AppOptions],
-    ) -> Result<(), String> {
+    #[rustfmt::skip]
+    pub fn execute(&mut self, mut db: Option<Box<&mut DB>>) -> Result<(), String> {
         let mut list = List::new();
-        self.opts = opts.to_vec();
         curl::init();
-        // if it's a PUT method, we have to set the method again after setting the request body,
-        // else the curl lib will default it to POST again
-        if self.method == Some(Method::Put)
-            && self.opts.iter().any(|x| {
-                std::mem::discriminant(x)
-                    == std::mem::discriminant(&AppOptions::RequestBody("".to_string()))
-            })
-        {
-            self.curl.put(true).unwrap();
-        }
+        // we do this again because if it's a patch | put and there's a
+        // body, it will default to post
+        self.apply_method(); 
         let mut has_headers = self.handle_auth_exec(&mut list);
         if let Some(ref headers) = self.headers {
             headers
@@ -484,6 +411,9 @@ impl Curl {
     }
 
     pub fn set_auth(&mut self, auth: AuthKind) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(auth.clone()));
+        }
         match auth {
             AuthKind::Basic(ref info) => self.set_basic_auth(info),
             AuthKind::Ntlm => self.set_ntlm_auth(),
@@ -503,55 +433,59 @@ impl Curl {
             Method::Patch => self.set_patch_method(),
             Method::Delete => self.set_delete_method(),
             Method::Head => self.set_head_method(),
-            _ => {}
         }
     }
 
     pub fn set_cert_info(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::CertInfo);
+        }
         self.curl.certinfo(opt).unwrap();
     }
 
     pub fn set_referrer(&mut self, referrer: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Referrer(String::from(referrer)));
+        }
         self.curl.referer(referrer).unwrap();
     }
 
     pub fn set_proxy_tunnel(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::ProxyTunnel);
+        }
         self.curl.http_proxy_tunnel(opt).unwrap();
     }
 
     pub fn set_verbose(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::Verbose);
+        }
         self.curl.verbose(opt).unwrap();
     }
 
     pub fn set_fail_on_error(&mut self, fail: bool) {
+        if self.ser {
+        self.opts.push(AppOptions::FailOnError);
+        }
         self.curl.fail_on_error(fail).unwrap();
     }
 
     pub fn set_unix_socket(&mut self, socket: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::UnixSocket(String::from(socket)));
+        }
         self.curl.unix_socket(socket).unwrap();
     }
 
-    pub fn enable_progress_bar(&mut self, on: bool) {
-        self.curl.progress(on).unwrap();
-    }
-
-    pub fn set_content_header(&mut self, kind: HeaderKind) {
-        if kind == HeaderKind::None && self.headers.is_some() {
-            self.headers
-                .as_mut()
-                .unwrap()
-                .retain(|x| !x.contains("application/json"));
+    pub fn set_content_header(&mut self, kind: &HeaderKind) {
+        if self.ser {
+            self.opts.push(AppOptions::ContentHeaders(kind.clone()));
         }
-        let header_value = match kind {
-            HeaderKind::Accept => "Accept: application/json",
-            HeaderKind::ContentType => "Content-Type: application/json",
-            HeaderKind::None => "",
-        };
-
         if let Some(ref mut headers) = self.headers {
-            headers.push(String::from(header_value));
+            headers.push(kind.to_string());
         } else {
-            self.headers = Some(vec![String::from(header_value)]);
+            self.headers = Some(vec![kind.to_string()]);
         }
     }
 
@@ -560,6 +494,9 @@ impl Curl {
     }
 
     pub fn add_headers(&mut self, headers: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Headers(headers.to_string()));
+        }
         if self.headers.is_some() {
             self.headers.as_mut().unwrap().push(headers.to_string());
         } else {
@@ -584,52 +521,82 @@ impl Curl {
         }
     }
     pub fn match_wildcard(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::MatchWildcard);
+        }
         self.curl.wildcard_match(opt).unwrap();
     }
 
     pub fn set_unrestricted_auth(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::UnrestrictedAuth);
+        }
         self.curl.unrestricted_auth(opt).unwrap();
     }
 
     pub fn set_user_agent(&mut self, ua: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::UserAgent(ua.to_string()));
+        }
         self.curl.useragent(ua).unwrap();
     }
 
     pub fn set_max_redirects(&mut self, redirects: usize) {
+        if self.ser {
+            self.opts.push(AppOptions::MaxRedirects(redirects));
+        }
         self.curl
             .max_redirections(redirects as u32)
             .unwrap_or_default();
     }
 
     pub fn set_ca_path(&mut self, ca_path: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::CaPath(ca_path.to_string()));
+        }
         self.curl.cainfo(ca_path).unwrap_or_default();
     }
 
     pub fn set_tcp_keepalive(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::TcpKeepAlive);
+        }
         self.curl.tcp_keepalive(opt).unwrap_or_default();
     }
 
     pub fn set_request_body(&mut self, body: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::RequestBody(body.to_string()));
+        }
+        self.opts.push(AppOptions::RequestBody(body.to_string()));
         self.curl
             .post_fields_copy(body.as_bytes())
             .unwrap_or_default();
     }
 
     pub fn set_follow_redirects(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::FollowRedirects);
+        }
         self.curl.follow_location(opt).unwrap_or_default();
     }
 
     pub fn add_cookie(&mut self, cookie: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::NewCookie(cookie.to_string()));
+        }
         self.curl.cookie(cookie).unwrap_or_default();
     }
 
     pub fn set_upload_file(&mut self, file: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::UploadFile(file.to_string()));
+        }
         self.upload_file = Some(file.to_string());
         self.curl.upload(true).unwrap_or_default();
     }
 
     pub fn write_output(&mut self) -> Result<(), std::io::Error> {
-        println!("{}", self.outfile.as_ref().unwrap().clone());
         match self.outfile {
             Some(ref mut outfile) => {
                 let mut file = match std::fs::File::create(outfile) {
@@ -654,6 +621,9 @@ impl Curl {
         }
     }
     pub fn enable_response_headers(&mut self, opt: bool) {
+        if self.ser {
+            self.opts.push(AppOptions::EnableHeaders);
+        }
         self.curl.show_header(opt).unwrap_or_default();
     }
 
@@ -662,58 +632,54 @@ impl Curl {
         self.save.1
     }
 
-    pub fn set_options_method(&mut self) {
-        if self.method.is_some() {
-            self.curl.reset();
-        }
-        self.method = Some(Method::Options);
-    }
-    // This is a hack because when we deseialize json from the DB, we get a curl struct with no curl::Easy
-    // field, so we have to manually add, then set the options one at a time from the opts vector.
-    // ANY time we get a command from the database to run, we have to call this method first.
-    pub fn easy_from_opts(&mut self, opts: &[AppOptions]) {
-        let url = self.url.clone();
-        self.set_url(&url);
-        if let Some(ref method) = self.method {
-            match method {
-                Method::Get => self.set_get_method(),
-                Method::Post => self.set_post_method(),
-                Method::Put => self.set_put_method(),
-                Method::Patch => self.set_patch_method(),
-                Method::Delete => self.set_delete_method(),
-                Method::Head => self.curl.nobody(true).unwrap(),
-                Method::Options => self.set_options_method(),
-            }
-        }
-        for opt in opts {
+    pub fn easy_from_opts(&mut self) {
+        self.ser = true;
+        self.build_command_string();
+        self.curl.url(&self.url).unwrap();
+        self.apply_method();
+        let opts = self.opts.clone();
+        for opt in opts.iter() {
             self.add_option(opt);
         }
     }
+
     pub fn set_any_auth(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::None));
+        }
         let _ = self.curl.http_auth(&Auth::new());
     }
 
     pub fn set_basic_auth(&mut self, login: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::Basic(login.to_string())));
+        }
         self.auth = AuthKind::Basic(String::from(login));
     }
 
     pub fn set_head_method(&mut self) {
-        if self.method.is_some() {
-            self.curl.reset();
-        }
-        self.method = Some(Method::Head);
+        self.method = Method::Head;
         self.curl.nobody(true).unwrap();
     }
 
     pub fn set_digest_auth(&mut self, login: &str) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::Digest(login.to_string())));
+        }
         self.auth = AuthKind::Digest(String::from(login));
     }
 
     pub fn set_aws_sigv4_auth(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::AwsSigv4));
+        }
         self.auth = AuthKind::AwsSigv4;
     }
 
     pub fn set_spnego_auth(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::Auth(AuthKind::Spnego));
+        }
         self.auth = AuthKind::Spnego;
     }
 
@@ -723,27 +689,27 @@ impl Curl {
     }
 
     pub fn set_get_method(&mut self) {
-        self.method = Some(Method::Get);
+        self.method = Method::Get;
         self.curl.get(true).unwrap();
     }
 
     pub fn set_post_method(&mut self) {
-        self.method = Some(Method::Post);
+        self.method = Method::Post;
         self.curl.post(true).unwrap();
     }
 
     pub fn set_put_method(&mut self) {
-        self.method = Some(Method::Put);
+        self.method = Method::Put;
         self.curl.put(true).unwrap();
     }
 
     pub fn set_patch_method(&mut self) {
-        self.method = Some(Method::Patch);
+        self.method = Method::Patch;
         self.curl.custom_request("PATCH").unwrap();
     }
 
     pub fn set_delete_method(&mut self) {
-        self.method = Some(Method::Delete);
+        self.method = Method::Delete;
         self.curl.custom_request("DELETE").unwrap();
     }
 
@@ -756,6 +722,9 @@ impl Curl {
     }
 
     pub fn show_headers(&mut self) {
+        if self.ser {
+            self.opts.push(AppOptions::EnableHeaders);
+        }
         self.curl.show_header(true).unwrap();
     }
 
@@ -798,6 +767,7 @@ impl Curl {
     }
 
     pub fn url_encode(&mut self, data: &str) {
-        self.url = self.curl.url_encode(data.as_bytes());
+        let encoded = self.curl.url_encode(data.as_bytes());
+        self.opts.push(AppOptions::RequestBody(encoded));
     }
 }

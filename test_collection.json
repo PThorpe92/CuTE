@@ -1,0 +1,40 @@
+{
+  "info": {
+    "name": "Test Collection",
+    "version": "v2.1.0",
+    "description": "This is a demo collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/"
+  },
+  "item": [
+    {
+      "id": "my-first-item",
+      "name": "My First Item",
+      "description": "This is an Item that contains a single HTTP GET request. It doesn't really do much yet!",
+      "request": {
+        "description": "This is a sample POST request",
+        "url": "https://echo.getpostman.com/post",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Host",
+            "value": "echo.getpostman.com"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "my-body-variable",
+              "value": "Something Awesome!"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

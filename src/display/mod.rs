@@ -5,27 +5,31 @@ use self::menuopts::{
     DISPLAY_OPT_COMMAND_SAVED, DISPLAY_OPT_CONTENT_HEADERS, DISPLAY_OPT_COOKIE,
     DISPLAY_OPT_COOKIE_JAR, DISPLAY_OPT_FAIL_ON_ERROR, DISPLAY_OPT_FOLLOW_REDIRECTS,
     DISPLAY_OPT_HEADERS, DISPLAY_OPT_MATCH_WILDCARD, DISPLAY_OPT_MAX_REDIRECTS,
-    DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROGRESS_BAR, DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_REFERRER,
-    DISPLAY_OPT_TCP_KEEPALIVE, DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_UNIX_SOCKET,
-    DISPLAY_OPT_UNRESTRICTED_AUTH, DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL, DISPLAY_OPT_USERAGENT,
-    DISPLAY_OPT_VERBOSE,
+    DISPLAY_OPT_OUTFILE, DISPLAY_OPT_PROXY_TUNNEL, DISPLAY_OPT_REFERRER, DISPLAY_OPT_TCP_KEEPALIVE,
+    DISPLAY_OPT_TOKEN_SAVED, DISPLAY_OPT_UNIX_SOCKET, DISPLAY_OPT_UNRESTRICTED_AUTH,
+    DISPLAY_OPT_UPLOAD, DISPLAY_OPT_URL, DISPLAY_OPT_USERAGENT, DISPLAY_OPT_VERBOSE,
 };
 use crate::request::curl::AuthKind;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum HeaderKind {
-    // TODO: This should hold value of keys
-    Accept,
-    ContentType,
+    Accept(String),
+    ContentType(String),
+    Allow(String),
+    Connection(String),
+    ContentLength(String),
     None,
 }
 impl Display for HeaderKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            HeaderKind::Accept => write!(f, "Accept: Application/json"),
-            HeaderKind::ContentType => write!(f, "Content-Type: Application/json"),
+            HeaderKind::Accept(kind) => write!(f, "Accept: {}", kind),
+            HeaderKind::ContentType(kind) => write!(f, "Content-Type: {}", kind),
             HeaderKind::None => write!(f, ""),
+            HeaderKind::Connection(con) => write!(f, "Connection: {}", con),
+            HeaderKind::ContentLength(len) => write!(f, "Content-Length: {}", len),
+            HeaderKind::Allow(allow) => write!(f, "Allow: {}", allow),
         }
     }
 }
@@ -57,7 +61,6 @@ pub enum AppOptions {
     CookiePath(String),
     EnableHeaders,
     ContentHeaders(HeaderKind),
-    ProgressBar,
     FailOnError,
     ProxyTunnel,
     CaPath(String),
@@ -95,7 +98,6 @@ impl AppOptions {
             Self::FollowRedirects => "-L".to_string(),
             Self::UnixSocket(ref socket) => format!("--unix-socket {socket}"),
             Self::MatchWildcard => "-g".to_string(),
-            Self::ProgressBar => "--progress-bar".to_string(),
             Self::Auth(ref kind) => match kind {
                 AuthKind::Basic(ref login) => {
                     format!("-u {login}")
@@ -110,8 +112,11 @@ impl AppOptions {
                 AuthKind::None => "".to_string(),
             },
             Self::ContentHeaders(ref kind) => match kind {
-                HeaderKind::Accept => "-H \"Accept: Application/json\"".to_string(),
-                HeaderKind::ContentType => "-H \"Content-Type: Application/json\"".to_string(),
+                HeaderKind::Accept(val) => format!("-H \"Accept: {}\"", val),
+                HeaderKind::ContentType(val) => format!("-H \"Content-Type: {}\"", val),
+                HeaderKind::Allow(val) => format!("-H \"Allow: {}\"", val),
+                HeaderKind::Connection(val) => format!("-H \"Connection: {}\"", val),
+                HeaderKind::ContentLength(val) => format!("-H \"Content-Length: {}\"", val),
                 HeaderKind::None => "".to_string(),
             },
             Self::UnrestrictedAuth => "--anyauth".to_string(),
@@ -123,7 +128,6 @@ impl AppOptions {
             self,
             Self::Verbose
                 | Self::EnableHeaders
-                | Self::ProgressBar
                 | Self::FailOnError
                 | Self::ProxyTunnel
                 | Self::CertInfo
@@ -134,13 +138,19 @@ impl AppOptions {
         )
     }
     pub fn should_append(&self) -> bool {
-        matches!(self, Self::Headers(_) | Self::NewCookie(_))
+        matches!(
+            self,
+            Self::Headers(_) | Self::NewCookie(_) | Self::ContentHeaders(_)
+        )
     }
     pub fn replace_value(&mut self, val: String) {
         match self {
             AppOptions::ContentHeaders(ref mut kind) => match val.as_str() {
-                "Accept" => *kind = HeaderKind::Accept,
-                "Content-Type" => *kind = HeaderKind::ContentType,
+                "Accept" => *kind = HeaderKind::Accept(val),
+                "Content-Type" => *kind = HeaderKind::ContentType(val),
+                "Allow" => *kind = HeaderKind::Allow(val),
+                "Connection" => *kind = HeaderKind::Connection(val),
+                "Content-Length" => *kind = HeaderKind::ContentLength(val),
                 _ => *kind = HeaderKind::None,
             },
             AppOptions::Headers(ref mut key) => {
@@ -201,7 +211,6 @@ impl AppOptions {
             }
             AppOptions::NewCookie(cookie) => format!("{}{}", DISPLAY_OPT_COOKIE, cookie.clone()),
             AppOptions::EnableHeaders => DISPLAY_OPT_HEADERS.to_string(),
-            AppOptions::ProgressBar => String::from(DISPLAY_OPT_PROGRESS_BAR),
             AppOptions::FailOnError => String::from(DISPLAY_OPT_FAIL_ON_ERROR),
             AppOptions::ProxyTunnel => DISPLAY_OPT_PROXY_TUNNEL.to_string(),
             AppOptions::UserAgent(ua) => format!("{}{}", DISPLAY_OPT_USERAGENT, ua),

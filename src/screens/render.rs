@@ -45,8 +45,8 @@ pub fn render(app: &mut App, frame: &mut Frame<'_>) {
             frame.render_widget(logo, centered_rect(frame.size(), ScreenArea::Bottom));
         }
         let area = centered_rect(frame.size(), ScreenArea::Bottom);
-        let opts = app.opts.clone();
-        let display_opts = handle_display_options(&opts);
+        let opts = &app.command.opts;
+        let display_opts = handle_display_options(opts);
         frame.render_widget(
             Paragraph::new(display_opts)
                 .block(
@@ -92,7 +92,7 @@ pub fn handle_screen_defaults(app: &mut App, frame: &mut Frame<'_>) {
     frame.render_stateful_widget(menu_options, area, &mut state);
     let (paragraph, title) = match app.current_screen {
         Screen::Home => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
-        Screen::SavedCommands(_) => (&SAVED_COMMANDS_PARAGRAPH, &SAVED_COMMANDS_TITLE),
+        Screen::SavedCommands { .. } => (&SAVED_COMMANDS_PARAGRAPH, &SAVED_COMMANDS_TITLE),
         Screen::Response(_) => (&DEFAULT_MENU_PARAGRAPH, &DEFAULT_MENU_TITLE),
         Screen::InputMenu(_) => (&DEFAULT_MENU_PARAGRAPH, &INPUT_MENU_TITLE),
         Screen::Authentication => (&DEFAULT_MENU_PARAGRAPH, &AUTH_MENU_TITLE),
@@ -118,7 +118,10 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
             if let Some(num) = app.selected {
                 match num {
                     0 => app.goto_screen(&Screen::Method),
-                    1 => app.goto_screen(&Screen::SavedCommands(None)),
+                    1 => app.goto_screen(&Screen::SavedCommands {
+                        id: None,
+                        opt: None,
+                    }),
                     2 => app.goto_screen(&Screen::SavedCollections(None)),
                     3 => app.goto_screen(&Screen::SavedKeys(None)),
                     _ => {}
@@ -154,8 +157,8 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
             app.set_response(&resp);
             response::handle_response_screen(app, frame, resp.to_string());
         }
-        Screen::SavedCommands(col) => {
-            saved_commands::handle_saved_commands_screen(app, frame, col);
+        Screen::SavedCommands { id, opt } => {
+            saved_commands::handle_saved_commands_screen(app, frame, id, opt);
         }
         Screen::Headers => {
             headers::handle_headers_screen(app, frame);
@@ -172,8 +175,8 @@ pub fn handle_screen(app: &mut App, frame: &mut Frame<'_>, screen: Screen) {
         Screen::SavedKeys(opt) => {
             saved_keys::handle_saved_keys_screen(app, frame, opt);
         }
-        Screen::CmdMenu(cmd) => {
-            saved_commands::handle_alert_menu(app, frame, cmd);
+        Screen::CmdMenu { id, opt } => {
+            saved_commands::handle_alert_menu(app, frame, id, opt);
         }
         Screen::CookieOptions => {
             cookies::handle_cookies_menu(app, frame);

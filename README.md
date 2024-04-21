@@ -1,5 +1,5 @@
 <div class="parent_div" style="text-align:center;">
-<img src="imgs/cute.png" class="img-rounded " align="center" />
+<img src="imgs/cute.png" class="img-rounded" align="center" />
 </div>
 
 

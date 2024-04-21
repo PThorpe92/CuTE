@@ -35,8 +35,6 @@ pub struct App<'a> {
     pub selected: Option<usize>,
     /// command (curl or wget)
     pub command: Curl,
-    /// vec of applicable options
-    pub opts: Vec<AppOptions>,
     /// Input struct for tui_input dependency
     pub input: Input,
     /// vec for user input to push into
@@ -64,18 +62,23 @@ impl<'a> Default for App<'a> {
             command: Curl::default(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
-            opts: Vec::new(),
             items: Screen::Home.get_opts(None),
             input: Input::default(),
             state: None,
             current_screen: Screen::Home,
             response: None,
-            db: Box::new(DB::new().unwrap()),
+            db: Box::new(DB::new().expect("Failed to create database")),
         }
     }
 }
 
 impl<'a> App<'a> {
+    fn new_test_db() -> Self {
+        Self {
+            db: Box::new(DB::new_test().expect("Failed to create database")),
+            ..Default::default()
+        }
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -145,11 +148,11 @@ impl<'a> App<'a> {
                 self.selected = None;
                 return;
             }
-            Screen::SavedCommands(col_name) => {
+            Screen::SavedCommands { id, .. } => {
                 self.items = self
                     .db
                     .as_ref()
-                    .get_commands(*col_name)
+                    .get_commands(*id)
                     .unwrap_or_default()
                     .iter()
                     .map(|cmd| {
@@ -188,7 +191,7 @@ impl<'a> App<'a> {
             }
             Some(
                 Screen::InputMenu(_)
-                | Screen::CmdMenu(_)
+                | Screen::CmdMenu { .. }
                 | Screen::ColMenu(_)
                 | Screen::KeysMenu(_),
             ) => self.go_back_screen(),
@@ -214,7 +217,7 @@ impl<'a> App<'a> {
     }
 
     pub fn get_request_body(&self) -> Option<String> {
-        self.opts.iter().find_map(|opt| match opt {
+        self.command.opts.iter().find_map(|opt| match opt {
             AppOptions::RequestBody(body) => Some(body.clone()),
             _ => None,
         })
@@ -285,10 +288,10 @@ impl<'a> App<'a> {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>(),
             ),
-            Screen::SavedCommands(coll_id) => Some(
+            Screen::SavedCommands { id, .. } => Some(
                 self.db
                     .as_ref()
-                    .get_commands(coll_id)
+                    .get_commands(id)
                     .unwrap_or_default()
                     .into_iter()
                     .map(|x| format!("{:?}", x))
@@ -325,9 +328,7 @@ impl<'a> App<'a> {
     }
 
     pub fn execute_command(&mut self) -> Result<(), String> {
-        let opts = &self.opts;
-        self.command
-            .execute(Some(Box::new(self.db.deref_mut())), opts.as_slice())
+        self.command.execute(Some(Box::new(self.db.deref_mut())))
     }
 
     pub fn import_postman_collection(
@@ -340,8 +341,9 @@ impl<'a> App<'a> {
         match collection {
             Ok(collection) => {
                 let name = collection.info.name.clone();
+                let description = collection.info.description.clone();
                 let cmds: Vec<SavedCommand> = collection.into();
-                self.db.add_collection(&name, cmds.as_slice())
+                self.db.add_collection(&name, &description, cmds.as_slice())
             }
             Err(e) => Err(e.into()),
         }
@@ -352,9 +354,8 @@ impl<'a> App<'a> {
         let mut command: Curl = serde_json::from_str(json)
             .map_err(|e| e.to_string())
             .unwrap();
-        let opts = &self.opts;
-        command.easy_from_opts(opts.as_slice());
-        match command.execute(None, opts.as_slice()) {
+        command.easy_from_opts();
+        match command.execute(None) {
             Ok(_) => self.set_response(&command.get_response().unwrap_or("".to_string())),
             Err(e) => self.set_response(&e),
         };
@@ -381,7 +382,7 @@ impl<'a> App<'a> {
 
     pub fn delete_item(&mut self, ind: i32) -> Result<(), rusqlite::Error> {
         match self.current_screen {
-            Screen::CmdMenu(_) => self.db.as_ref().delete_command(ind),
+            Screen::CmdMenu { .. } => self.db.as_ref().delete_command(ind),
             Screen::KeysMenu(_) => self.db.as_ref().delete_key(ind),
             Screen::ViewSavedCollections => self.db.as_ref().delete_collection(ind),
             _ => Ok(()),
@@ -390,18 +391,20 @@ impl<'a> App<'a> {
 
     pub fn remove_app_option(&mut self, opt: &AppOptions) {
         self.command.remove_option(opt);
-        self.opts
+        self.command
+            .opts
             .retain(|x| mem::discriminant(x) != mem::discriminant(opt));
     }
 
     pub fn clear_all_options(&mut self) {
-        self.opts.clear();
+        self.command.opts.clear();
         self.messages.clear();
         self.response = None;
     }
 
     fn has_app_option(&self, opt: &AppOptions) -> bool {
-        self.opts
+        self.command
+            .opts
             .iter()
             .any(|x| mem::discriminant(x) == mem::discriminant(opt))
     }
@@ -425,7 +428,7 @@ impl<'a> App<'a> {
             return;
         }
         if opt.should_toggle() {
-            self.opts.push(opt.clone());
+            self.command.opts.push(opt.clone());
             self.command.add_option(&opt);
         }
         self.redraw();
@@ -437,93 +440,27 @@ impl<'a> App<'a> {
             return;
         }
         if self.should_add_option(&opt) {
-            self.opts.push(opt.clone());
+            self.command.opts.push(opt.clone());
             self.command.add_option(&opt);
         } else {
-            self.handle_replace(opt.clone());
+            self.handle_replace(&opt);
         }
         self.selected = None;
     }
 
-    fn handle_replace(&mut self, mut opt: AppOptions) {
-        for option in self.opts.iter_mut() {
-            match option {
-                AppOptions::URL(_) => {
-                    if let AppOptions::URL(ref url) = opt {
-                        self.command.set_url(url);
-                        option.replace_value(url.clone());
-                    }
-                }
-                AppOptions::Outfile(_) => {
-                    if let AppOptions::Outfile(ref outfile) = opt {
-                        option.replace_value(outfile.clone());
-                        self.command.set_outfile(outfile);
-                    }
-                }
-                AppOptions::Response(_) => {
-                    if let AppOptions::Response(ref response) = opt {
-                        option.replace_value(opt.clone().get_value());
-                        self.command.set_response(response);
-                    }
-                }
-                AppOptions::Auth(_) => {} // This is handled by the screen
-                AppOptions::UserAgent(_) => {
-                    if let AppOptions::UserAgent(ref agent) = opt {
-                        option.replace_value(String::from(agent));
-                        self.command.set_user_agent(agent);
-                    }
-                }
-                AppOptions::Referrer(_) => {
-                    if let AppOptions::Referrer(ref referrer) = opt {
-                        option.replace_value(String::from(referrer));
-                        self.command.set_referrer(referrer);
-                    }
-                }
-                AppOptions::CookiePath(_) => {
-                    if let AppOptions::CookiePath(ref mut cookie) = opt {
-                        option.replace_value(cookie.clone());
-                        self.command.add_cookie(cookie);
-                    }
-                }
-                AppOptions::CookieJar(_) => {
-                    if let AppOptions::CookieJar(ref mut cookie) = opt {
-                        option.replace_value(cookie.clone());
-                        self.command.set_cookie_jar(cookie);
-                    }
-                }
-                AppOptions::CaPath(_) => {
-                    if let AppOptions::CaPath(ref ca_path) = opt {
-                        option.replace_value(String::from(ca_path));
-                        self.command.set_ca_path(ca_path);
-                    }
-                }
-                AppOptions::MaxRedirects(_) => {
-                    if let AppOptions::MaxRedirects(ref max_redirects) = opt {
-                        option.replace_value(max_redirects.to_string());
-                        self.command.set_max_redirects(*max_redirects);
-                    }
-                }
-                AppOptions::UnixSocket(_) => {
-                    if let AppOptions::UnixSocket(ref mut socket) = opt {
-                        option.replace_value(socket.clone());
-                        self.command.set_unix_socket(socket);
-                    }
-                }
-                AppOptions::RequestBody(_) => {
-                    if let AppOptions::RequestBody(ref mut body) = opt {
-                        option.replace_value(body.clone());
-                        self.command.set_request_body(body);
-                    }
-                }
-                _ => {}
-            }
-        }
+    fn handle_replace(&mut self, opt: &AppOptions) {
+        self.command
+            .opts
+            .retain(|option| std::mem::discriminant(option) != std::mem::discriminant(opt));
+        self.command.remove_option(opt);
+        self.command.add_option(opt);
+        self.command.opts.push(opt.clone());
     }
 }
 #[cfg(test)]
 pub mod tests {
     use super::App;
-    use crate::request::curl::AuthKind;
+    use crate::request::curl::{AuthKind, Curl};
 
     #[test]
     fn test_basic_get_method() {
@@ -561,18 +498,20 @@ pub mod tests {
         app.command.set_url(&url);
         app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
         app.add_app_option(crate::display::AppOptions::ContentHeaders(
-            crate::display::HeaderKind::ContentType,
+            crate::display::HeaderKind::ContentType("application/json".to_string()),
         ));
         app.add_app_option(crate::display::AppOptions::RequestBody(
             "hello world".to_string(),
         ));
         app.add_app_option(crate::display::AppOptions::Headers(
-            "Content-Type: Application/json".to_string(),
+            "Content-Type: application/json".to_string(),
         ));
         app.command.set_request_body("hello world");
         app.command.set_method(crate::request::curl::Method::Put);
         app.command
-            .set_content_header(crate::display::HeaderKind::ContentType);
+            .set_content_header(&crate::display::HeaderKind::ContentType(String::from(
+                "application/json",
+            )));
         let mock = server.mock("PUT", "/").create();
         let _ = app.execute_command();
         mock.expect(1)
@@ -580,15 +519,16 @@ pub mod tests {
             .match_header("Content-Type", "application/json")
             .assert();
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::ContentHeaders(
-                        crate::display::HeaderKind::ContentType
+                        crate::display::HeaderKind::ContentType("application/json".to_string())
                     ))
                 .unwrap()
                 .get_curl_flag_value(),
-            "-H \"Content-Type: Application/json\""
+            "-H \"Content-Type: application/json\""
         );
     }
     #[test]
@@ -668,7 +608,8 @@ pub mod tests {
             token.to_string(),
         )));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::Auth(AuthKind::Bearer(token.to_string())))
@@ -687,7 +628,8 @@ pub mod tests {
             user, pass
         ))));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::Auth(AuthKind::Basic(format!(
@@ -709,7 +651,8 @@ pub mod tests {
             user, pass
         ))));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x
                     == &&crate::display::AppOptions::Auth(AuthKind::Digest(format!(
@@ -726,7 +669,8 @@ pub mod tests {
         let mut app = App::default();
         app.add_app_option(crate::display::AppOptions::Auth(AuthKind::Ntlm));
         assert_eq!(
-            app.opts
+            app.command
+                .opts
                 .iter()
                 .find(|x| x == &&crate::display::AppOptions::Auth(AuthKind::Ntlm))
                 .unwrap()
@@ -771,11 +715,12 @@ pub mod tests {
             .match_header("max-redirects", "5")
             .match_body("hello world")
             .expect(1);
+        let _ = std::fs::remove_file("cookie-jar");
     }
 
     #[test]
     fn test_send_with_headers() {
-        let mut server = mockito::Server::new_with_port(12346);
+        let mut server = mockito::Server::new();
         let url = server.url();
         let mut app = App::default();
         app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
@@ -790,5 +735,71 @@ pub mod tests {
             .expect(1);
         let response = app.command.get_response();
         assert_eq!(response.unwrap(), "hello world");
+    }
+    #[test]
+    fn test_write_response_to_file() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        assert_eq!(app.command.get_url(), url);
+        app.command.set_get_method();
+        app.add_app_option(crate::display::AppOptions::Outfile(
+            "output.txt".to_string(),
+        ));
+        server.mock("GET", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        let response = app.command.get_response();
+        assert_eq!(response.unwrap(), "hello world");
+        let _ = app.command.write_output();
+        let contents = std::fs::read_to_string("output.txt").unwrap();
+        assert_eq!(contents, "hello world");
+        std::fs::remove_file("output.txt").unwrap();
+    }
+    #[test]
+    fn test_upload_file() {
+        let mut server = mockito::Server::new();
+        let mut app = App::default();
+        let file = "test.txt";
+        let _ = std::fs::write(file, "hello world");
+        let url = server.url();
+        app.command.set_url(&url);
+        app.add_app_option(crate::display::AppOptions::URL(url.to_string()));
+        app.command.set_post_method();
+        app.add_app_option(crate::display::AppOptions::RequestBody(file.to_string()));
+        let mock = server.mock("POST", "/").with_body("hello world").create();
+        let _ = app.execute_command();
+        mock.expect(1).match_body("hello world").assert();
+        std::fs::remove_file("test.txt").unwrap();
+        let _ = std::fs::remove_file("cookie-jar");
+    }
+    #[test]
+    fn test_import_postman_collection() {
+        let mut app = App::new_test_db();
+        let path = "test_collection.json";
+        let res = app.import_postman_collection(path);
+        let file = std::fs::File::open(path).unwrap();
+        let collection: crate::database::postman::PostmanCollection =
+            serde_json::from_reader(file).unwrap();
+        assert_eq!(collection.info.name.clone().as_str(), "Test Collection");
+        let cmds: Vec<crate::database::db::SavedCommand> = collection.into();
+        let db = app.db.as_ref();
+        let collections = db.get_collections().unwrap();
+        let commands = db.get_commands(None).unwrap();
+        let command = commands[0].clone();
+        let curl: Curl = serde_json::from_str(command.get_curl_json()).unwrap();
+        assert!(res.is_ok());
+        assert_eq!(collections.len(), 1);
+        assert_eq!(commands.len(), cmds.len());
+        assert_eq!(curl.get_method().to_string(), "POST");
+        assert_eq!(curl.get_url(), "https://echo.getpostman.com/post");
+        assert_eq!(
+            curl.headers,
+            Some(vec![
+                String::from("Content-Type: application/json"),
+                String::from("Host: echo.getpostman.com")
+            ])
+        );
     }
 }

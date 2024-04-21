@@ -5,7 +5,6 @@ use crate::display::menuopts::{
 };
 use crate::display::AppOptions;
 use crate::request::curl::AuthKind;
-use crate::screens::auth::AuthType;
 use crate::screens::{centered_rect, Screen};
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use std::path::Path;
@@ -28,8 +27,8 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
         InputOpt::RequestBody => Text::from("Enter a body for your request and press Enter"),
         InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
         InputOpt::Auth(auth) => match auth {
-            AuthType::Basic => Text::from(INPUT_OPT_AUTH_BASIC),
-            AuthType::Bearer => Text::from(INPUT_OPT_AUTH_BEARER),
+            AuthKind::Basic(_) => Text::from(INPUT_OPT_AUTH_BASIC),
+            AuthKind::Bearer(_) => Text::from(INPUT_OPT_AUTH_BEARER),
             _ => Text::from(INPUT_OPT_AUTH_ANY),
         },
         InputOpt::CookiePath => Text::from("Enter the path to the cookie jar file"),
@@ -46,31 +45,25 @@ pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
 pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Percentage(15), Constraint::Percentage(85)])
+        .constraints(vec![
+            Constraint::Percentage(10),
+            Constraint::Percentage(10),
+            Constraint::Percentage(80),
+        ])
+        .horizontal_margin(6)
         .split(frame.size());
-    let input_textbox = chunks[0];
-    let text_chunk = Block::default().borders(Borders::ALL).style(
-        Style::default()
-            .bg(app.config.get_bg_color())
-            .fg(Color::LightBlue)
-            .add_modifier(tui::style::Modifier::BOLD),
-    );
-    frame.render_widget(text_chunk, input_textbox);
-    let bottom_box = centered_rect(chunks[1], crate::screens::ScreenArea::Top);
+    let input_textbox = chunks[1];
+    let bottom_box = centered_rect(chunks[2], crate::screens::ScreenArea::Top);
     let prompt = get_input_prompt(opt.clone());
     frame.render_widget(
-        Paragraph::new(prompt).style(
-            Style::default()
-                .fg(Color::LightBlue)
-                .add_modifier(Modifier::BOLD),
-        ),
+        Paragraph::new(prompt).style(Style::default().add_modifier(Modifier::BOLD)),
         centered_rect(bottom_box, crate::screens::ScreenArea::Top),
     );
     let top_box = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
         .split(input_textbox);
-    let width = top_box[0].width.max(3) - 3;
+    let width = top_box[1].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
     match opt {
         InputOpt::URL => {
@@ -85,8 +78,8 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
                 url.clear();
             }
         }
-        InputOpt::Auth(kind) => {
-            if kind == AuthType::Basic || kind == AuthType::Bearer {
+        InputOpt::Auth(ref kind) => {
+            if kind.has_token() {
                 let auth = app.command.get_token();
                 if auth.is_some() && app.input.value().is_empty() && app.input.cursor() == 0 {
                     let _ = app.input.handle(InputRequest::InsertChar(' ')).is_some();
@@ -112,7 +105,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
                     String::from("Error: You have already entered a URL"),
                 ))));
             }
-            let socket = app.opts.iter().find_map(|f| {
+            let socket = app.command.opts.iter().find_map(|f| {
                 if let AppOptions::UnixSocket(s) = f {
                     Some(s)
                 } else {
@@ -127,7 +120,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             }
         }
         InputOpt::CookiePath => {
-            if let Some(cookie) = app.opts.iter().find_map(|f| {
+            if let Some(cookie) = app.command.opts.iter().find_map(|f| {
                 if let AppOptions::CookiePath(s) = f {
                     Some(s)
                 } else {
@@ -143,7 +136,7 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
             }
         }
         InputOpt::CookieJar => {
-            if let Some(cookie) = app.opts.iter().find_map(|f| {
+            if let Some(cookie) = app.command.opts.iter().find_map(|f| {
                 if let AppOptions::CookieJar(s) = f {
                     Some(s)
                 } else {
@@ -162,8 +155,8 @@ pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: In
     }
     let input = Paragraph::new(app.input.value())
         .style(match app.input_mode {
-            InputMode::Normal => Style::default().fg(app.config.get_body_color()),
-            InputMode::Editing => Style::default().fg(Color::White),
+            InputMode::Normal => Style::default().fg(Color::Blue),
+            InputMode::Editing => Style::default().fg(Color::Yellow),
         })
         .block(Block::default().borders(Borders::ALL).title("Input"));
     let (msg, style) = match app.input_mode {
@@ -266,6 +259,24 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         InputOpt::NewCookie => {
             app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieValue(message))));
         }
+        InputOpt::CmdDescription(id) => {
+            let coll_id = app
+                .db
+                .set_command_description(id, &message)
+                .unwrap_or_default();
+            app.goto_screen(&Screen::SavedCommands {
+                id: coll_id,
+                opt: Some(InputOpt::RequestError(String::from("Description Updated"))),
+            });
+        }
+        InputOpt::CollectionDescription(id) => {
+            app.db
+                .set_collection_description(id, &message)
+                .unwrap_or_default();
+            app.goto_screen(&Screen::SavedCollections(Some(InputOpt::RequestError(
+                String::from("Description Updated"),
+            ))));
+        }
         InputOpt::CookieValue(ref name) => {
             let cookie = format!("{}={};", name, message);
             app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieExpires(cookie))));
@@ -324,19 +335,50 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
             }
         }
         InputOpt::RequestBody => {
-            app.add_app_option(AppOptions::RequestBody(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(None));
+            // if the body is a path to a file, we need to read the file and set the body
+            // otherwise we just set the body
+            if Path::new(&message).exists() {
+                match std::fs::read_to_string(&message) {
+                    Ok(body) => {
+                        app.add_app_option(AppOptions::RequestBody(body));
+                        app.goto_screen(&Screen::RequestMenu(None));
+                    }
+                    Err(e) => app.goto_screen(&Screen::Error(e.to_string())),
+                }
+            } else {
+                app.add_app_option(AppOptions::RequestBody(message.clone()));
+                app.goto_screen(&Screen::RequestMenu(None));
+            }
         }
         InputOpt::ImportCollection => {
             if let Err(e) = app.import_postman_collection(&message) {
-                app.goto_screen(&Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::AlertMessage(
+                    e.to_string(),
+                ))));
             } else {
-                app.goto_screen(&Screen::Success);
+                app.goto_screen(&Screen::SavedCollections(Some(InputOpt::AlertMessage(
+                    String::from("Collection Imported"),
+                ))));
             }
         }
         InputOpt::KeyLabel(id) => match app.db.set_key_label(id, &message) {
-            Ok(_) => app.goto_screen(&Screen::SavedKeys(None)),
-            Err(e) => app.goto_screen(&Screen::Error(e.to_string())),
+            Ok(_) => app.goto_screen(&Screen::SavedKeys(Some(InputOpt::AlertMessage(
+                String::from("Label Updated"),
+            )))),
+            Err(e) => app.goto_screen(&Screen::SavedKeys(Some(InputOpt::RequestError(format!(
+                "Error: {}",
+                e
+            ))))),
+        },
+        InputOpt::CmdLabel(id) => match app.db.set_command_label(id, &message) {
+            Ok(collection_id) => app.goto_screen(&Screen::SavedCommands {
+                id: collection_id,
+                opt: Some(InputOpt::AlertMessage(String::from("Label Updated"))),
+            }),
+            Err(e) => app.goto_screen(&Screen::SavedCommands {
+                id: None,
+                opt: Some(InputOpt::RequestError(format!("Error: {}", e))),
+            }),
         },
         InputOpt::Auth(auth) => {
             parse_auth(auth, app, &message);
@@ -345,7 +387,7 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     }
 }
 
-pub fn render_input_with_prompt(frame: &mut Frame<'_>, prompt: Text) {
+pub fn render_input_with_prompt<'a, T: Into<Text<'a>>>(frame: &mut Frame<'_>, prompt: T) {
     // Render the input with the provided prompt
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -372,21 +414,23 @@ fn validate_path(path: &str) -> bool {
     Path::new(path).exists()
 }
 
-fn parse_auth(auth: AuthType, app: &mut App, message: &str) {
+fn parse_auth(auth: AuthKind, app: &mut App, message: &str) {
     app.command.set_auth(match auth {
-        AuthType::Basic => AuthKind::Basic(String::from(message)),
-        AuthType::Bearer => AuthKind::Bearer(String::from(message)),
-        AuthType::Digest => AuthKind::Digest(String::from(message)),
+        AuthKind::Basic(_) => AuthKind::Basic(String::from(message)),
+        AuthKind::Bearer(_) => AuthKind::Bearer(String::from(message)),
+        AuthKind::Digest(_) => AuthKind::Digest(String::from(message)),
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     });
     if app.command.has_auth() {
-        app.opts.retain(|x| !matches!(x, AppOptions::Auth(_)));
+        app.command
+            .opts
+            .retain(|x| !matches!(x, AppOptions::Auth(_)));
     }
-    app.opts.push(AppOptions::Auth(match auth {
-        AuthType::Basic => AuthKind::Basic(String::from(message)),
-        AuthType::Bearer => AuthKind::Bearer(String::from(message)),
-        AuthType::Digest => AuthKind::Digest(String::from(message)),
+    app.command.opts.push(AppOptions::Auth(match auth {
+        AuthKind::Basic(_) => AuthKind::Basic(String::from(message)),
+        AuthKind::Bearer(_) => AuthKind::Bearer(String::from(message)),
+        AuthKind::Digest(_) => AuthKind::Digest(String::from(message)),
         // above are the only auth options that would ever send us here
         _ => AuthKind::None,
     }));

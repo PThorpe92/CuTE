@@ -1,5 +1,4 @@
-use crate::request::curl::Method;
-use crate::screens::auth::AuthType;
+use crate::request::curl::{AuthKind, Method};
 use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -10,7 +9,7 @@ pub enum InputOpt {
     Output,
     Verbose,
     RequestBody,
-    Auth(AuthType),
+    Auth(AuthKind),
     VerifyPeer,
     Referrer,
     Execute,
@@ -27,11 +26,14 @@ pub enum InputOpt {
     CaPath,
     CaCert,
     KeyLabel(i32),
+    CmdLabel(i32),
+    CmdDescription(i32),
+    CollectionDescription(i32),
     ImportCollection,
     RenameCollection(i32),
     RequestError(String),
+    AlertMessage(String),
     Method(Method),
-    NewProtoFile,
 }
 
 impl InputOpt {
@@ -70,7 +72,10 @@ impl Display for InputOpt {
             InputOpt::RequestError(ref err) => write!(f, "| Error: {}", err),
             InputOpt::Method(method) => write!(f, "| Method: {}", method),
             InputOpt::CookieJar => write!(f, "| Cookie Jar"),
-            InputOpt::NewProtoFile => write!(f, "| New Proto File"),
+            InputOpt::AlertMessage(msg) => write!(f, "| Alert: {}", msg),
+            InputOpt::CmdLabel(_) => write!(f, "| Command Label"),
+            InputOpt::CmdDescription(_) => write!(f, "| Command Description"),
+            InputOpt::CollectionDescription(_) => write!(f, "| Collection Description"),
         }
     }
 }

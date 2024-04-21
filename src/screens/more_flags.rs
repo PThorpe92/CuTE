@@ -24,16 +24,14 @@ pub fn handle_more_flags_screen(app: &mut App, frame: &mut Frame<'_>) {
         Some(6) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CaPath))),
         // Request certificate info
         Some(7) => app.add_app_option(AppOptions::CertInfo),
-        // add progress bar
-        Some(8) => app.add_app_option(AppOptions::ProgressBar),
         // fail on error
-        Some(9) => app.add_app_option(AppOptions::FailOnError),
+        Some(8) => app.add_app_option(AppOptions::FailOnError),
         // wildcard match
-        Some(10) => app.add_app_option(AppOptions::MatchWildcard),
+        Some(9) => app.add_app_option(AppOptions::MatchWildcard),
         // user agent
-        Some(11) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::UserAgent))),
+        Some(10) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::UserAgent))),
         // enable tcp keepalive
-        Some(12) => app.add_app_option(AppOptions::TcpKeepAlive),
+        Some(11) => app.add_app_option(AppOptions::TcpKeepAlive),
         _ => {}
     }
 }

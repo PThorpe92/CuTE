@@ -9,21 +9,6 @@ use std::fmt::{Display, Formatter};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListItem};
 
-// TODO: Impl a trait for the screen to load the correct options,
-// render the correct menu + styles and handle input
-#[derive(Debug, PartialEq, Clone)]
-pub enum ScreenLayout {
-    BasicMenu,    // cursor + items. Input on top, options below
-    SelectedItem, // alert menu w/ options about a selected item
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct AppScreen {
-    layout: ScreenLayout,
-    screen: Screen,
-    items: Option<Vec<String>>,
-}
-
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum Screen {
     #[default]
@@ -40,12 +25,18 @@ pub enum Screen {
     SavedKeys(Option<InputOpt>),
     ColMenu(i32),
     // takes optional collection id
-    SavedCommands(Option<i32>),
+    SavedCommands {
+        id: Option<i32>,
+        opt: Option<InputOpt>,
+    },
     Error(String),
     ViewBody,
     MoreFlags,
     Headers,
-    CmdMenu(i32),
+    CmdMenu {
+        id: i32,
+        opt: Option<InputOpt>,
+    },
     KeysMenu(usize),
     RequestBodyInput,
     CookieOptions,
@@ -59,6 +50,7 @@ impl Screen {
             Screen::SavedKeys(opt) => opt.is_some(),
             Screen::RequestBodyInput => true,
             Screen::SavedCollections(opt) => opt.is_some(),
+            Screen::CmdMenu { opt, .. } => opt.is_some(),
             _ => false,
         }
     }
@@ -76,12 +68,12 @@ impl Display for Screen {
             Screen::Authentication => "Authentication",
             Screen::Success => "Success",
             Screen::SavedKeys(_) => "Saved Keys",
-            Screen::SavedCommands(_) => "My Saved Commands",
+            Screen::SavedCommands { .. } => "My Saved Commands",
             Screen::Error(_) => "Error",
             Screen::ViewBody => "ViewBody",
             Screen::MoreFlags => "MoreFlags",
             Screen::Headers => "Headers",
-            Screen::CmdMenu(_) => "CmdMenu",
+            Screen::CmdMenu { .. } => "CmdMenu",
             Screen::KeysMenu(_) => "KeysMenu",
             Screen::RequestBodyInput => "RequestBodyInput",
             Screen::SavedCollections(_) => "Saved Collections",
@@ -136,7 +128,7 @@ impl<'a> Screen {
                     .map(ListItem::new)
                     .collect()
             }
-            Screen::SavedCommands(_) => {
+            Screen::SavedCommands { .. } => {
                 let len = REQUEST_MENU_OPTIONS.len();
                 items
                     .unwrap_or(vec!["No Saved Commands".to_string()])
@@ -177,7 +169,7 @@ impl<'a> Screen {
             Screen::RequestBodyInput => {
                 vec![ListItem::new("Request Body Input").style(Style::default().fg(Color::Green))]
             }
-            Screen::CmdMenu(_) => CMD_MENU_OPTIONS
+            Screen::CmdMenu { .. } => CMD_MENU_OPTIONS
                 .iter()
                 .map(|i| ListItem::new(format!("{i}{}", NEWLINE)))
                 .collect(),
