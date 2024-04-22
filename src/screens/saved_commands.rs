@@ -85,7 +85,7 @@ pub fn handle_alert_menu(app: &mut App, frame: &mut Frame<'_>, cmd: i32, opt: Op
         .split(frame.size());
     let options_box = layout[1].inner(&Margin {
         vertical: 1,
-        horizontal: 25,
+        horizontal: 15,
     });
     let mut list_state = ListState::with_selected(ListState::default(), Some(app.cursor));
     app.state = Some(list_state.clone());

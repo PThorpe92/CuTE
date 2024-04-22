@@ -1,15 +1,14 @@
 use crate::app::App;
 use crate::display::menuopts::{
-    CERT_ERROR, HEADER_ERROR, INPUT_OPT_AUTH_ANY, INPUT_OPT_AUTH_BASIC, INPUT_OPT_AUTH_BEARER,
-    INPUT_OPT_BASIC, INPUT_OPT_HEADERS, PARSE_INT_ERROR, SOCKET_ERROR, UPLOAD_FILEPATH_ERROR,
+    CERT_ERROR, HEADER_ERROR, PARSE_INT_ERROR, SOCKET_ERROR, UPLOAD_FILEPATH_ERROR,
 };
 use crate::display::AppOptions;
 use crate::request::curl::AuthKind;
-use crate::screens::{centered_rect, Screen};
+use crate::screens::Screen;
 use crate::{app::InputMode, display::inputopt::InputOpt};
 use std::path::Path;
 use tui::prelude::Line;
-use tui::style::{Color, Modifier};
+use tui::style::Color;
 use tui::widgets::Paragraph;
 use tui::widgets::{Block, Borders};
 use tui::{
@@ -20,50 +19,22 @@ use tui::{
 };
 use tui_input::InputRequest;
 
-// Takes the current option and returns a prompt for that screen
-pub fn get_input_prompt(opt: InputOpt) -> Text<'static> {
-    match opt {
-        InputOpt::URL => Text::from(Line::from("Enter a URL for your request and press Enter")),
-        InputOpt::RequestBody => Text::from("Enter a body for your request and press Enter"),
-        InputOpt::Headers => Text::from(Line::from(INPUT_OPT_HEADERS)),
-        InputOpt::Auth(auth) => match auth {
-            AuthKind::Basic(_) => Text::from(INPUT_OPT_AUTH_BASIC),
-            AuthKind::Bearer(_) => Text::from(INPUT_OPT_AUTH_BEARER),
-            _ => Text::from(INPUT_OPT_AUTH_ANY),
-        },
-        InputOpt::CookiePath => Text::from("Enter the path to the cookie jar file"),
-        InputOpt::NewCookie => Text::from("Enter the name of the cookie"),
-        InputOpt::CookieValue(ref name) => Text::from(format!("Enter the value for {}", name)),
-        InputOpt::CookieExpires(_) => {
-            Text::from("Enter the (optional) expiration date for the cookie")
-        }
-        InputOpt::ImportCollection => Text::from("Enter the path to the collection file.json"),
-        _ => Text::from(INPUT_OPT_BASIC),
-    }
-}
-
 pub fn handle_default_input_screen(app: &mut App, frame: &mut Frame<'_>, opt: InputOpt) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
-            Constraint::Percentage(10),
-            Constraint::Percentage(10),
-            Constraint::Percentage(80),
+            Constraint::Percentage(13),
+            Constraint::Percentage(9),
+            Constraint::Percentage(78),
         ])
         .horizontal_margin(6)
         .split(frame.size());
-    let input_textbox = chunks[1];
-    let bottom_box = centered_rect(chunks[2], crate::screens::ScreenArea::Top);
-    let prompt = get_input_prompt(opt.clone());
-    frame.render_widget(
-        Paragraph::new(prompt).style(Style::default().add_modifier(Modifier::BOLD)),
-        centered_rect(bottom_box, crate::screens::ScreenArea::Top),
-    );
+    // prompt needs to be _directly_ below the input box
     let top_box = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
-        .split(input_textbox);
-    let width = top_box[1].width.max(3) - 3;
+        .split(chunks[1]);
+    let width = top_box[0].width.max(3) - 3;
     let scroll = app.input.visual_scroll(width as usize);
     match opt {
         InputOpt::URL => {
@@ -213,18 +184,15 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
     match opt {
         InputOpt::URL => {
             app.add_app_option(AppOptions::URL(message));
-            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::ApiKey => {
             let _ = app.db.as_ref().add_key(&message);
-            app.goto_screen(&Screen::SavedKeys(None));
         }
         InputOpt::UnixSocket => {
             if let Err(e) = is_valid_unix_socket_path(&message) {
                 app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(e))));
             } else {
                 app.add_app_option(AppOptions::UnixSocket(message.clone()));
-                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::Headers => {
@@ -234,27 +202,22 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 ))));
             } else {
                 app.add_app_option(AppOptions::Headers(message.clone()));
-                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::RenameCollection(ref id) => {
             if app.db.as_ref().rename_collection(*id, &message).is_ok() {
-                app.goto_screen(&Screen::SavedCollections(None));
             } else {
                 app.goto_screen(&Screen::Error("Failed to rename collection".to_string()));
             }
         }
         InputOpt::Output => {
             app.add_app_option(AppOptions::Outfile(message));
-            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::CookiePath => {
             app.add_app_option(AppOptions::CookiePath(message));
-            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::CookieJar => {
             app.add_app_option(AppOptions::CookieJar(message));
-            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::NewCookie => {
             app.goto_screen(&Screen::RequestMenu(Some(InputOpt::CookieValue(message))));
@@ -284,11 +247,9 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
         InputOpt::CookieExpires(ref cookie) => {
             let cookie = format!("{} {}", cookie, message);
             app.add_app_option(AppOptions::NewCookie(cookie));
-            app.goto_screen(&Screen::RequestMenu(None))
         }
         InputOpt::Referrer => {
             app.add_app_option(AppOptions::Referrer(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::CaPath => {
             if !validate_path(&message) {
@@ -297,17 +258,14 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 ))));
             } else {
                 app.add_app_option(AppOptions::CaPath(message.clone()));
-                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::UserAgent => {
             app.add_app_option(AppOptions::UserAgent(message.clone()));
-            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::MaxRedirects => {
             if let Ok(num) = message.parse::<usize>() {
                 app.add_app_option(AppOptions::MaxRedirects(num));
-                app.goto_screen(&Screen::RequestMenu(None));
             } else {
                 app.goto_screen(&Screen::RequestMenu(Some(InputOpt::RequestError(
                     String::from(PARSE_INT_ERROR),
@@ -321,13 +279,12 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 ))));
             }
             app.add_app_option(AppOptions::UploadFile(message));
-            app.goto_screen(&Screen::RequestMenu(None));
         }
         InputOpt::Execute => {
             // This means they have executed the HTTP Request, and want to write to a file
             app.command.set_outfile(&message);
             if let Err(e) = app.command.write_output() {
-                app.goto_screen(&Screen::Error(e.to_string()));
+                app.goto_screen(&Screen::Response(e.to_string()));
             } else {
                 app.goto_screen(&Screen::Response(String::from(
                     app.response.as_ref().unwrap_or(&String::new()).as_str(),
@@ -341,13 +298,13 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 match std::fs::read_to_string(&message) {
                     Ok(body) => {
                         app.add_app_option(AppOptions::RequestBody(body));
-                        app.goto_screen(&Screen::RequestMenu(None));
                     }
-                    Err(e) => app.goto_screen(&Screen::Error(e.to_string())),
+                    Err(e) => app.goto_screen(&Screen::RequestMenu(Some(InputOpt::AlertMessage(
+                        e.to_string(),
+                    )))),
                 }
             } else {
                 app.add_app_option(AppOptions::RequestBody(message.clone()));
-                app.goto_screen(&Screen::RequestMenu(None));
             }
         }
         InputOpt::ImportCollection => {
@@ -380,11 +337,12 @@ pub fn parse_input(message: String, opt: InputOpt, app: &mut App) {
                 opt: Some(InputOpt::RequestError(format!("Error: {}", e))),
             }),
         },
-        InputOpt::Auth(auth) => {
+        InputOpt::Auth(ref auth) => {
             parse_auth(auth, app, &message);
         }
         _ => {}
     }
+    app.goto_screen(&opt.get_return_screen());
 }
 
 pub fn render_input_with_prompt<'a, T: Into<Text<'a>>>(frame: &mut Frame<'_>, prompt: T) {
@@ -414,7 +372,7 @@ fn validate_path(path: &str) -> bool {
     Path::new(path).exists()
 }
 
-fn parse_auth(auth: AuthKind, app: &mut App, message: &str) {
+fn parse_auth(auth: &AuthKind, app: &mut App, message: &str) {
     app.command.set_auth(match auth {
         AuthKind::Basic(_) => AuthKind::Basic(String::from(message)),
         AuthKind::Bearer(_) => AuthKind::Bearer(String::from(message)),

@@ -33,7 +33,7 @@ pub struct App<'a> {
     pub screen_stack: Vec<Screen>,
     /// index of selected item
     pub selected: Option<usize>,
-    /// command (curl or wget)
+    /// command curl
     pub command: Curl,
     /// Input struct for tui_input dependency
     pub input: Input,
@@ -410,6 +410,15 @@ impl<'a> App<'a> {
     }
 
     fn should_add_option(&self, opt: &AppOptions) -> bool {
+        if let AppOptions::ContentHeaders(headers) = opt {
+            return !self.command.opts.iter().any(|x| {
+                if let AppOptions::ContentHeaders(h) = x {
+                    h == headers
+                } else {
+                    false
+                }
+            });
+        }
         match opt {
             opt if opt.should_append() => true,
             _ => !self.has_app_option(opt),
