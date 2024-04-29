@@ -568,6 +568,9 @@ impl Curl {
         if self.ser {
             self.opts.push(AppOptions::RequestBody(body.to_string()));
         }
+        if self.opts.iter().any(|x| std::mem::discriminant(x) == std::mem::discriminant(&AppOptions::RequestBody(body.to_string()))) {
+            self.opts.retain(|x| std::mem::discriminant(x) != std::mem::discriminant(&AppOptions::RequestBody(body.to_string())));
+        }
         self.opts.push(AppOptions::RequestBody(body.to_string()));
         self.curl
             .post_fields_copy(body.as_bytes())

@@ -73,6 +73,7 @@ impl<'a> Default for App<'a> {
 }
 
 impl<'a> App<'a> {
+    #[allow(dead_code)]
     fn new_test_db() -> Self {
         Self {
             db: Box::new(DB::new_test().expect("Failed to create database")),
