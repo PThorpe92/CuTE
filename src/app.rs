@@ -73,6 +73,7 @@ impl<'a> Default for App<'a> {
 }
 
 impl<'a> App<'a> {
+    #[allow(dead_code)]
     fn new_test_db() -> Self {
         Self {
             db: Box::new(DB::new_test().expect("Failed to create database")),
@@ -351,14 +352,17 @@ impl<'a> App<'a> {
 
     // Takes an array index of the selected item
     pub fn execute_saved_command(&mut self, json: &str) {
-        let mut command: Curl = serde_json::from_str(json)
-            .map_err(|e| e.to_string())
-            .unwrap();
-        command.easy_from_opts();
-        match command.execute(None) {
-            Ok(_) => self.set_response(&command.get_response().unwrap_or("".to_string())),
+        let command: Result<Curl, String> = serde_json::from_str(json).map_err(|e| e.to_string());
+        match command {
+            Ok(mut cmd) => {
+                cmd.easy_from_opts();
+                match cmd.execute(None) {
+                    Ok(_) => self.set_response(&cmd.get_response().unwrap_or("".to_string())),
+                    Err(e) => self.set_response(&e),
+                };
+            }
             Err(e) => self.set_response(&e),
-        };
+        }
     }
 
     pub fn copy_to_clipboard(&self, opt: &str) -> Result<(), String> {
