@@ -22,17 +22,17 @@ tui = { package = "ratatui", features = [
 tui-input = "0.8.0"
 tui-widget-list = "0.8.2"
 rusqlite = { version = "0.31.0", features = ["bundled"] }
-serde_json = { version = "1.0.114", features = ["std"] }
-serde = { version = "1.0.196", features = ["derive"] }
-mockito = "1.2.0"
-regex = "1.10.3"
+serde_json = { version = "1.0.118", features = ["std"] }
+serde = { version = "1.0.203", features = ["derive"] }
+mockito = "1.4.0"
+regex = "1.10.5"
 curl = { version = "0.4.46", features = ["http2", "ntlm"] }
 dirs = "5.0.1"
 http = "1.1.0"
-toml = "0.8.12"
-arboard = "3.3.2"
+toml = "0.8.14"
+arboard = "3.4.0"
 log = "0.4.21"
-clap = "4.5.3"
+clap = "4.5.7"
 
 [profile.release]
 strip = "debuginfo"

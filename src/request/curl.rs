@@ -8,7 +8,6 @@ use std::{
     fmt::{Display, Formatter},
     io::{Read, Write},
     str::FromStr,
-    u8,
 };
 impl DerefMut for CurlHandler {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -129,7 +128,7 @@ impl Clone for Curl {
         }
         if self.cmd != CURL {
             // our cmd string has been built
-            curl.cmd = self.cmd.clone();
+            curl.cmd.clone_from(&self.cmd);
         }
         Self {
             curl: CurlHandler::default(),
